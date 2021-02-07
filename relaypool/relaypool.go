@@ -3,6 +3,7 @@ package relaypool
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/fiatjaf/go-nostr/event"
@@ -41,13 +42,13 @@ type EventMessage struct {
 
 func (em *EventMessage) UnmarshalJSON(b []byte) error {
 	var temp []json.RawMessage
-	if err := json.Unmarshal(b, temp); err != nil {
+	if err := json.Unmarshal(b, &temp); err != nil {
 		return err
 	}
 	if len(temp) < 2 {
 		return errors.New("message is not an array of 2 or more")
 	}
-	if err := json.Unmarshal(temp[0], em.Event); err != nil {
+	if err := json.Unmarshal(temp[0], &em.Event); err != nil {
 		return err
 	}
 	var context string
@@ -65,7 +66,7 @@ type NoticeMessage struct {
 
 func (nm *NoticeMessage) UnmarshalJSON(b []byte) error {
 	var temp []json.RawMessage
-	if err := json.Unmarshal(b, temp); err != nil {
+	if err := json.Unmarshal(b, &temp); err != nil {
 		return err
 	}
 	if len(temp) < 2 {
@@ -98,29 +99,25 @@ func New() *RelayPool {
 
 // Add adds a new relay to the pool, if policy is nil, it will be a simple
 // read+write policy.
-func (r *RelayPool) Add(url string, policy *Policy) {
+func (r *RelayPool) Add(url string, policy *Policy) error {
 	if policy == nil {
 		policy = &Policy{SimplePolicy: SimplePolicy{Read: true, Write: true}}
 	}
 
 	nm := nostrutils.NormalizeURL(url)
 	if nm == "" {
-		return
+		return fmt.Errorf("invalid relay URL '%s'", url)
+	}
+
+	conn, _, err := websocket.DefaultDialer.Dial(nostrutils.WebsocketURL(url), nil)
+	if err != nil {
+		return fmt.Errorf("error opening websocket to '%s': %w", nm, err)
 	}
 
 	r.Relays[nm] = *policy
-	conn, _, err := websocket.DefaultDialer.Dial(nostrutils.WebsocketURL(url), nil)
-	if err != nil {
-		return
-	}
-
-	defer r.Remove(nm)
-	done := make(chan struct{})
-
 	r.websockets[nm] = conn
 
 	go func() {
-		defer close(done)
 		for {
 			typ, message, err := conn.ReadMessage()
 			if err != nil {
@@ -135,23 +132,25 @@ func (r *RelayPool) Add(url string, policy *Policy) {
 				continue
 			}
 
-			var noticeMessage *NoticeMessage
-			var eventMessage *EventMessage
-			err = json.Unmarshal(message, eventMessage)
+			var noticeMessage NoticeMessage
+			var eventMessage EventMessage
+			err = json.Unmarshal(message, &eventMessage)
 			if err == nil {
 				eventMessage.Relay = nm
-				r.Events <- eventMessage
+				r.Events <- &eventMessage
 			} else {
-				err = json.Unmarshal(message, noticeMessage)
+				err = json.Unmarshal(message, &noticeMessage)
 				if err == nil {
 					noticeMessage.Relay = nm
-					r.Notices <- noticeMessage
+					r.Notices <- &noticeMessage
 				} else {
 					continue
 				}
 			}
 		}
 	}()
+
+	return nil
 }
 
 // Remove removes a relay from the pool.
@@ -191,8 +190,11 @@ func (r *RelayPool) ReqFeed(opts map[string]interface{}) {
 		sopts = string(jopts)
 	}
 
-	for _, conn := range r.websockets {
-		conn.WriteMessage(websocket.TextMessage, []byte("req-feed:"+sopts))
+	for r, conn := range r.websockets {
+		err := conn.WriteMessage(websocket.TextMessage, []byte("req-feed:"+sopts))
+		if err != nil {
+			log.Printf("error sending req-feed to '%s': %s", r, err.Error())
+		}
 	}
 }
 
@@ -205,8 +207,11 @@ func (r *RelayPool) ReqEvent(id string, opts map[string]interface{}) {
 	jopts, _ := json.Marshal(opts)
 	sopts := string(jopts)
 
-	for _, conn := range r.websockets {
-		conn.WriteMessage(websocket.TextMessage, []byte("req-event:"+sopts))
+	for r, conn := range r.websockets {
+		err := conn.WriteMessage(websocket.TextMessage, []byte("req-event:"+sopts))
+		if err != nil {
+			log.Printf("error sending req-event to '%s': %s", r, err.Error())
+		}
 	}
 }
 
@@ -219,25 +224,33 @@ func (r *RelayPool) ReqKey(key string, opts map[string]interface{}) {
 	jopts, _ := json.Marshal(opts)
 	sopts := string(jopts)
 
-	for _, conn := range r.websockets {
-		conn.WriteMessage(websocket.TextMessage, []byte("req-key:"+sopts))
+	for r, conn := range r.websockets {
+		err := conn.WriteMessage(websocket.TextMessage, []byte("req-key:"+sopts))
+		if err != nil {
+			log.Printf("error sending req-key to '%s': %s", r, err.Error())
+		}
 	}
 }
 
-func (r *RelayPool) PublishEvent(evt *event.Event) error {
+func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, error) {
 	if r.SecretKey == nil && evt.Sig == "" {
-		return errors.New("PublishEvent needs either a signed event to publish or to have been configured with a .SecretKey.")
+		return nil, errors.New("PublishEvent needs either a signed event to publish or to have been configured with a .SecretKey.")
 	}
 
 	if evt.Sig == "" {
-		evt.Sign(*r.SecretKey)
+		err := evt.Sign(*r.SecretKey)
+		if err != nil {
+			return nil, fmt.Errorf("Error signing event: %w", err)
+		}
 	}
 
 	jevt, _ := json.Marshal(evt)
-
-	for _, conn := range r.websockets {
-		conn.WriteMessage(websocket.TextMessage, jevt)
+	for r, conn := range r.websockets {
+		err := conn.WriteMessage(websocket.TextMessage, jevt)
+		if err != nil {
+			log.Printf("error sending event to '%s': %s", r, err.Error())
+		}
 	}
 
-	return nil
+	return evt, nil
 }

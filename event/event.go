@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	KindSetMetadata     uint8 = 0
-	KindTextNote        uint8 = 1
-	KindRecommendServer uint8 = 2
-	KindContactList     uint8 = 3
+	KindSetMetadata            uint8 = 0
+	KindTextNote               uint8 = 1
+	KindRecommendServer        uint8 = 2
+	KindContactList            uint8 = 3
+	KindEncryptedDirectMessage uint8 = 4
 )
 
 type Event struct {
@@ -130,7 +131,7 @@ func (evt Event) CheckSignature() (bool, error) {
 }
 
 // Sign signs an event with a given privateKey
-func (evt Event) Sign(privateKey string) error {
+func (evt *Event) Sign(privateKey string) error {
 	h := sha256.Sum256(evt.Serialize())
 	s, _ := new(big.Int).SetString(privateKey, 16)
 
@@ -145,6 +146,7 @@ func (evt Event) Sign(privateKey string) error {
 		return err
 	}
 
+	evt.ID = hex.EncodeToString(h[:])
 	evt.Sig = hex.EncodeToString(sig[:])
 	return nil
 }
