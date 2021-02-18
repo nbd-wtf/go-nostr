@@ -35,7 +35,7 @@ type Event struct {
 
 type Tags []Tag
 
-func (t Tags) Scan(src interface{}) error {
+func (t *Tags) Scan(src interface{}) error {
 	var jtags []byte = make([]byte, 0)
 
 	switch v := src.(type) {
@@ -47,7 +47,7 @@ func (t Tags) Scan(src interface{}) error {
 		return errors.New("couldn't scan tags, it's not a json string")
 	}
 
-	json.Unmarshal(jtags, t)
+	json.Unmarshal(jtags, &t)
 	return nil
 }
 
