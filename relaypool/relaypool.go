@@ -187,10 +187,9 @@ func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, chan PublishSt
 		}
 	}
 
-	jevt, _ := json.Marshal(evt)
 	for relay, conn := range r.websockets {
 		go func(relay string, conn *websocket.Conn) {
-			err := conn.WriteJSON([]interface{}{"EVENT", jevt})
+			err := conn.WriteJSON([]interface{}{"EVENT", evt})
 			if err != nil {
 				log.Printf("error sending event to '%s': %s", relay, err.Error())
 				status <- PublishStatus{relay, PublishStatusFailed}
