@@ -167,6 +167,7 @@ func (r *RelayPool) Sub(filter filter.EventFilter) *Subscription {
 		}
 	}
 	subscription.Events = make(chan EventMessage)
+	subscription.UniqueEvents = make(chan event.Event)
 	r.subscriptions[subscription.channel] = &subscription
 
 	subscription.Sub(&filter)
@@ -174,7 +175,7 @@ func (r *RelayPool) Sub(filter filter.EventFilter) *Subscription {
 }
 
 func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, chan PublishStatus, error) {
-	status := make(chan PublishStatus)
+	status := make(chan PublishStatus, 1)
 
 	if r.SecretKey == nil && evt.Sig == "" {
 		return nil, status, errors.New("PublishEvent needs either a signed event to publish or to have been configured with a .SecretKey.")
@@ -197,9 +198,22 @@ func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, chan PublishSt
 			status <- PublishStatus{relay, PublishStatusSent}
 
 			subscription := r.Sub(filter.EventFilter{ID: evt.ID})
-
-			time.Sleep(5 * time.Second)
+			for {
+				select {
+				case event := <-subscription.UniqueEvents:
+					if event.ID == evt.ID {
+						status <- PublishStatus{relay, PublishStatusSucceeded}
+						break
+					} else {
+						continue
+					}
+				case <-time.After(5 * time.Second):
+					break
+				}
+				break
+			}
 			subscription.Unsub()
+			close(status)
 		}(relay, conn)
 	}
 
