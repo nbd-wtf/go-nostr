@@ -5,7 +5,7 @@ import "github.com/fiatjaf/go-nostr/event"
 type EventFilter struct {
 	ID         string   `json:"id,omitempty"`
 	Author     string   `json:"author,omitempty"`
-	Kind       uint8    `json:"kind,omitempty"`
+	Kind       *uint8   `json:"kind,omitempty"`
 	Authors    []string `json:"authors,omitempty"`
 	TagEvent   string   `json:"#e,omitempty"`
 	TagProfile string   `json:"#p,omitempty"`
@@ -94,6 +94,10 @@ func (ef EventFilter) Matches(event *event.Event) bool {
 		if !found {
 			return false
 		}
+	}
+
+	if ef.Kind != nil && *ef.Kind != event.Kind {
+		return false
 	}
 
 	if ef.Since != 0 && event.CreatedAt < ef.Since {
