@@ -12,6 +12,14 @@ type Subscription struct {
 
 	filter *filter.EventFilter
 	Events chan EventMessage
+
+	started      bool
+	UniqueEvents chan event.Event
+}
+
+type EventMessage struct {
+	Event event.Event
+	Relay string
 }
 
 func (subscription Subscription) Unsub() {
@@ -21,6 +29,8 @@ func (subscription Subscription) Unsub() {
 			subscription.channel,
 		})
 	}
+
+	close(subscription.Events)
 }
 
 func (subscription Subscription) Sub(filter *filter.EventFilter) {
@@ -34,6 +44,21 @@ func (subscription Subscription) Sub(filter *filter.EventFilter) {
 			subscription.channel,
 			subscription.filter,
 		})
+	}
+
+	if subscription.started {
+		go subscription.startHandlingUnique()
+	}
+}
+
+func (subscription Subscription) startHandlingUnique() {
+	seen := make(map[string]struct{})
+	for em := range subscription.Events {
+		if _, ok := seen[em.Event.ID]; ok {
+			continue
+		}
+		seen[em.Event.ID] = struct{}{}
+		subscription.UniqueEvents <- em.Event
 	}
 }
 
@@ -54,9 +79,4 @@ func (subscription Subscription) addRelay(relay string, ws *websocket.Conn) {
 		subscription.channel,
 		subscription.filter,
 	})
-}
-
-type EventMessage struct {
-	Event event.Event
-	Relay string
 }

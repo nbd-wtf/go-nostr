@@ -153,7 +153,6 @@ func (r *RelayPool) Add(url string, policy *Policy) error {
 					}
 				}
 			}
-
 		}
 	}()
 
