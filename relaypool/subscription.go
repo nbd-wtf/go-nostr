@@ -30,7 +30,12 @@ func (subscription Subscription) Unsub() {
 		})
 	}
 
-	close(subscription.Events)
+	if subscription.Events != nil {
+		close(subscription.Events)
+	}
+	if subscription.UniqueEvents != nil {
+		close(subscription.UniqueEvents)
+	}
 }
 
 func (subscription Subscription) Sub(filter *filter.EventFilter) {
@@ -46,7 +51,7 @@ func (subscription Subscription) Sub(filter *filter.EventFilter) {
 		})
 	}
 
-	if subscription.started {
+	if !subscription.started {
 		go subscription.startHandlingUnique()
 	}
 }

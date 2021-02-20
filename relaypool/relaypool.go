@@ -40,33 +40,12 @@ type NoticeMessage struct {
 	Relay   string
 }
 
-func (nm *NoticeMessage) UnmarshalJSON(b []byte) error {
-	var temp []json.RawMessage
-	if err := json.Unmarshal(b, &temp); err != nil {
-		return err
-	}
-	if len(temp) < 2 {
-		return errors.New("message is not an array of 2 or more")
-	}
-	var tag string
-	if err := json.Unmarshal(temp[0], &tag); err != nil {
-		return err
-	}
-	if tag != "notice" {
-		return errors.New("tag is not 'notice'")
-	}
-
-	if err := json.Unmarshal(temp[1], &nm.Message); err != nil {
-		return err
-	}
-	return nil
-}
-
 // New creates a new RelayPool with no relays in it
 func New() *RelayPool {
 	return &RelayPool{
-		Relays:     make(map[string]Policy),
-		websockets: make(map[string]*websocket.Conn),
+		Relays:        make(map[string]Policy),
+		websockets:    make(map[string]*websocket.Conn),
+		subscriptions: make(map[string]*Subscription),
 
 		Notices: make(chan *NoticeMessage),
 	}
