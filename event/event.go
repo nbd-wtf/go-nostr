@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	KindSetMetadata            uint8 = 0
-	KindTextNote               uint8 = 1
-	KindRecommendServer        uint8 = 2
-	KindContactList            uint8 = 3
-	KindEncryptedDirectMessage uint8 = 4
+	KindSetMetadata            int = 0
+	KindTextNote               int = 1
+	KindRecommendServer        int = 2
+	KindContactList            int = 3
+	KindEncryptedDirectMessage int = 4
 )
 
 type Event struct {
@@ -27,7 +27,7 @@ type Event struct {
 	PubKey    string `json:"pubkey"`
 	CreatedAt uint32 `json:"created_at"`
 
-	Kind uint8 `json:"kind"`
+	Kind int `json:"kind"`
 
 	Tags    Tags   `json:"tags"`
 	Content string `json:"content"`

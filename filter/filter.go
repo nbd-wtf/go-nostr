@@ -5,7 +5,7 @@ import "github.com/fiatjaf/go-nostr/event"
 type EventFilter struct {
 	ID         string   `json:"id,omitempty"`
 	Author     string   `json:"author,omitempty"`
-	Kind       *uint8   `json:"kind,omitempty"`
+	Kind       *int     `json:"kind,omitempty"`
 	Authors    []string `json:"authors,omitempty"`
 	TagEvent   string   `json:"#e,omitempty"`
 	TagProfile string   `json:"#p,omitempty"`
