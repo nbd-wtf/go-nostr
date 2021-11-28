@@ -27,7 +27,7 @@ type Event struct {
 	PubKey    string `json:"pubkey"`
 	CreatedAt uint32 `json:"created_at"`
 
-	Kind uint8 `json:"kind"`
+	Kind int `json:"kind"`
 
 	Tags    Tags   `json:"tags"`
 	Content string `json:"content"`
