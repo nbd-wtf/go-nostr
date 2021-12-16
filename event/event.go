@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/fiatjaf/bip340"
 )
@@ -95,12 +94,9 @@ func (evt *Event) Serialize() []byte {
 // returns an error if the signature itself is invalid.
 func (evt Event) CheckSignature() (bool, error) {
 	// read and check pubkey
-	pubkeyb, err := hex.DecodeString(evt.PubKey)
+	pubkey, err := bip340.ParsePublicKey(evt.PubKey)
 	if err != nil {
-		return false, err
-	}
-	if len(pubkeyb) != 32 {
-		return false, fmt.Errorf("pubkey must be 32 bytes, not %d", len(pubkeyb))
+		return false, fmt.Errorf("Event has invalid pubkey '%s': %w", evt.PubKey, err)
 	}
 
 	// check tags
@@ -116,32 +112,28 @@ func (evt Event) CheckSignature() (bool, error) {
 		}
 	}
 
-	sig, err := hex.DecodeString(evt.Sig)
+	s, err := hex.DecodeString(evt.Sig)
 	if err != nil {
 		return false, fmt.Errorf("signature is invalid hex: %w", err)
 	}
-	if len(sig) != 64 {
-		return false, fmt.Errorf("signature must be 64 bytes, not %d", len(sig))
+	if len(s) != 64 {
+		return false, fmt.Errorf("signature must be 64 bytes, not %d", len(s))
 	}
 
-	var p [32]byte
-	copy(p[:], pubkeyb)
+	var sig [64]byte
+	copy(sig[:], s)
 
-	var s [64]byte
-	copy(s[:], sig)
-
-	h := sha256.Sum256(evt.Serialize())
-
-	return bip340.Verify(p, h, s)
+	hash := sha256.Sum256(evt.Serialize())
+	return bip340.Verify(pubkey, hash, sig)
 }
 
 // Sign signs an event with a given privateKey
 func (evt *Event) Sign(privateKey string) error {
 	h := sha256.Sum256(evt.Serialize())
-	s, _ := new(big.Int).SetString(privateKey, 16)
 
-	if s == nil {
-		return errors.New("invalid private key " + privateKey)
+	s, err := bip340.ParsePrivateKey(privateKey)
+	if err != nil {
+		return fmt.Errorf("Sign called with invalid private key '%s': %w", privateKey, err)
 	}
 
 	aux := make([]byte, 32)

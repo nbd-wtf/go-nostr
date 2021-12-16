@@ -10,8 +10,8 @@ type Subscription struct {
 	channel string
 	relays  map[string]*websocket.Conn
 
-	filter *filter.EventFilter
-	Events chan EventMessage
+	filters filter.EventFilters
+	Events  chan EventMessage
 
 	started      bool
 	UniqueEvents chan event.Event
@@ -38,17 +38,17 @@ func (subscription Subscription) Unsub() {
 	}
 }
 
-func (subscription Subscription) Sub(filter *filter.EventFilter) {
-	if filter != nil {
-		subscription.filter = filter
-	}
-
+func (subscription Subscription) Sub(filters filter.EventFilters) {
 	for _, ws := range subscription.relays {
-		ws.WriteJSON([]interface{}{
+		message := []interface{}{
 			"REQ",
 			subscription.channel,
-			subscription.filter,
-		})
+		}
+		for _, filter := range subscription.filters {
+			message = append(message, filter)
+		}
+
+		ws.WriteJSON(message)
 	}
 
 	if !subscription.started {
@@ -79,9 +79,14 @@ func (subscription Subscription) removeRelay(relay string) {
 
 func (subscription Subscription) addRelay(relay string, ws *websocket.Conn) {
 	subscription.relays[relay] = ws
-	ws.WriteJSON([]interface{}{
+
+	message := []interface{}{
 		"REQ",
 		subscription.channel,
-		subscription.filter,
-	})
+	}
+	for _, filter := range subscription.filters {
+		message = append(message, filter)
+	}
+
+	ws.WriteJSON(message)
 }

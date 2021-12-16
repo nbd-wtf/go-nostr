@@ -9,6 +9,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/fiatjaf/bip340"
 	"github.com/fiatjaf/go-nostr/event"
 	"github.com/fiatjaf/go-nostr/filter"
 	nostrutils "github.com/fiatjaf/go-nostr/utils"
@@ -121,8 +122,15 @@ func (r *RelayPool) Add(url string, policy *Policy) error {
 				if subscription, ok := r.subscriptions[channel]; ok {
 					var event event.Event
 					json.Unmarshal(jsonMessage[2], &event)
+
+					// check signature of all received events, ignore invalid
 					ok, _ := event.CheckSignature()
 					if !ok {
+						continue
+					}
+
+					// check if the event matches the desired filter, ignore otherwise
+					if !subscription.filters.Match(&event) {
 						continue
 					}
 
@@ -153,7 +161,7 @@ func (r *RelayPool) Remove(url string) {
 	delete(r.websockets, nm)
 }
 
-func (r *RelayPool) Sub(filter filter.EventFilter) *Subscription {
+func (r *RelayPool) Sub(filters filter.EventFilters) *Subscription {
 	random := make([]byte, 7)
 	rand.Read(random)
 
@@ -170,15 +178,23 @@ func (r *RelayPool) Sub(filter filter.EventFilter) *Subscription {
 	subscription.UniqueEvents = make(chan event.Event)
 	r.subscriptions[subscription.channel] = &subscription
 
-	subscription.Sub(&filter)
+	subscription.Sub(filters)
 	return &subscription
 }
 
 func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, chan PublishStatus, error) {
 	status := make(chan PublishStatus, 1)
 
-	if r.SecretKey == nil && evt.Sig == "" {
+	if r.SecretKey == nil && (evt.PubKey == "" || evt.Sig == "") {
 		return nil, status, errors.New("PublishEvent needs either a signed event to publish or to have been configured with a .SecretKey.")
+	}
+
+	if evt.PubKey == "" {
+		secretKeyN, err := bip340.ParsePrivateKey(*r.SecretKey)
+		if err != nil {
+			return nil, status, fmt.Errorf("The pool's global SecretKey is invalid: %w", err)
+		}
+		evt.PubKey = fmt.Sprintf("%x", bip340.GetPublicKey(secretKeyN))
 	}
 
 	if evt.Sig == "" {
@@ -197,7 +213,7 @@ func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, chan PublishSt
 			}
 			status <- PublishStatus{relay, PublishStatusSent}
 
-			subscription := r.Sub(filter.EventFilter{ID: evt.ID})
+			subscription := r.Sub(filter.EventFilters{{ID: evt.ID}})
 			for {
 				select {
 				case event := <-subscription.UniqueEvents:

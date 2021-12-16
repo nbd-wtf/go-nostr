@@ -2,6 +2,8 @@ package filter
 
 import "github.com/fiatjaf/go-nostr/event"
 
+type EventFilters []EventFilter
+
 type EventFilter struct {
 	ID         string   `json:"id,omitempty"`
 	Kind       *int     `json:"kind,omitempty"`
@@ -9,6 +11,16 @@ type EventFilter struct {
 	TagEvent   string   `json:"#e,omitempty"`
 	TagProfile string   `json:"#p,omitempty"`
 	Since      uint32   `json:"since,omitempty"`
+}
+
+func (eff EventFilters) Match(event *event.Event) bool {
+	for _, filter := range eff {
+		if filter.Matches(event) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (ef EventFilter) Matches(event *event.Event) bool {

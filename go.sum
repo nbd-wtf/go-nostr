@@ -14,8 +14,8 @@ github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46f
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/fiatjaf/bip340 v1.0.0 h1:mpwbm+0KC9BXB/7/pnac4e4N1TiuppyEVXxtVAXj75k=
-github.com/fiatjaf/bip340 v1.0.0/go.mod h1:MxAz+5FQUTW4OT2gnCBC6Our486wmqf72ykZIrh7+is=
+github.com/fiatjaf/bip340 v1.1.0 h1:W+CnUU3RyqgMKS2S9t/r2l3L4D+sSkRtU4la7MlVBR8=
+github.com/fiatjaf/bip340 v1.1.0/go.mod h1:MxAz+5FQUTW4OT2gnCBC6Our486wmqf72ykZIrh7+is=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
