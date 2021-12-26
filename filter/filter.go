@@ -11,6 +11,7 @@ type EventFilter struct {
 	TagEvent   string   `json:"#e,omitempty"`
 	TagProfile string   `json:"#p,omitempty"`
 	Since      uint32   `json:"since,omitempty"`
+	Until      uint32   `json:"until,omitempty"`
 }
 
 func (eff EventFilters) Match(event *event.Event) bool {
@@ -108,6 +109,50 @@ func (ef EventFilter) Matches(event *event.Event) bool {
 	}
 
 	if ef.Since != 0 && event.CreatedAt < ef.Since {
+		return false
+	}
+
+	if ef.Until != 0 && event.CreatedAt > ef.Until {
+		return false
+	}
+
+	return true
+}
+
+func Equal(a EventFilter, b EventFilter) bool {
+	if a.Kind == nil && b.Kind != nil ||
+		a.Kind != nil && b.Kind == nil ||
+		a.Kind != b.Kind {
+		return false
+	}
+
+	if a.ID != b.ID {
+		return false
+	}
+
+	if len(a.Authors) != len(b.Authors) {
+		return false
+	}
+
+	for i, _ := range a.Authors {
+		if a.Authors[i] != b.Authors[i] {
+			return false
+		}
+	}
+
+	if a.TagEvent != b.TagEvent {
+		return false
+	}
+
+	if a.TagProfile != b.TagProfile {
+		return false
+	}
+
+	if a.Since != b.Since {
+		return false
+	}
+
+	if a.Until != b.Until {
 		return false
 	}
 
