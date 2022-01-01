@@ -5,13 +5,13 @@ import "github.com/fiatjaf/go-nostr/event"
 type EventFilters []EventFilter
 
 type EventFilter struct {
-	ID         string   `json:"id,omitempty"`
-	Kind       *int     `json:"kind,omitempty"`
-	Authors    []string `json:"authors,omitempty"`
-	TagEvent   string   `json:"#e,omitempty"`
-	TagProfile string   `json:"#p,omitempty"`
-	Since      uint32   `json:"since,omitempty"`
-	Until      uint32   `json:"until,omitempty"`
+	IDs     []string `json:"ids,omitempty"`
+	Kinds   []int    `json:"kinds,omitempty"`
+	Authors []string `json:"authors,omitempty"`
+	Since   uint32   `json:"since,omitempty"`
+	Until   uint32   `json:"until,omitempty"`
+	TagE    []string `json:"#e,omitempty"`
+	TagP    []string `json:"#p,omitempty"`
 }
 
 func (eff EventFilters) Match(event *event.Event) bool {
@@ -20,7 +20,6 @@ func (eff EventFilters) Match(event *event.Event) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -29,82 +28,23 @@ func (ef EventFilter) Matches(event *event.Event) bool {
 		return false
 	}
 
-	if ef.ID != "" && ef.ID != event.ID {
+	if ef.IDs != nil && !stringsContain(ef.IDs, event.ID) {
 		return false
 	}
 
-	if ef.Authors != nil {
-		found := false
-		for _, pubkey := range ef.Authors {
-			if pubkey == event.PubKey {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
+	if ef.Kinds != nil && !intsContain(ef.Kinds, event.Kind) {
+		return false
 	}
 
-	if ef.TagEvent != "" {
-		found := false
-		for _, tag := range event.Tags {
-			if len(tag) < 2 {
-				continue
-			}
-
-			tagType, ok := tag[0].(string)
-			if !ok {
-				continue
-			}
-
-			if tagType == "e" {
-				taggedID, ok := tag[1].(string)
-				if !ok {
-					continue
-				}
-
-				if taggedID == ef.TagEvent {
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			return false
-		}
+	if ef.Authors != nil && !stringsContain(ef.Authors, event.PubKey) {
+		return false
 	}
 
-	if ef.TagProfile != "" {
-		found := false
-		for _, tag := range event.Tags {
-			if len(tag) < 2 {
-				continue
-			}
-
-			tagType, ok := tag[0].(string)
-			if !ok {
-				continue
-			}
-
-			if tagType == "p" {
-				taggedID, ok := tag[1].(string)
-				if !ok {
-					continue
-				}
-
-				if taggedID == ef.TagProfile {
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			return false
-		}
+	if ef.TagE != nil && !containsAnyTag("e", event.Tags, ef.TagE) {
+		return false
 	}
 
-	if ef.Kind != nil && *ef.Kind != event.Kind {
+	if ef.TagP != nil && !containsAnyTag("p", event.Tags, ef.TagP) {
 		return false
 	}
 
@@ -112,7 +52,7 @@ func (ef EventFilter) Matches(event *event.Event) bool {
 		return false
 	}
 
-	if ef.Until != 0 && event.CreatedAt > ef.Until {
+	if ef.Until != 0 && event.CreatedAt >= ef.Until {
 		return false
 	}
 
@@ -120,31 +60,23 @@ func (ef EventFilter) Matches(event *event.Event) bool {
 }
 
 func Equal(a EventFilter, b EventFilter) bool {
-	if a.Kind == nil && b.Kind != nil ||
-		a.Kind != nil && b.Kind == nil ||
-		a.Kind != b.Kind {
+	if !intsEqual(a.Kinds, b.Kinds) {
 		return false
 	}
 
-	if a.ID != b.ID {
+	if !stringsEqual(a.IDs, b.IDs) {
 		return false
 	}
 
-	if len(a.Authors) != len(b.Authors) {
+	if !stringsEqual(a.Authors, b.Authors) {
 		return false
 	}
 
-	for i, _ := range a.Authors {
-		if a.Authors[i] != b.Authors[i] {
-			return false
-		}
-	}
-
-	if a.TagEvent != b.TagEvent {
+	if !stringsEqual(a.TagE, b.TagE) {
 		return false
 	}
 
-	if a.TagProfile != b.TagProfile {
+	if !stringsEqual(a.TagP, b.TagP) {
 		return false
 	}
 
