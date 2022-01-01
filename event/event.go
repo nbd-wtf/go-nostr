@@ -18,6 +18,7 @@ const (
 	KindRecommendServer        int = 2
 	KindContactList            int = 3
 	KindEncryptedDirectMessage int = 4
+	KindDeletion               int = 5
 )
 
 type Event struct {
