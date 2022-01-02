@@ -1,4 +1,4 @@
-package relaypool
+package nostr
 
 import (
 	"crypto/rand"
@@ -10,23 +10,31 @@ import (
 	"time"
 
 	"github.com/fiatjaf/bip340"
-	"github.com/fiatjaf/go-nostr/event"
-	"github.com/fiatjaf/go-nostr/filter"
-	nostrutils "github.com/fiatjaf/go-nostr/utils"
 	"github.com/gorilla/websocket"
 )
+
+const (
+	PublishStatusSent      = 0
+	PublishStatusFailed    = -1
+	PublishStatusSucceeded = 1
+)
+
+type PublishStatus struct {
+	Relay  string
+	Status int
+}
 
 type RelayPool struct {
 	SecretKey *string
 
-	Relays        map[string]Policy
+	Relays        map[string]RelayPoolPolicy
 	websockets    map[string]*websocket.Conn
 	subscriptions map[string]*Subscription
 
 	Notices chan *NoticeMessage
 }
 
-type Policy struct {
+type RelayPoolPolicy struct {
 	SimplePolicy
 	ReadSpecific map[string]SimplePolicy
 }
@@ -42,9 +50,9 @@ type NoticeMessage struct {
 }
 
 // New creates a new RelayPool with no relays in it
-func New() *RelayPool {
+func NewRelayPool() *RelayPool {
 	return &RelayPool{
-		Relays:        make(map[string]Policy),
+		Relays:        make(map[string]RelayPoolPolicy),
 		websockets:    make(map[string]*websocket.Conn),
 		subscriptions: make(map[string]*Subscription),
 
@@ -54,17 +62,17 @@ func New() *RelayPool {
 
 // Add adds a new relay to the pool, if policy is nil, it will be a simple
 // read+write policy.
-func (r *RelayPool) Add(url string, policy *Policy) error {
+func (r *RelayPool) Add(url string, policy *RelayPoolPolicy) error {
 	if policy == nil {
-		policy = &Policy{SimplePolicy: SimplePolicy{Read: true, Write: true}}
+		policy = &RelayPoolPolicy{SimplePolicy: SimplePolicy{Read: true, Write: true}}
 	}
 
-	nm := nostrutils.NormalizeURL(url)
+	nm := NormalizeURL(url)
 	if nm == "" {
 		return fmt.Errorf("invalid relay URL '%s'", url)
 	}
 
-	conn, _, err := websocket.DefaultDialer.Dial(nostrutils.NormalizeURL(url), nil)
+	conn, _, err := websocket.DefaultDialer.Dial(NormalizeURL(url), nil)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", nm, err)
 	}
@@ -120,7 +128,7 @@ func (r *RelayPool) Add(url string, policy *Policy) error {
 				var channel string
 				json.Unmarshal(jsonMessage[1], &channel)
 				if subscription, ok := r.subscriptions[channel]; ok {
-					var event event.Event
+					var event Event
 					json.Unmarshal(jsonMessage[2], &event)
 
 					// check signature of all received events, ignore invalid
@@ -148,7 +156,7 @@ func (r *RelayPool) Add(url string, policy *Policy) error {
 
 // Remove removes a relay from the pool.
 func (r *RelayPool) Remove(url string) {
-	nm := nostrutils.NormalizeURL(url)
+	nm := NormalizeURL(url)
 
 	for _, sub := range r.subscriptions {
 		sub.removeRelay(nm)
@@ -161,7 +169,7 @@ func (r *RelayPool) Remove(url string) {
 	delete(r.websockets, nm)
 }
 
-func (r *RelayPool) Sub(filters filter.EventFilters) *Subscription {
+func (r *RelayPool) Sub(filters EventFilters) *Subscription {
 	random := make([]byte, 7)
 	rand.Read(random)
 
@@ -175,14 +183,14 @@ func (r *RelayPool) Sub(filters filter.EventFilters) *Subscription {
 		}
 	}
 	subscription.Events = make(chan EventMessage)
-	subscription.UniqueEvents = make(chan event.Event)
+	subscription.UniqueEvents = make(chan Event)
 	r.subscriptions[subscription.channel] = &subscription
 
 	subscription.Sub(filters)
 	return &subscription
 }
 
-func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, chan PublishStatus, error) {
+func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error) {
 	status := make(chan PublishStatus, 1)
 
 	if r.SecretKey == nil && (evt.PubKey == "" || evt.Sig == "") {
@@ -213,7 +221,7 @@ func (r *RelayPool) PublishEvent(evt *event.Event) (*event.Event, chan PublishSt
 			}
 			status <- PublishStatus{relay, PublishStatusSent}
 
-			subscription := r.Sub(filter.EventFilters{{ID: evt.ID}})
+			subscription := r.Sub(EventFilters{EventFilter{IDs: []string{evt.ID}}})
 			for {
 				select {
 				case event := <-subscription.UniqueEvents:

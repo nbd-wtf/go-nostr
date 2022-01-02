@@ -1,4 +1,4 @@
-package nostrutils
+package nostr
 
 import (
 	"net/url"

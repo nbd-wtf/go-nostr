@@ -1,8 +1,9 @@
-package filter
+package nostr
 
-import "github.com/fiatjaf/go-nostr/event"
+type StringList []string
+type IntList []int
 
-func stringsEqual(as, bs []string) bool {
+func (as StringList) Equals(bs StringList) bool {
 	if len(as) != len(bs) {
 		return false
 	}
@@ -23,7 +24,7 @@ func stringsEqual(as, bs []string) bool {
 	return true
 }
 
-func intsEqual(as, bs []int) bool {
+func (as IntList) Equals(bs IntList) bool {
 	if len(as) != len(bs) {
 		return false
 	}
@@ -44,7 +45,7 @@ func intsEqual(as, bs []int) bool {
 	return true
 }
 
-func stringsContain(haystack []string, needle string) bool {
+func (haystack StringList) Contains(needle string) bool {
 	for _, hay := range haystack {
 		if hay == needle {
 			return true
@@ -53,35 +54,11 @@ func stringsContain(haystack []string, needle string) bool {
 	return false
 }
 
-func intsContain(haystack []int, needle int) bool {
+func (haystack IntList) Contains(needle int) bool {
 	for _, hay := range haystack {
 		if hay == needle {
 			return true
 		}
 	}
-	return false
-}
-
-func containsAnyTag(tagName string, tags event.Tags, values []string) bool {
-	for _, tag := range tags {
-		if len(tag) < 2 {
-			continue
-		}
-
-		currentTagName, ok := tag[0].(string)
-		if !ok || currentTagName != tagName {
-			continue
-		}
-
-		currentTagValue, ok := tag[1].(string)
-		if !ok {
-			continue
-		}
-
-		if stringsContain(values, currentTagValue) {
-			return true
-		}
-	}
-
 	return false
 }

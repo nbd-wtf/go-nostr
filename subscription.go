@@ -1,8 +1,6 @@
-package relaypool
+package nostr
 
 import (
-	"github.com/fiatjaf/go-nostr/event"
-	"github.com/fiatjaf/go-nostr/filter"
 	"github.com/gorilla/websocket"
 )
 
@@ -10,15 +8,15 @@ type Subscription struct {
 	channel string
 	relays  map[string]*websocket.Conn
 
-	filters filter.EventFilters
+	filters EventFilters
 	Events  chan EventMessage
 
 	started      bool
-	UniqueEvents chan event.Event
+	UniqueEvents chan Event
 }
 
 type EventMessage struct {
-	Event event.Event
+	Event Event
 	Relay string
 }
 
@@ -38,7 +36,7 @@ func (subscription Subscription) Unsub() {
 	}
 }
 
-func (subscription Subscription) Sub(filters filter.EventFilters) {
+func (subscription Subscription) Sub(filters EventFilters) {
 	for _, ws := range subscription.relays {
 		message := []interface{}{
 			"REQ",

@@ -1,4 +1,4 @@
-package event
+package nostr
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/fiatjaf/bip340"
@@ -33,26 +32,6 @@ type Event struct {
 	Content string `json:"content"`
 	Sig     string `json:"sig"`
 }
-
-type Tags []Tag
-
-func (t *Tags) Scan(src interface{}) error {
-	var jtags []byte = make([]byte, 0)
-
-	switch v := src.(type) {
-	case []byte:
-		jtags = v
-	case string:
-		jtags = []byte(v)
-	default:
-		return errors.New("couldn't scan tags, it's not a json string")
-	}
-
-	json.Unmarshal(jtags, &t)
-	return nil
-}
-
-type Tag []interface{}
 
 // Serialize outputs a byte array that can be hashed/signed to identify/authenticate
 func (evt *Event) Serialize() []byte {
