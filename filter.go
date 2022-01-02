@@ -57,7 +57,7 @@ func (ef EventFilter) Matches(event *Event) bool {
 	return true
 }
 
-func Equal(a EventFilter, b EventFilter) bool {
+func FilterEqual(a EventFilter, b EventFilter) bool {
 	if !a.Kinds.Equals(b.Kinds) {
 		return false
 	}
