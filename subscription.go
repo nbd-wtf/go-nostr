@@ -36,7 +36,7 @@ func (subscription Subscription) Unsub() {
 	}
 }
 
-func (subscription Subscription) Sub(filters EventFilters) {
+func (subscription Subscription) Sub() {
 	for _, ws := range subscription.relays {
 		message := []interface{}{
 			"REQ",
