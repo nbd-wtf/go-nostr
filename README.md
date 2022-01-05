@@ -72,3 +72,18 @@ for status := range statuses {
 	}
 }
 ```
+
+### Generating a key
+
+``` go
+sk, _ := nostr.GenerateKey()
+mnemonic, _ := nostr.PrivateKeyAsMnemonic(sk)
+
+fmt.Println("sk:", nostr.PrivateKeyAsHex(sk))
+fmt.Println("pk:", nostr.PublicKeyAsHex(sk.PublicKey))
+fmt.Println("mnemonic:", mnemonic)
+
+sk2, _ := nostr.PrivateKeyFromMnemonic(mnemonic)
+fmt.Println("from mnemonic:", nostr.PrivateKeyAsHex(sk2))
+```
+
