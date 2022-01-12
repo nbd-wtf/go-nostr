@@ -1,12 +1,8 @@
 package nostr
 
-import (
-	"github.com/gorilla/websocket"
-)
-
 type Subscription struct {
 	channel string
-	relays  map[string]*websocket.Conn
+	relays  map[string]*Connection
 
 	filters EventFilters
 	Events  chan EventMessage
@@ -21,8 +17,8 @@ type EventMessage struct {
 }
 
 func (subscription Subscription) Unsub() {
-	for _, ws := range subscription.relays {
-		ws.WriteJSON([]interface{}{
+	for _, conn := range subscription.relays {
+		conn.WriteJSON([]interface{}{
 			"CLOSE",
 			subscription.channel,
 		})
@@ -37,7 +33,7 @@ func (subscription Subscription) Unsub() {
 }
 
 func (subscription Subscription) Sub() {
-	for _, ws := range subscription.relays {
+	for _, conn := range subscription.relays {
 		message := []interface{}{
 			"REQ",
 			subscription.channel,
@@ -46,7 +42,7 @@ func (subscription Subscription) Sub() {
 			message = append(message, filter)
 		}
 
-		ws.WriteJSON(message)
+		conn.WriteJSON(message)
 	}
 
 	if !subscription.started {
@@ -66,17 +62,17 @@ func (subscription Subscription) startHandlingUnique() {
 }
 
 func (subscription Subscription) removeRelay(relay string) {
-	if ws, ok := subscription.relays[relay]; ok {
+	if conn, ok := subscription.relays[relay]; ok {
 		delete(subscription.relays, relay)
-		ws.WriteJSON([]interface{}{
+		conn.WriteJSON([]interface{}{
 			"CLOSE",
 			subscription.channel,
 		})
 	}
 }
 
-func (subscription Subscription) addRelay(relay string, ws *websocket.Conn) {
-	subscription.relays[relay] = ws
+func (subscription Subscription) addRelay(relay string, conn *Connection) {
+	subscription.relays[relay] = conn
 
 	message := []interface{}{
 		"REQ",
@@ -86,5 +82,5 @@ func (subscription Subscription) addRelay(relay string, ws *websocket.Conn) {
 		message = append(message, filter)
 	}
 
-	ws.WriteJSON(message)
+	conn.WriteJSON(message)
 }

@@ -28,7 +28,7 @@ type RelayPool struct {
 	SecretKey *string
 
 	Relays        map[string]RelayPoolPolicy
-	websockets    map[string]*websocket.Conn
+	websockets    map[string]*Connection
 	subscriptions map[string]*Subscription
 
 	Notices chan *NoticeMessage
@@ -61,7 +61,7 @@ type NoticeMessage struct {
 func NewRelayPool() *RelayPool {
 	return &RelayPool{
 		Relays:        make(map[string]RelayPoolPolicy),
-		websockets:    make(map[string]*websocket.Conn),
+		websockets:    make(map[string]*Connection),
 		subscriptions: make(map[string]*Subscription),
 
 		Notices: make(chan *NoticeMessage),
@@ -80,10 +80,12 @@ func (r *RelayPool) Add(url string, policy RelayPoolPolicy) error {
 		return fmt.Errorf("invalid relay URL '%s'", url)
 	}
 
-	conn, _, err := websocket.DefaultDialer.Dial(NormalizeURL(url), nil)
+	socket, _, err := websocket.DefaultDialer.Dial(NormalizeURL(url), nil)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", nm, err)
 	}
+
+	conn := NewConnection(socket)
 
 	r.Relays[nm] = policy
 	r.websockets[nm] = conn
@@ -94,7 +96,7 @@ func (r *RelayPool) Add(url string, policy RelayPoolPolicy) error {
 
 	go func() {
 		for {
-			typ, message, err := conn.ReadMessage()
+			typ, message, err := conn.socket.ReadMessage()
 			if err != nil {
 				log.Println("read error: ", err)
 				return
@@ -183,7 +185,7 @@ func (r *RelayPool) Sub(filters EventFilters) *Subscription {
 
 	subscription := Subscription{filters: filters}
 	subscription.channel = hex.EncodeToString(random)
-	subscription.relays = make(map[string]*websocket.Conn)
+	subscription.relays = make(map[string]*Connection)
 	for relay, policy := range r.Relays {
 		if policy.ShouldRead(filters) {
 			ws := r.websockets[relay]
@@ -225,7 +227,7 @@ func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error)
 			continue
 		}
 
-		go func(relay string, conn *websocket.Conn) {
+		go func(relay string, conn *Connection) {
 			err := conn.WriteJSON([]interface{}{"EVENT", evt})
 			if err != nil {
 				log.Printf("error sending event to '%s': %s", relay, err.Error())
