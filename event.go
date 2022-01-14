@@ -18,6 +18,7 @@ const (
 	KindContactList            int = 3
 	KindEncryptedDirectMessage int = 4
 	KindDeletion               int = 5
+	KindPow                    int = 6
 )
 
 type Event struct {
@@ -28,9 +29,10 @@ type Event struct {
 
 	Kind int `json:"kind"`
 
-	Tags    Tags   `json:"tags"`
-	Content string `json:"content"`
-	Sig     string `json:"sig"`
+	Tags    Tags     `json:"tags"`
+	Content string   `json:"content"`
+	Sig     string   `json:"sig"`
+	Pow     []string `json:"pow"`
 }
 
 // Serialize outputs a byte array that can be hashed/signed to identify/authenticate
