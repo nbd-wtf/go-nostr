@@ -200,17 +200,15 @@ func (r *RelayPool) Sub(filters EventFilters) *Subscription {
 	return &subscription
 }
 
-func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error) {
-	status := make(chan PublishStatus, 1)
-
+func (r *RelayPool) SignEvent(evt *Event) (*Event, error) {
 	if r.SecretKey == nil && (evt.PubKey == "" || evt.Sig == "") {
-		return nil, status, errors.New("PublishEvent needs either a signed event to publish or to have been configured with a .SecretKey.")
+		return nil, errors.New("SignEvent needs either a signed event or to have been configured with a .SecretKey.")
 	}
 
 	if evt.PubKey == "" {
 		secretKeyN, err := bip340.ParsePrivateKey(*r.SecretKey)
 		if err != nil {
-			return nil, status, fmt.Errorf("The pool's global SecretKey is invalid: %w", err)
+			return nil, fmt.Errorf("The pool's global SecretKey is invalid: %w", err)
 		}
 		evt.PubKey = fmt.Sprintf("%x", bip340.GetPublicKey(secretKeyN))
 	}
@@ -218,8 +216,19 @@ func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error)
 	if evt.Sig == "" {
 		err := evt.Sign(*r.SecretKey)
 		if err != nil {
-			return nil, status, fmt.Errorf("Error signing event: %w", err)
+			return nil, fmt.Errorf("Error signing event: %w", err)
 		}
+	}
+
+	return evt, nil
+}
+
+func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error) {
+	status := make(chan PublishStatus, 1)
+
+	evt, err := r.SignEvent(evt)
+	if err != nil {
+		return nil, status, err
 	}
 
 	for relay, conn := range r.websockets {
