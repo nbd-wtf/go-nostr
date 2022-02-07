@@ -9,6 +9,8 @@ type Subscription struct {
 
 	started      bool
 	UniqueEvents chan Event
+
+	stopped bool
 }
 
 type EventMessage struct {
@@ -24,6 +26,7 @@ func (subscription Subscription) Unsub() {
 		})
 	}
 
+	subscription.stopped = true
 	if subscription.Events != nil {
 		close(subscription.Events)
 	}
@@ -57,7 +60,9 @@ func (subscription Subscription) startHandlingUnique() {
 			continue
 		}
 		seen[em.Event.ID] = struct{}{}
-		subscription.UniqueEvents <- em.Event
+		if !subscription.stopped {
+			subscription.UniqueEvents <- em.Event
+		}
 	}
 }
 

@@ -152,9 +152,11 @@ func (r *RelayPool) Add(url string, policy RelayPoolPolicy) error {
 						continue
 					}
 
-					subscription.Events <- EventMessage{
-						Relay: nm,
-						Event: event,
+					if !subscription.stopped {
+						subscription.Events <- EventMessage{
+							Relay: nm,
+							Event: event,
+						}
 					}
 				}
 			}
