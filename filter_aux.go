@@ -62,6 +62,15 @@ func (haystack StringList) Contains(needle string) bool {
 	return false
 }
 
+func (haystack StringList) ContainsPrefixOf(needle string) bool {
+	for _, hay := range haystack {
+		if strings.HasPrefix(needle, hay) {
+			return true
+		}
+	}
+	return false
+}
+
 func (haystack IntList) Contains(needle int) bool {
 	for _, hay := range haystack {
 		if hay == needle {

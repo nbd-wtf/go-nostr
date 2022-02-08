@@ -29,7 +29,7 @@ func (ef Filter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.IDs != nil && !ef.IDs.Contains(event.ID) {
+	if ef.IDs != nil && !ef.IDs.ContainsPrefixOf(event.ID) {
 		return false
 	}
 
@@ -37,7 +37,7 @@ func (ef Filter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.Authors != nil && !ef.Authors.Contains(event.PubKey) {
+	if ef.Authors != nil && !ef.Authors.ContainsPrefixOf(event.PubKey) {
 		return false
 	}
 
