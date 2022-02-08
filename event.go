@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/fiatjaf/bip340"
 )
@@ -24,13 +26,31 @@ type Event struct {
 	ID string `json:"id"` // it's the hash of the serialized event
 
 	PubKey    string `json:"pubkey"`
-	CreatedAt uint32 `json:"created_at"`
+	CreatedAt Time   `json:"created_at"`
 
 	Kind int `json:"kind"`
 
 	Tags    Tags   `json:"tags"`
 	Content string `json:"content"`
 	Sig     string `json:"sig"`
+}
+
+type Time time.Time
+
+func (tm *Time) UnmarshalJSON(payload []byte) error {
+	var unix int64
+	err := json.Unmarshal(payload, &unix)
+	if err != nil {
+		return fmt.Errorf("time must be a unix timestamp as an integer, not '%s': %w",
+			string(payload), err)
+	}
+	t := Time(time.Unix(unix, 0))
+	tm = &t
+	return nil
+}
+
+func (t Time) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.FormatInt(time.Time(t).Unix(), 10)), nil
 }
 
 // Serialize outputs a byte array that can be hashed/signed to identify/authenticate
@@ -46,7 +66,7 @@ func (evt *Event) Serialize() []byte {
 	arr[1] = evt.PubKey
 
 	// created_at
-	arr[2] = int64(evt.CreatedAt)
+	arr[2] = int64(time.Time(evt.CreatedAt).Unix())
 
 	// kind
 	arr[3] = int64(evt.Kind)

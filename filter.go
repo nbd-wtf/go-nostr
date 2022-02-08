@@ -1,18 +1,21 @@
 package nostr
 
-type EventFilters []EventFilter
+import (
+	"time"
+)
 
-type EventFilter struct {
-	IDs     StringList `json:"ids,omitempty"`
-	Kinds   IntList    `json:"kinds,omitempty"`
-	Authors StringList `json:"authors,omitempty"`
-	Since   uint32     `json:"since,omitempty"`
-	Until   uint32     `json:"until,omitempty"`
-	TagE    StringList `json:"#e,omitempty"`
-	TagP    StringList `json:"#p,omitempty"`
+type Filters []Filter
+
+type Filter struct {
+	IDs     StringList
+	Kinds   IntList
+	Authors StringList
+	Since   *time.Time
+	Until   *time.Time
+	Tags    map[string]StringList
 }
 
-func (eff EventFilters) Match(event *Event) bool {
+func (eff Filters) Match(event *Event) bool {
 	for _, filter := range eff {
 		if filter.Matches(event) {
 			return true
@@ -21,7 +24,7 @@ func (eff EventFilters) Match(event *Event) bool {
 	return false
 }
 
-func (ef EventFilter) Matches(event *Event) bool {
+func (ef Filter) Matches(event *Event) bool {
 	if event == nil {
 		return false
 	}
@@ -38,26 +41,24 @@ func (ef EventFilter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.TagE != nil && !event.Tags.ContainsAny("e", ef.TagE) {
+	for f, v := range ef.Tags {
+		if v != nil && !event.Tags.ContainsAny(f, v) {
+			return false
+		}
+	}
+
+	if ef.Since != nil && time.Time(event.CreatedAt).Before(*ef.Since) {
 		return false
 	}
 
-	if ef.TagP != nil && !event.Tags.ContainsAny("p", ef.TagP) {
-		return false
-	}
-
-	if ef.Since != 0 && event.CreatedAt < ef.Since {
-		return false
-	}
-
-	if ef.Until != 0 && event.CreatedAt >= ef.Until {
+	if ef.Until != nil && time.Time(event.CreatedAt).After(*ef.Until) {
 		return false
 	}
 
 	return true
 }
 
-func FilterEqual(a EventFilter, b EventFilter) bool {
+func FilterEqual(a Filter, b Filter) bool {
 	if !a.Kinds.Equals(b.Kinds) {
 		return false
 	}
@@ -70,12 +71,18 @@ func FilterEqual(a EventFilter, b EventFilter) bool {
 		return false
 	}
 
-	if !a.TagE.Equals(b.TagE) {
+	if len(a.Tags) != len(b.Tags) {
 		return false
 	}
 
-	if !a.TagP.Equals(b.TagP) {
-		return false
+	for f, av := range a.Tags {
+		if bv, ok := b.Tags[f]; !ok {
+			return false
+		} else {
+			if !av.Equals(bv) {
+				return false
+			}
+		}
 	}
 
 	if a.Since != b.Since {

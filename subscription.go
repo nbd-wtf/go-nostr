@@ -4,7 +4,7 @@ type Subscription struct {
 	channel string
 	relays  map[string]*Connection
 
-	filters EventFilters
+	filters Filters
 	Events  chan EventMessage
 
 	started      bool

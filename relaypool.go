@@ -35,7 +35,7 @@ type RelayPool struct {
 }
 
 type RelayPoolPolicy interface {
-	ShouldRead(EventFilters) bool
+	ShouldRead(Filters) bool
 	ShouldWrite(*Event) bool
 }
 
@@ -44,7 +44,7 @@ type SimplePolicy struct {
 	Write bool
 }
 
-func (s SimplePolicy) ShouldRead(_ EventFilters) bool {
+func (s SimplePolicy) ShouldRead(_ Filters) bool {
 	return s.Read
 }
 
@@ -181,7 +181,7 @@ func (r *RelayPool) Remove(url string) {
 	delete(r.websockets, nm)
 }
 
-func (r *RelayPool) Sub(filters EventFilters) *Subscription {
+func (r *RelayPool) Sub(filters Filters) *Subscription {
 	random := make([]byte, 7)
 	rand.Read(random)
 
@@ -237,7 +237,7 @@ func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error)
 			}
 			status <- PublishStatus{relay, PublishStatusSent}
 
-			subscription := r.Sub(EventFilters{EventFilter{IDs: []string{evt.ID}}})
+			subscription := r.Sub(Filters{Filter{IDs: []string{evt.ID}}})
 			for {
 				select {
 				case event := <-subscription.UniqueEvents:
