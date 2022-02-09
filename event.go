@@ -1,17 +1,25 @@
 package nostr
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/fiatjaf/bip340"
+	"github.com/valyala/fastjson"
 )
+
+type Event struct {
+	ID        string
+	PubKey    string
+	CreatedAt time.Time
+	Kind      int
+	Tags      Tags
+	Content   string
+	Sig       string
+}
 
 const (
 	KindSetMetadata            int = 0
@@ -21,36 +29,6 @@ const (
 	KindEncryptedDirectMessage int = 4
 	KindDeletion               int = 5
 )
-
-type Event struct {
-	ID string `json:"id"` // it's the hash of the serialized event
-
-	PubKey    string `json:"pubkey"`
-	CreatedAt Time   `json:"created_at"`
-
-	Kind int `json:"kind"`
-
-	Tags    Tags   `json:"tags"`
-	Content string `json:"content"`
-	Sig     string `json:"sig"`
-}
-
-type Time time.Time
-
-func (tm *Time) UnmarshalJSON(payload []byte) error {
-	unix, err := strconv.ParseInt(string(payload), 10, 64)
-	if err != nil {
-		return fmt.Errorf("time must be a unix timestamp as an integer, not '%s': %w",
-			string(payload), err)
-	}
-	t := Time(time.Unix(unix, 0))
-	*tm = t
-	return nil
-}
-
-func (t Time) MarshalJSON() ([]byte, error) {
-	return []byte(strconv.FormatInt(time.Time(t).Unix(), 10)), nil
-}
 
 // GetID serializes and returns the event ID as a string
 func (evt *Event) GetID() string {
@@ -62,36 +40,29 @@ func (evt *Event) GetID() string {
 func (evt *Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
 	// so the order is kept
-	arr := make([]interface{}, 6)
+	var arena fastjson.Arena
+
+	arr := arena.NewArray()
 
 	// version: 0
-	arr[0] = 0
+	arr.SetArrayItem(0, arena.NewNumberInt(0))
 
 	// pubkey
-	arr[1] = evt.PubKey
+	arr.SetArrayItem(1, arena.NewString(evt.PubKey))
 
 	// created_at
-	arr[2] = int64(time.Time(evt.CreatedAt).Unix())
+	arr.SetArrayItem(2, arena.NewNumberInt(int(evt.CreatedAt.Unix())))
 
 	// kind
-	arr[3] = int64(evt.Kind)
+	arr.SetArrayItem(3, arena.NewNumberInt(evt.Kind))
 
 	// tags
-	if evt.Tags != nil {
-		arr[4] = evt.Tags
-	} else {
-		arr[4] = make([]bool, 0)
-	}
+	arr.SetArrayItem(4, tagsToFastjsonArray(&arena, evt.Tags))
 
 	// content
-	arr[5] = evt.Content
+	arr.SetArrayItem(5, arena.NewString(evt.Content))
 
-	serialized := new(bytes.Buffer)
-
-	enc := json.NewEncoder(serialized)
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(arr)
-	return serialized.Bytes()[:serialized.Len()-1] // Encode add new line char
+	return arr.MarshalTo(nil)
 }
 
 // CheckSignature checks if the signature is valid for the id
@@ -102,19 +73,6 @@ func (evt Event) CheckSignature() (bool, error) {
 	pubkey, err := bip340.ParsePublicKey(evt.PubKey)
 	if err != nil {
 		return false, fmt.Errorf("Event has invalid pubkey '%s': %w", evt.PubKey, err)
-	}
-
-	// check tags
-	for _, tag := range evt.Tags {
-		for _, item := range tag {
-			switch item.(type) {
-			case string, int64, float64, int, bool:
-				// fine
-			default:
-				// not fine
-				return false, fmt.Errorf("tag contains an invalid value %v", item)
-			}
-		}
 	}
 
 	s, err := hex.DecodeString(evt.Sig)
