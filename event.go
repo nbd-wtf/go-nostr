@@ -38,19 +38,24 @@ type Event struct {
 type Time time.Time
 
 func (tm *Time) UnmarshalJSON(payload []byte) error {
-	var unix int64
-	err := json.Unmarshal(payload, &unix)
+	unix, err := strconv.ParseInt(string(payload), 10, 64)
 	if err != nil {
 		return fmt.Errorf("time must be a unix timestamp as an integer, not '%s': %w",
 			string(payload), err)
 	}
 	t := Time(time.Unix(unix, 0))
-	tm = &t
+	*tm = t
 	return nil
 }
 
 func (t Time) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.FormatInt(time.Time(t).Unix(), 10)), nil
+}
+
+// GetID serializes and returns the event ID as a string
+func (evt *Event) GetID() string {
+	h := sha256.Sum256(evt.Serialize())
+	return hex.EncodeToString(h[:])
 }
 
 // Serialize outputs a byte array that can be hashed/signed to identify/authenticate
