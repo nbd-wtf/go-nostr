@@ -12,8 +12,10 @@ type Filter struct {
 	Authors StringList
 	Since   *time.Time
 	Until   *time.Time
-	Tags    map[string]StringList
+	Tags    TagMap
 }
+
+type TagMap map[string]StringList
 
 func (eff Filters) Match(event *Event) bool {
 	for _, filter := range eff {

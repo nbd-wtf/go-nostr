@@ -20,7 +20,7 @@ func (f *Filter) UnmarshalJSON(payload []byte) error {
 		return fmt.Errorf("filter is not an object")
 	}
 
-	f.Tags = make(map[string]StringList)
+	f.Tags = make(TagMap)
 
 	var visiterr error
 	obj.Visit(func(k []byte, v *fastjson.Value) {

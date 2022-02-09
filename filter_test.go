@@ -26,7 +26,7 @@ func TestFilterMarshal(t *testing.T) {
 
 	filterj, err := json.Marshal(Filter{
 		Kinds: IntList{1, 2, 4},
-		Tags:  map[string]StringList{"fruit": {"banana", "mango"}},
+		Tags:  TagMap{"fruit": {"banana", "mango"}},
 		Until: &tm,
 	})
 	if err != nil {
@@ -50,7 +50,7 @@ func TestFilterMatching(t *testing.T) {
 
 	if !(Filter{
 		Kinds: IntList{4, 5},
-		Tags: map[string]StringList{
+		Tags: TagMap{
 			"p": {"ooo"},
 		},
 		IDs: StringList{"prefix"},
@@ -72,8 +72,8 @@ func TestFilterEquality(t *testing.T) {
 	}
 
 	if !FilterEqual(
-		Filter{Kinds: IntList{4, 5}, Tags: map[string]StringList{"letter": {"a", "b"}}},
-		Filter{Kinds: IntList{4, 5}, Tags: map[string]StringList{"letter": {"b", "a"}}},
+		Filter{Kinds: IntList{4, 5}, Tags: TagMap{"letter": {"a", "b"}}},
+		Filter{Kinds: IntList{4, 5}, Tags: TagMap{"letter": {"b", "a"}}},
 	) {
 		t.Error("kind+tags filters should be equal")
 	}
@@ -82,13 +82,13 @@ func TestFilterEquality(t *testing.T) {
 	if !FilterEqual(
 		Filter{
 			Kinds: IntList{4, 5},
-			Tags:  map[string]StringList{"letter": {"a", "b"}, "fruit": {"banana"}},
+			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 			Since: &tm,
 			IDs:   StringList{"aaaa", "bbbb"},
 		},
 		Filter{
 			Kinds: IntList{5, 4},
-			Tags:  map[string]StringList{"letter": {"a", "b"}, "fruit": {"banana"}},
+			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 			Since: &tm,
 			IDs:   StringList{"aaaa", "bbbb"},
 		},
