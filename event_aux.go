@@ -139,7 +139,7 @@ func fastjsonArrayToTags(v *fastjson.Value) (Tags, error) {
 			return nil, err
 		}
 
-		sl := make(StringList, len(arr))
+		sl := make(StringList, len(subarr))
 		for j, subv := range subarr {
 			sb, err := subv.StringBytes()
 			if err != nil {
