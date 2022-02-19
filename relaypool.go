@@ -103,6 +103,7 @@ func (r *RelayPool) Add(url string, policy RelayPoolPolicy) error {
 			}
 			if typ == websocket.PingMessage {
 				conn.WriteMessage(websocket.PongMessage, nil)
+				continue
 			}
 
 			if typ != websocket.TextMessage || len(message) == 0 || message[0] != '[' {
