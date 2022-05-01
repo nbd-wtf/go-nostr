@@ -12,15 +12,30 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type Status int
+
 const (
-	PublishStatusSent      = 0
-	PublishStatusFailed    = -1
-	PublishStatusSucceeded = 1
+	PublishStatusSent      Status = 0
+	PublishStatusFailed    Status = -1
+	PublishStatusSucceeded Status = 1
 )
+
+func (s Status) String() string {
+	switch s {
+	case PublishStatusSent:
+		return "sent"
+	case PublishStatusFailed:
+		return "failed"
+	case PublishStatusSucceeded:
+		return "success"
+	}
+
+	return "unknown"
+}
 
 type PublishStatus struct {
 	Relay  string
-	Status int
+	Status Status
 }
 
 type RelayPool struct {
