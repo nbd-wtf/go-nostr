@@ -9,7 +9,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/fiatjaf/bip340"
 	"github.com/gorilla/websocket"
 )
 
@@ -211,11 +210,11 @@ func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error)
 	}
 
 	if evt.PubKey == "" {
-		secretKeyN, err := bip340.ParsePrivateKey(*r.SecretKey)
+		sk, err := GetPublicKey(*r.SecretKey)
 		if err != nil {
 			return nil, status, fmt.Errorf("The pool's global SecretKey is invalid: %w", err)
 		}
-		evt.PubKey = fmt.Sprintf("%x", bip340.GetPublicKey(secretKeyN))
+		evt.PubKey = sk
 	}
 
 	if evt.Sig == "" {

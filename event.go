@@ -1,13 +1,13 @@
 package nostr
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"time"
 
-	"github.com/fiatjaf/bip340"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/valyala/fastjson"
 )
 
@@ -70,43 +70,47 @@ func (evt *Event) Serialize() []byte {
 // returns an error if the signature itself is invalid.
 func (evt Event) CheckSignature() (bool, error) {
 	// read and check pubkey
-	pubkey, err := bip340.ParsePublicKey(evt.PubKey)
+	pk, err := hex.DecodeString(evt.PubKey)
 	if err != nil {
-		return false, fmt.Errorf("Event has invalid pubkey '%s': %w", evt.PubKey, err)
+		return false, fmt.Errorf("event pubkey '%s' is invalid hex: %w", evt.PubKey, err)
 	}
 
+	pubkey, err := btcec.ParsePubKey(pk)
+	if err != nil {
+		return false, fmt.Errorf("event has invalid pubkey '%s': %w", evt.PubKey, err)
+	}
+
+	// read signature
 	s, err := hex.DecodeString(evt.Sig)
 	if err != nil {
-		return false, fmt.Errorf("signature is invalid hex: %w", err)
+		return false, fmt.Errorf("signature '%s' is invalid hex: %w", evt.Sig, err)
 	}
-	if len(s) != 64 {
-		return false, fmt.Errorf("signature must be 64 bytes, not %d", len(s))
+	sig, err := schnorr.ParseSignature(s)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse signature: %w", err)
 	}
 
-	var sig [64]byte
-	copy(sig[:], s)
-
+	// check signature
 	hash := sha256.Sum256(evt.Serialize())
-	return bip340.Verify(pubkey, hash, sig)
+	return sig.Verify(hash[:], pubkey), nil
 }
 
 // Sign signs an event with a given privateKey
 func (evt *Event) Sign(privateKey string) error {
 	h := sha256.Sum256(evt.Serialize())
 
-	s, err := bip340.ParsePrivateKey(privateKey)
+	s, err := hex.DecodeString(privateKey)
 	if err != nil {
 		return fmt.Errorf("Sign called with invalid private key '%s': %w", privateKey, err)
 	}
+	sk, _ := btcec.PrivKeyFromBytes(s)
 
-	aux := make([]byte, 32)
-	rand.Read(aux)
-	sig, err := bip340.Sign(s, h, aux)
+	sig, err := schnorr.Sign(sk, h[:])
 	if err != nil {
 		return err
 	}
 
 	evt.ID = hex.EncodeToString(h[:])
-	evt.Sig = hex.EncodeToString(sig[:])
+	evt.Sig = hex.EncodeToString(sig.Serialize())
 	return nil
 }
