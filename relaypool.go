@@ -142,8 +142,13 @@ func (r *RelayPool) Add(url string, policy RelayPoolPolicy) error {
 					json.Unmarshal(jsonMessage[2], &event)
 
 					// check signature of all received events, ignore invalid
-					ok, _ := event.CheckSignature()
+					ok, err := event.CheckSignature()
 					if !ok {
+						errmsg := ""
+						if err != nil {
+							errmsg = err.Error()
+						}
+						log.Printf("bad signature: %s", errmsg)
 						continue
 					}
 

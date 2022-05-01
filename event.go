@@ -75,7 +75,7 @@ func (evt Event) CheckSignature() (bool, error) {
 		return false, fmt.Errorf("event pubkey '%s' is invalid hex: %w", evt.PubKey, err)
 	}
 
-	pubkey, err := btcec.ParsePubKey(pk)
+	pubkey, err := schnorr.ParsePubKey(pk)
 	if err != nil {
 		return false, fmt.Errorf("event has invalid pubkey '%s': %w", evt.PubKey, err)
 	}
