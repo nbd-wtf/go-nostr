@@ -272,8 +272,6 @@ func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error)
 				}
 				break
 			}
-			subscription.Unsub()
-			close(status)
 		}(relay, conn)
 	}
 
