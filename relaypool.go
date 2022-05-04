@@ -205,7 +205,7 @@ func (r *RelayPool) Sub(filters Filters) *Subscription {
 	random := make([]byte, 7)
 	rand.Read(random)
 
-	subscription := Subscription{filters: filters}
+	subscription := Subscription{}
 	subscription.channel = hex.EncodeToString(random)
 	subscription.relays = make(map[string]*Connection)
 	for relay, policy := range r.Relays {
@@ -218,7 +218,7 @@ func (r *RelayPool) Sub(filters Filters) *Subscription {
 	subscription.UniqueEvents = make(chan Event)
 	r.subscriptions[subscription.channel] = &subscription
 
-	subscription.Sub()
+	subscription.Sub(filters)
 	return &subscription
 }
 

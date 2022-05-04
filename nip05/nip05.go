@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func queryName(fullname string) string {
+func QueryIdentifier(fullname string) string {
 	spl := strings.Split(fullname, "@")
 	if len(spl) != 2 {
 		return ""
@@ -29,4 +29,12 @@ func queryName(fullname string) string {
 
 	pubkey, _ := result.Names[name]
 	return pubkey
+}
+
+func NormalizeIdentifier(fullname string) string {
+	if strings.HasPrefix(fullname, "_@") {
+		return fullname[2:]
+	}
+
+	return fullname
 }
