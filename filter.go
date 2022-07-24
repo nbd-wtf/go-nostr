@@ -10,9 +10,10 @@ type Filter struct {
 	IDs     StringList
 	Kinds   IntList
 	Authors StringList
+	Tags    TagMap
 	Since   *time.Time
 	Until   *time.Time
-	Tags    TagMap
+	Limit   int
 }
 
 type TagMap map[string]StringList
