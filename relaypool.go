@@ -277,3 +277,15 @@ func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error)
 
 	return evt, status, nil
 }
+
+// PingRelays sends a PING to all relays in the pool
+func (rp *RelayPool) PingRelays() error {
+	for _, ws := range rp.websockets {
+		err := ws.WriteMessage(websocket.PingMessage, []byte("PING"))
+		if err != nil {
+			log.Printf("error sending ping: %s\n", err)
+			return err
+		}
+	}
+	return nil
+}
