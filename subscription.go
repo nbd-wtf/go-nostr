@@ -1,8 +1,12 @@
 package nostr
 
+import (
+	s "github.com/SaveTheRbtz/generic-sync-map-go"
+)
+
 type Subscription struct {
 	channel string
-	relays  map[string]*Connection
+	relays  s.MapOf[string, *Connection]
 
 	filters Filters
 	Events  chan EventMessage
@@ -19,12 +23,13 @@ type EventMessage struct {
 }
 
 func (subscription Subscription) Unsub() {
-	for _, conn := range subscription.relays {
+	subscription.relays.Range(func(_ string, conn *Connection) bool {
 		conn.WriteJSON([]interface{}{
 			"CLOSE",
 			subscription.channel,
 		})
-	}
+		return true
+	})
 
 	subscription.stopped = true
 	if subscription.Events != nil {
@@ -38,7 +43,7 @@ func (subscription Subscription) Unsub() {
 func (subscription *Subscription) Sub(filters Filters) {
 	subscription.filters = filters
 
-	for _, conn := range subscription.relays {
+	subscription.relays.Range(func(_ string, conn *Connection) bool {
 		message := []interface{}{
 			"REQ",
 			subscription.channel,
@@ -48,7 +53,8 @@ func (subscription *Subscription) Sub(filters Filters) {
 		}
 
 		conn.WriteJSON(message)
-	}
+		return true
+	})
 
 	if !subscription.started {
 		go subscription.startHandlingUnique()
@@ -69,8 +75,8 @@ func (subscription Subscription) startHandlingUnique() {
 }
 
 func (subscription Subscription) removeRelay(relay string) {
-	if conn, ok := subscription.relays[relay]; ok {
-		delete(subscription.relays, relay)
+	if conn, ok := subscription.relays.Load(relay); ok {
+		subscription.relays.Delete(relay)
 		conn.WriteJSON([]interface{}{
 			"CLOSE",
 			subscription.channel,
@@ -79,7 +85,7 @@ func (subscription Subscription) removeRelay(relay string) {
 }
 
 func (subscription Subscription) addRelay(relay string, conn *Connection) {
-	subscription.relays[relay] = conn
+	subscription.relays.Store(relay, conn)
 
 	message := []interface{}{
 		"REQ",
