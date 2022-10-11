@@ -55,6 +55,12 @@ func (f *Filter) UnmarshalJSON(payload []byte) error {
 			}
 			tm := time.Unix(val, 0)
 			f.Until = &tm
+		case "limit":
+			val, err := v.Int()
+			if err != nil {
+				visiterr = fmt.Errorf("invalid 'limit' field: %w", err)
+			}
+			f.Limit = val
 		default:
 			if strings.HasPrefix(key, "#") {
 				f.Tags[key[1:]], err = fastjsonArrayToStringList(v)
@@ -95,6 +101,9 @@ func (f Filter) MarshalJSON() ([]byte, error) {
 		for k, v := range f.Tags {
 			o.Set("#"+k, stringListToFastjsonArray(&arena, v))
 		}
+	}
+	if f.Limit != 0 {
+		o.Set("limit", arena.NewNumberInt(f.Limit))
 	}
 
 	return o.MarshalTo(nil), nil
