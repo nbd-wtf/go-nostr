@@ -83,5 +83,5 @@ fmt.Println("pk:", nostr.GetPublicKey(sk))
 ### Example Program
 
 ```
-go run exmaple/example.go
+go run example/example.go
 ```
