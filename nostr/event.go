@@ -28,6 +28,13 @@ const (
 	KindContactList            int = 3
 	KindEncryptedDirectMessage int = 4
 	KindDeletion               int = 5
+	KindBoost                  int = 6
+	KindReaction               int = 7
+	KindChannelCreation        int = 40
+	KindChannelMetadata        int = 41
+	KindChannelMessage         int = 42
+	KindChannelHideMessage     int = 43
+	KindChannelMuteUser        int = 44
 )
 
 // GetID serializes and returns the event ID as a string
