@@ -57,6 +57,9 @@ func (evt *Event) UnmarshalJSON(payload []byte) error {
 		return fmt.Errorf("event is not an object")
 	}
 
+	// prepare this to receive any extra property that may serialized along with the event
+	evt.extra = make(map[string]any)
+
 	var visiterr error
 	obj.Visit(func(k []byte, v *fastjson.Value) {
 		key := string(k)
@@ -102,6 +105,10 @@ func (evt *Event) UnmarshalJSON(payload []byte) error {
 				visiterr = fmt.Errorf("invalid 'sig' field: %w", err)
 			}
 			evt.Sig = string(id)
+		default:
+			var anyValue any
+			json.Unmarshal(v.MarshalTo(nil), anyValue)
+			evt.extra[key] = anyValue
 		}
 	})
 	if visiterr != nil {
@@ -122,6 +129,13 @@ func (evt Event) MarshalJSON() ([]byte, error) {
 	o.Set("tags", tagsToFastjsonArray(&arena, evt.Tags))
 	o.Set("content", arena.NewString(evt.Content))
 	o.Set("sig", arena.NewString(evt.Sig))
+
+	for k, v := range evt.extra {
+		b, _ := json.Marshal(v)
+		if val, err := fastjson.ParseBytes(b); err == nil {
+			o.Set(k, val)
+		}
+	}
 
 	return o.MarshalTo(nil), nil
 }
