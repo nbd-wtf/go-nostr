@@ -3,9 +3,9 @@
 go-nostr
 ========
 
-A set of useful things for [Nostr Protocol](https://github.com/fiatjaf/nostr) implementations.
+A set of useful things for [Nostr Protocol](https://github.com/nostr-protocol/nostr) implementations.
 
-<a href="https://godoc.org/github.com/fiatjaf/go-nostr"><img src="https://img.shields.io/badge/api-reference-blue.svg?style=flat-square" alt="GoDoc"></a>
+<a href="https://godoc.org/github.com/nbd-wtf/go-nostr"><img src="https://img.shields.io/badge/api-reference-blue.svg?style=flat-square" alt="GoDoc"></a>
 
 
 ### Subscribing to a set of relays

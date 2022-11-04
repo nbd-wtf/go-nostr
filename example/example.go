@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fiatjaf/go-nostr/nostr"
+	"github.com/nbd-wtf/go-nostr"
 )
 
 // some nostr relay in the wild
@@ -70,7 +70,6 @@ func main() {
 	time.Sleep(20 * time.Second)
 	fmt.Println("unsubscribing from nostr subscription")
 	sub.Unsub()
-
 }
 
 // handle events from out publish events
