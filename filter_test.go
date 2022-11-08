@@ -13,7 +13,7 @@ func TestFilterUnmarshal(t *testing.T) {
 	var f Filter
 	err := json.Unmarshal([]byte(raw), &f)
 	if err != nil {
-		t.Errorf("failed to parse filter json: %w", err)
+		t.Errorf("failed to parse filter json: %v", err)
 	}
 
 	if f.Since == nil || f.Since.Format("2006-01-02") != "2022-02-07" ||
@@ -32,7 +32,7 @@ func TestFilterMarshal(t *testing.T) {
 		Until: &tm,
 	})
 	if err != nil {
-		t.Errorf("failed to marshal filter json: %w", err)
+		t.Errorf("failed to marshal filter json: %v", err)
 	}
 
 	expected := `{"kinds":[1,2,4],"until":12345678,"#fruit":["banana","mango"]}`

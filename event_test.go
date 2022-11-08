@@ -15,7 +15,7 @@ func TestEventParsingAndVerifying(t *testing.T) {
 		var ev Event
 		err := json.Unmarshal([]byte(raw), &ev)
 		if err != nil {
-			t.Errorf("failed to parse event json: %w", err)
+			t.Errorf("failed to parse event json: %v", err)
 		}
 
 		if ev.GetID() != ev.ID {
@@ -28,7 +28,7 @@ func TestEventParsingAndVerifying(t *testing.T) {
 
 		asjson, err := json.Marshal(ev)
 		if err != nil {
-			t.Errorf("failed to re marshal event as json: %w", err)
+			t.Errorf("failed to re marshal event as json: %v", err)
 		}
 
 		if string(asjson) != raw {
