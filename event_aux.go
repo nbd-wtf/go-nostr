@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/valyala/fastjson"
+	"golang.org/x/exp/slices"
 )
 
-type Tags []StringList
+type Tags [][]string
 
 func (t *Tags) Scan(src interface{}) error {
 	var jtags []byte = make([]byte, 0)
@@ -27,7 +28,7 @@ func (t *Tags) Scan(src interface{}) error {
 	return nil
 }
 
-func (tags Tags) ContainsAny(tagName string, values StringList) bool {
+func (tags Tags) ContainsAny(tagName string, values []string) bool {
 	for _, tag := range tags {
 		if len(tag) < 2 {
 			continue
@@ -37,7 +38,7 @@ func (tags Tags) ContainsAny(tagName string, values StringList) bool {
 			continue
 		}
 
-		if values.Contains(tag[1]) {
+		if slices.Contains(values, tag[1]) {
 			return true
 		}
 	}
@@ -146,14 +147,14 @@ func fastjsonArrayToTags(v *fastjson.Value) (Tags, error) {
 		return nil, err
 	}
 
-	sll := make([]StringList, len(arr))
+	sll := make([][]string, len(arr))
 	for i, v := range arr {
 		subarr, err := v.Array()
 		if err != nil {
 			return nil, err
 		}
 
-		sl := make(StringList, len(subarr))
+		sl := make([]string, len(subarr))
 		for j, subv := range subarr {
 			sb, err := subv.StringBytes()
 			if err != nil {

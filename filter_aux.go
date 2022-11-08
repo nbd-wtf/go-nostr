@@ -109,7 +109,7 @@ func (f Filter) MarshalJSON() ([]byte, error) {
 	return o.MarshalTo(nil), nil
 }
 
-func stringListToFastjsonArray(arena *fastjson.Arena, sl StringList) *fastjson.Value {
+func stringListToFastjsonArray(arena *fastjson.Arena, sl []string) *fastjson.Value {
 	arr := arena.NewArray()
 	for i, v := range sl {
 		arr.SetArrayItem(i, arena.NewString(v))
@@ -117,7 +117,7 @@ func stringListToFastjsonArray(arena *fastjson.Arena, sl StringList) *fastjson.V
 	return arr
 }
 
-func intListToFastjsonArray(arena *fastjson.Arena, il IntList) *fastjson.Value {
+func intListToFastjsonArray(arena *fastjson.Arena, il []int) *fastjson.Value {
 	arr := arena.NewArray()
 	for i, v := range il {
 		arr.SetArrayItem(i, arena.NewNumberInt(v))
@@ -125,13 +125,13 @@ func intListToFastjsonArray(arena *fastjson.Arena, il IntList) *fastjson.Value {
 	return arr
 }
 
-func fastjsonArrayToStringList(v *fastjson.Value) (StringList, error) {
+func fastjsonArrayToStringList(v *fastjson.Value) ([]string, error) {
 	arr, err := v.Array()
 	if err != nil {
 		return nil, err
 	}
 
-	sl := make(StringList, len(arr))
+	sl := make([]string, len(arr))
 	for i, v := range arr {
 		sb, err := v.StringBytes()
 		if err != nil {
@@ -143,13 +143,13 @@ func fastjsonArrayToStringList(v *fastjson.Value) (StringList, error) {
 	return sl, nil
 }
 
-func fastjsonArrayToIntList(v *fastjson.Value) (IntList, error) {
+func fastjsonArrayToIntList(v *fastjson.Value) ([]int, error) {
 	arr, err := v.Array()
 	if err != nil {
 		return nil, err
 	}
 
-	il := make(IntList, len(arr))
+	il := make([]int, len(arr))
 	for i, v := range arr {
 		il[i], err = v.Int()
 		if err != nil {

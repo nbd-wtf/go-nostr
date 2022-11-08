@@ -2,21 +2,23 @@ package nostr
 
 import (
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 type Filters []Filter
 
 type Filter struct {
-	IDs     StringList
-	Kinds   IntList
-	Authors StringList
+	IDs     []string
+	Kinds   []int
+	Authors []string
 	Tags    TagMap
 	Since   *time.Time
 	Until   *time.Time
 	Limit   int
 }
 
-type TagMap map[string]StringList
+type TagMap map[string][]string
 
 func (eff Filters) Match(event *Event) bool {
 	for _, filter := range eff {
@@ -32,15 +34,15 @@ func (ef Filter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.IDs != nil && !ef.IDs.ContainsPrefixOf(event.ID) {
+	if ef.IDs != nil && !ContainsPrefixOf(ef.IDs, event.ID) {
 		return false
 	}
 
-	if ef.Kinds != nil && !ef.Kinds.Contains(event.Kind) {
+	if ef.Kinds != nil && !slices.Contains(ef.Kinds, event.Kind) {
 		return false
 	}
 
-	if ef.Authors != nil && !ef.Authors.ContainsPrefixOf(event.PubKey) {
+	if ef.Authors != nil && !ContainsPrefixOf(ef.Authors, event.PubKey) {
 		return false
 	}
 
@@ -62,15 +64,15 @@ func (ef Filter) Matches(event *Event) bool {
 }
 
 func FilterEqual(a Filter, b Filter) bool {
-	if !a.Kinds.Equals(b.Kinds) {
+	if !Similar(a.Kinds, b.Kinds) {
 		return false
 	}
 
-	if !a.IDs.Equals(b.IDs) {
+	if !Similar(a.IDs, b.IDs) {
 		return false
 	}
 
-	if !a.Authors.Equals(b.Authors) {
+	if !Similar(a.Authors, b.Authors) {
 		return false
 	}
 
@@ -82,7 +84,7 @@ func FilterEqual(a Filter, b Filter) bool {
 		if bv, ok := b.Tags[f]; !ok {
 			return false
 		} else {
-			if !av.Equals(bv) {
+			if !Similar(av, bv) {
 				return false
 			}
 		}
