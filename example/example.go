@@ -49,7 +49,7 @@ func main() {
 	// create and publish events
 	go func() {
 		for {
-			content := fmt.Sprintf("henlo world at time: %s", time.Now().String())
+			content := fmt.Sprintf("Hello world at time: %s", time.Now().String())
 			event, statuses, err := pool.PublishEvent(&nostr.Event{
 				CreatedAt: time.Now(),
 				Kind:      nostr.KindTextNote,
