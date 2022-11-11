@@ -4,13 +4,88 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/valyala/fastjson"
 	"golang.org/x/exp/slices"
 )
 
-type Tags [][]string
+type Tag []string
+
+// StartsWith checks if a tag contains a prefix.
+// for example,
+//     ["p", "abcdef...", "wss://relay.com"]
+// would match against
+//     ["p", "abcdef..."]
+// or even
+//     ["p", "abcdef...", "wss://"]
+func (tag Tag) StartsWith(prefix []string) bool {
+	prefixLen := len(prefix)
+
+	if prefixLen > len(tag) {
+		return false
+	}
+	// check initial elements for equality
+	for i := 0; i < prefixLen-1; i++ {
+		if prefix[i] != tag[i] {
+			return false
+		}
+	}
+	// check last element just for a prefix
+	return strings.HasPrefix(tag[prefixLen-1], prefix[prefixLen-1])
+}
+
+type Tags []Tag
+
+// GetFirst gets the first tag in tags that matches tagPrefix, see [Tag.StartsWith]
+func (tags Tags) GetFirst(tagPrefix []string) *Tag {
+	for _, v := range tags {
+		if v.StartsWith(tagPrefix) {
+			return &v
+		}
+	}
+	return nil
+}
+
+// GetLast gets the last tag in tags that matches tagPrefix, see [Tag.StartsWith]
+func (tags Tags) GetLast(tagPrefix []string) *Tag {
+	for i := len(tags) - 1; i >= 0; i-- {
+		v := tags[i]
+		if v.StartsWith(tagPrefix) {
+			return &v
+		}
+	}
+	return nil
+}
+
+func (tags Tags) GetAll(tagPrefix []string) Tags {
+	result := make(Tags, 0, len(tags))
+	for _, v := range tags {
+		if v.StartsWith(tagPrefix) {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+func (tags Tags) FilterOut(tagPrefix []string) Tags {
+	filtered := make(Tags, 0, len(tags))
+	for _, v := range tags {
+		if !v.StartsWith(tagPrefix) {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
+}
+
+func (tags Tags) AppendUnique(tag Tag) Tags {
+	if tags.GetFirst(tag) == nil {
+		return append(tags.FilterOut(tag), tag)
+	} else {
+		return tags
+	}
+}
 
 func (t *Tags) Scan(src interface{}) error {
 	var jtags []byte = make([]byte, 0)
@@ -147,14 +222,14 @@ func fastjsonArrayToTags(v *fastjson.Value) (Tags, error) {
 		return nil, err
 	}
 
-	sll := make([][]string, len(arr))
+	sll := make(Tags, len(arr))
 	for i, v := range arr {
 		subarr, err := v.Array()
 		if err != nil {
 			return nil, err
 		}
 
-		sl := make([]string, len(subarr))
+		sl := make(Tag, len(subarr))
 		for j, subv := range subarr {
 			sb, err := subv.StringBytes()
 			if err != nil {
@@ -165,7 +240,7 @@ func fastjsonArrayToTags(v *fastjson.Value) (Tags, error) {
 		sll[i] = sl
 	}
 
-	return Tags(sll), nil
+	return sll, nil
 }
 
 func tagsToFastjsonArray(arena *fastjson.Arena, tags Tags) *fastjson.Value {
