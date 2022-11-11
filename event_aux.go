@@ -38,7 +38,7 @@ func (tag Tag) StartsWith(prefix []string) bool {
 
 type Tags []Tag
 
-// GetFirst gets the first tag in tags that matches tagPrefix, see [Tag.StartsWith]
+// GetFirst gets the first tag in tags that matches the prefix, see [Tag.StartsWith]
 func (tags Tags) GetFirst(tagPrefix []string) *Tag {
 	for _, v := range tags {
 		if v.StartsWith(tagPrefix) {
@@ -48,7 +48,7 @@ func (tags Tags) GetFirst(tagPrefix []string) *Tag {
 	return nil
 }
 
-// GetLast gets the last tag in tags that matches tagPrefix, see [Tag.StartsWith]
+// GetLast gets the last tag in tags that matches the prefix, see [Tag.StartsWith]
 func (tags Tags) GetLast(tagPrefix []string) *Tag {
 	for i := len(tags) - 1; i >= 0; i-- {
 		v := tags[i]
@@ -59,6 +59,7 @@ func (tags Tags) GetLast(tagPrefix []string) *Tag {
 	return nil
 }
 
+// GetLast gets all the tags that match the prefix, see [Tag.StartsWith]
 func (tags Tags) GetAll(tagPrefix []string) Tags {
 	result := make(Tags, 0, len(tags))
 	for _, v := range tags {
@@ -69,6 +70,7 @@ func (tags Tags) GetAll(tagPrefix []string) Tags {
 	return result
 }
 
+// FilterOut removes all tags that match the prefix, see [Tag.StartsWith]
 func (tags Tags) FilterOut(tagPrefix []string) Tags {
 	filtered := make(Tags, 0, len(tags))
 	for _, v := range tags {
@@ -79,9 +81,10 @@ func (tags Tags) FilterOut(tagPrefix []string) Tags {
 	return filtered
 }
 
+// AppendUnique appends a tag if it doesn't exist yet, otherwise does nothing
 func (tags Tags) AppendUnique(tag Tag) Tags {
 	if tags.GetFirst(tag) == nil {
-		return append(tags.FilterOut(tag), tag)
+		return append(tags, tag)
 	} else {
 		return tags
 	}
