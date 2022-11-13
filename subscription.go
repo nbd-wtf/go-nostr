@@ -4,8 +4,9 @@ type Subscription struct {
 	id   string
 	conn *Connection
 
-	filters Filters
-	Events  chan Event
+	filters           Filters
+	Events            chan Event
+	EndOfStoredEvents chan struct{}
 
 	stopped bool
 }
