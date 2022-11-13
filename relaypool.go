@@ -97,7 +97,7 @@ func (r *RelayPool) Remove(url string) {
 	}
 }
 
-func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage) {
+func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage, chan Event) {
 	random := make([]byte, 7)
 	rand.Read(random)
 	id := hex.EncodeToString(random)
@@ -105,6 +105,8 @@ func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage) {
 	r.subscriptions.Store(id, filters)
 	eventStream := make(chan EventMessage)
 	r.eventStreams.Store(id, eventStream)
+	uniqueEvents := make(chan Event)
+	emittedAlready := s.MapOf[string, struct{}]{}
 
 	r.Relays.Range(func(_ string, relay *Relay) bool {
 		sub := relay.subscribe(id, filters)
@@ -112,13 +114,16 @@ func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage) {
 		go func(sub *Subscription) {
 			for evt := range sub.Events {
 				eventStream <- EventMessage{Relay: relay.URL, Event: evt}
+				if _, ok := emittedAlready.LoadOrStore(evt.ID, struct{}{}); !ok {
+					uniqueEvents <- evt
+				}
 			}
 		}(sub)
 
 		return true
 	})
 
-	return id, eventStream
+	return id, eventStream, uniqueEvents
 }
 
 func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error) {
