@@ -65,7 +65,11 @@ func (r *RelayPool) Add(url string, policy RelayPoolPolicy) error {
 		policy = SimplePolicy{Read: true, Write: true}
 	}
 
-	relay := NewRelay(url)
+	relay, err := RelayConnect(url)
+	if err != nil {
+		return err
+	}
+
 	r.Policies.Store(relay.URL, policy)
 	r.Relays.Store(relay.URL, relay)
 

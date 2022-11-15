@@ -39,15 +39,16 @@ type Relay struct {
 	Connection    *Connection
 	subscriptions s.MapOf[string, *Subscription]
 
-	Notices     chan string
+	Notices         chan string
+	ConnectionError chan error
+
 	statusChans s.MapOf[string, chan Status]
 }
 
-func NewRelay(url string) *Relay {
-	return &Relay{
-		URL:           NormalizeURL(url),
-		subscriptions: s.MapOf[string, *Subscription]{},
-	}
+func RelayConnect(url string) (*Relay, error) {
+	r := &Relay{URL: NormalizeURL(url)}
+	err := r.Connect()
+	return r, err
 }
 
 func (r *Relay) Connect() error {
@@ -60,6 +61,9 @@ func (r *Relay) Connect() error {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
 
+	r.Notices = make(chan string)
+	r.ConnectionError = make(chan error)
+
 	conn := NewConnection(socket)
 	r.Connection = conn
 
@@ -67,8 +71,10 @@ func (r *Relay) Connect() error {
 		for {
 			typ, message, err := conn.socket.ReadMessage()
 			if err != nil {
-				continue
+				r.ConnectionError <- err
+				break
 			}
+
 			if typ == websocket.PingMessage {
 				conn.WriteMessage(websocket.PongMessage, nil)
 				continue
