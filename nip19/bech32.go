@@ -9,14 +9,13 @@ const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 var gen = []int{0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3}
 
-// Decode decodes a bech32 encoded string, returning the human-readable
+// decode decodes a bech32 encoded string, returning the human-readable
 // part and the data part excluding the checksum.
 func decode(bech string) (string, []byte, error) {
 	// Only ASCII characters between 33 and 126 are allowed.
 	for i := 0; i < len(bech); i++ {
 		if bech[i] < 33 || bech[i] > 126 {
-			return "", nil, fmt.Errorf("invalid character in "+
-				"string: '%c'", bech[i])
+			return "", nil, fmt.Errorf("invalid character in string: '%c'", bech[i])
 		}
 	}
 
@@ -24,8 +23,7 @@ func decode(bech string) (string, []byte, error) {
 	lower := strings.ToLower(bech)
 	upper := strings.ToUpper(bech)
 	if bech != lower && bech != upper {
-		return "", nil, fmt.Errorf("string not all lowercase or all " +
-			"uppercase")
+		return "", nil, fmt.Errorf("string not all lowercase or all uppercase")
 	}
 
 	// We'll work with the lowercase string from now on.
@@ -48,8 +46,7 @@ func decode(bech string) (string, []byte, error) {
 	// 'charset'.
 	decoded, err := toBytes(data)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed converting data to bytes: "+
-			"%v", err)
+		return "", nil, fmt.Errorf("failed converting data to bytes: %s", err.Error())
 	}
 
 	if !bech32VerifyChecksum(hrp, decoded) {
@@ -58,8 +55,7 @@ func decode(bech string) (string, []byte, error) {
 		expected, err := toChars(bech32Checksum(hrp,
 			decoded[:len(decoded)-6]))
 		if err == nil {
-			moreInfo = fmt.Sprintf("Expected %v, got %v.",
-				expected, checksum)
+			moreInfo = fmt.Sprintf("Expected %v, got %v.", expected, checksum)
 		}
 		return "", nil, fmt.Errorf("checksum failed. " + moreInfo)
 	}
@@ -81,8 +77,7 @@ func encode(hrp string, data []byte) (string, error) {
 	// represented using the specified charset.
 	dataChars, err := toChars(combined)
 	if err != nil {
-		return "", fmt.Errorf("unable to convert data bytes to chars: "+
-			"%v", err)
+		return "", fmt.Errorf("unable to convert data bytes to chars: %s", err.Error())
 	}
 	return hrp + "1" + dataChars, nil
 }
@@ -115,9 +110,9 @@ func toChars(data []byte) (string, error) {
 	return string(result), nil
 }
 
-// ConvertBits converts a byte slice where each byte is encoding fromBits bits,
+// convertBits converts a byte slice where each byte is encoding fromBits bits,
 // to a byte slice where each byte is encoding toBits bits.
-func ConvertBits(data []byte, fromBits, toBits uint8, pad bool) ([]byte, error) {
+func convertBits(data []byte, fromBits, toBits uint8, pad bool) ([]byte, error) {
 	if fromBits < 1 || fromBits > 8 || toBits < 1 || toBits > 8 {
 		return nil, fmt.Errorf("only bit groups between 1 and 8 allowed")
 	}

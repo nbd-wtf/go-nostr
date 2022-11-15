@@ -18,7 +18,7 @@ func EncodePrivateKey(privateKeyHex string) (string, error) {
 func EncodePublicKey(publicKeyHex string, masterRelay string) (string, error) {
 	b, err := hex.DecodeString(publicKeyHex)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to decode public key hex: %w", err)
 	}
 
 	tlv := make([]byte, 0, 64)
@@ -35,7 +35,12 @@ func EncodePublicKey(publicKeyHex string, masterRelay string) (string, error) {
 	}
 	b = append(b, tlv...)
 
-	return encode("nsec", b)
+	bits5, err := convertBits(b, 8, 5, true)
+	if err != nil {
+		return "", err
+	}
+
+	return encode("npub", bits5)
 }
 
 func EncodeNote(eventIdHex string) (string, error) {
@@ -53,9 +58,14 @@ func Decode(bech32string string) ([]byte, string, error) {
 		return nil, "", err
 	}
 
+	bits8, err := convertBits(data, 5, 8, false)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed translating data into 8 bits: %s", err.Error())
+	}
+
 	if len(data) < 32 {
 		return nil, "", fmt.Errorf("data is less than 32 bytes (%d)", len(data))
 	}
 
-	return data[0:32], prefix, nil
+	return bits8[0:32], prefix, nil
 }
