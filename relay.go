@@ -220,7 +220,7 @@ func (r *Relay) subscribe(id string, filters Filters) *Subscription {
 		conn:              r.Connection,
 		id:                id,
 		Events:            make(chan Event),
-		EndOfStoredEvents: make(chan struct{}),
+		EndOfStoredEvents: make(chan struct{}, 1),
 	}
 
 	r.subscriptions.Store(sub.id, &sub)
