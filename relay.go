@@ -140,7 +140,9 @@ func (r *Relay) Connect() error {
 				var channel string
 				json.Unmarshal(jsonMessage[1], &channel)
 				if subscription, ok := r.subscriptions.Load(channel); ok {
-					subscription.EndOfStoredEvents <- struct{}{}
+					subscription.emitEose.Do(func() {
+						subscription.EndOfStoredEvents <- struct{}{}
+					})
 				}
 			case "OK":
 				if len(jsonMessage) < 3 {

@@ -1,5 +1,7 @@
 package nostr
 
+import "sync"
+
 type Subscription struct {
 	id   string
 	conn *Connection
@@ -8,7 +10,8 @@ type Subscription struct {
 	Events            chan Event
 	EndOfStoredEvents chan struct{}
 
-	stopped bool
+	stopped  bool
+	emitEose sync.Once
 }
 
 type EventMessage struct {
