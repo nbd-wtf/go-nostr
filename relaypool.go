@@ -149,7 +149,12 @@ func Unique(all chan EventMessage) chan Event {
 }
 
 func (r *RelayPool) PublishEvent(evt *Event) (*Event, chan PublishStatus, error) {
-	status := make(chan PublishStatus, 1)
+	size := 0
+	r.Relays.Range(func(_ string, _ *Relay) bool {
+		size++
+		return true
+	})
+	status := make(chan PublishStatus, size)
 
 	if r.SecretKey == nil && (evt.PubKey == "" || evt.Sig == "") {
 		return nil, status, errors.New("PublishEvent needs either a signed event to publish or to have been configured with a .SecretKey.")

@@ -170,7 +170,7 @@ func (r *Relay) Connect() error {
 }
 
 func (r Relay) Publish(event Event) chan Status {
-	statusChan := make(chan Status)
+	statusChan := make(chan Status, 4)
 
 	go func() {
 		// we keep track of this so the OK message can be used to close it
@@ -181,6 +181,7 @@ func (r Relay) Publish(event Event) chan Status {
 		if err != nil {
 			statusChan <- PublishStatusFailed
 			close(statusChan)
+			return
 		}
 		statusChan <- PublishStatusSent
 

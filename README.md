@@ -24,7 +24,7 @@ for notice := range pool.Notices {
 ### Listening for events
 
 ```go
-subId, allEvents, uniqueEvents := pool.Sub(nostr.Filters{
+subId, events := pool.Sub(nostr.Filters{
 	{
 		Authors: []string{"0ded86bf80c76847320b16f22b7451c08169434837a51ad5fe3b178af6c35f5d"},
 		Kinds:   []int{nostr.KindTextNote}, // or {1}
@@ -32,7 +32,7 @@ subId, allEvents, uniqueEvents := pool.Sub(nostr.Filters{
 })
 
 go func() {
-	for event := range uniqueEvents {
+	for event := range nostr.Unique(events) {
 		log.Print(event)
 	}
 }()
