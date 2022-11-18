@@ -20,9 +20,7 @@ func NormalizeURL(u string) string {
 		p.Scheme = "wss"
 	}
 
-	if strings.HasSuffix(p.RawPath, "/") {
-		p.RawPath = p.RawPath[0 : len(p.RawPath)-1]
-	}
+	p.Path = strings.TrimRight(p.Path, "/")
 
 	return p.String()
 }
