@@ -48,7 +48,7 @@ func (tag Tag) Value() string {
 }
 
 func (tag Tag) Relay() string {
-	if tag[0] == "e" || tag[0] == "p" && len(tag) > 2 {
+	if (tag[0] == "e" || tag[0] == "p") && len(tag) > 2 {
 		return tag[2]
 	}
 	return ""
