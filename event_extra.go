@@ -2,6 +2,9 @@ package nostr
 
 // SetExtra sets an out-of-the-spec value under the given key into the event object.
 func (evt *Event) SetExtra(key string, value any) {
+	if evt.extra == nil {
+		evt.extra = make(map[string]any)
+	}
 	evt.extra[key] = value
 }
 
