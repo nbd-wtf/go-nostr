@@ -78,7 +78,8 @@ func (r *RelayPool) Add(url string, policy RelayPoolPolicy) chan error {
 		r.Relays.Store(relay.URL, relay)
 
 		r.subscriptions.Range(func(id string, filters Filters) bool {
-			sub := relay.subscribe(id, filters)
+			sub := relay.prepareSubscription(id)
+			sub.Sub(filters)
 			eventStream, _ := r.eventStreams.Load(id)
 
 			go func(sub *Subscription) {
@@ -119,7 +120,8 @@ func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage) {
 	r.eventStreams.Store(id, eventStream)
 
 	r.Relays.Range(func(_ string, relay *Relay) bool {
-		sub := relay.subscribe(id, filters)
+		sub := relay.prepareSubscription(id)
+		sub.Sub(filters)
 
 		go func(sub *Subscription) {
 			for evt := range sub.Events {

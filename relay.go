@@ -125,7 +125,7 @@ func (r *Relay) Connect() error {
 					}
 
 					// check if the event matches the desired filter, ignore otherwise
-					if !subscription.filters.Match(&event) {
+					if !subscription.Filters.Match(&event) {
 						continue
 					}
 
@@ -212,24 +212,30 @@ func (r *Relay) Subscribe(filters Filters) *Subscription {
 		panic(fmt.Errorf("must call .Connect() first before calling .Subscribe()"))
 	}
 
+	sub := r.PrepareSubscription()
+	sub.Filters = filters
+	sub.Fire()
+	return sub
+}
+
+func (r *Relay) PrepareSubscription() *Subscription {
 	random := make([]byte, 7)
 	rand.Read(random)
 	id := hex.EncodeToString(random)
-	return r.subscribe(id, filters)
+
+	return r.prepareSubscription(id)
 }
 
-func (r *Relay) subscribe(id string, filters Filters) *Subscription {
-	sub := Subscription{
+func (r *Relay) prepareSubscription(id string) *Subscription {
+	sub := &Subscription{
 		conn:              r.Connection,
 		id:                id,
 		Events:            make(chan Event),
 		EndOfStoredEvents: make(chan struct{}, 1),
 	}
 
-	r.subscriptions.Store(sub.id, &sub)
-
-	sub.Sub(filters)
-	return &sub
+	r.subscriptions.Store(sub.id, sub)
+	return sub
 }
 
 func (r *Relay) Close() error {

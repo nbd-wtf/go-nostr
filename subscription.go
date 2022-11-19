@@ -6,7 +6,7 @@ type Subscription struct {
 	id   string
 	conn *Connection
 
-	filters           Filters
+	Filters           Filters
 	Events            chan Event
 	EndOfStoredEvents chan struct{}
 
@@ -19,10 +19,6 @@ type EventMessage struct {
 	Relay string
 }
 
-func (sub Subscription) GetFilters() Filters {
-	return sub.filters
-}
-
 func (sub Subscription) Unsub() {
 	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.id})
 
@@ -33,10 +29,13 @@ func (sub Subscription) Unsub() {
 }
 
 func (sub *Subscription) Sub(filters Filters) {
-	sub.filters = filters
+	sub.Filters = filters
+	sub.Fire()
+}
 
+func (sub *Subscription) Fire() {
 	message := []interface{}{"REQ", sub.id}
-	for _, filter := range sub.filters {
+	for _, filter := range sub.Filters {
 		message = append(message, filter)
 	}
 
