@@ -19,6 +19,10 @@ type EventMessage struct {
 	Relay string
 }
 
+func (sub Subscription) GetFilters() Filters {
+	return sub.filters
+}
+
 func (sub Subscription) Unsub() {
 	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.id})
 
