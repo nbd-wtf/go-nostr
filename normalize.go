@@ -6,6 +6,10 @@ import (
 )
 
 func NormalizeURL(u string) string {
+	if u == "" {
+		return ""
+	}
+
 	if !strings.HasPrefix(u, "http") && !strings.HasPrefix(u, "ws") {
 		u = "wss://" + u
 	}
