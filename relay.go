@@ -222,6 +222,21 @@ func (r *Relay) Subscribe(filters Filters) *Subscription {
 	return sub
 }
 
+func (r *Relay) QuerySync(filter Filter, timeout time.Duration) []Event {
+	sub := r.Subscribe(Filters{filter})
+	var events []Event
+	for {
+		select {
+		case evt := <-sub.Events:
+			events = append(events, evt)
+		case <-sub.EndOfStoredEvents:
+			return events
+		case <-time.After(timeout):
+			return events
+		}
+	}
+}
+
 func (r *Relay) PrepareSubscription() *Subscription {
 	random := make([]byte, 7)
 	rand.Read(random)
