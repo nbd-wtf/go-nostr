@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"encoding/json"
 	"time"
 
 	"golang.org/x/exp/slices"
@@ -20,6 +21,11 @@ type Filter struct {
 
 type TagMap map[string][]string
 
+func (eff Filters) String() string {
+	j, _ := json.Marshal(eff)
+	return string(j)
+}
+
 func (eff Filters) Match(event *Event) bool {
 	for _, filter := range eff {
 		if filter.Matches(event) {
@@ -27,6 +33,11 @@ func (eff Filters) Match(event *Event) bool {
 		}
 	}
 	return false
+}
+
+func (ef Filter) String() string {
+	j, _ := json.Marshal(ef)
+	return string(j)
 }
 
 func (ef Filter) Matches(event *Event) bool {

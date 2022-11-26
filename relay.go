@@ -51,6 +51,10 @@ func RelayConnect(url string) (*Relay, error) {
 	return r, err
 }
 
+func (r *Relay) String() string {
+	return r.URL
+}
+
 func (r *Relay) Connect() error {
 	if r.URL == "" {
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
