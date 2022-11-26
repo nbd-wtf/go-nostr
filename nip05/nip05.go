@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+type (
+	Name2KeyMap   map[string]string
+	Key2RelaysMap map[string][]string
+)
+
+type WellKnownResponse struct {
+	Names  Name2KeyMap   `json:"names"`  // NIP-05
+	Relays Key2RelaysMap `json:"relays"` // NIP-35
+}
+
 func QueryIdentifier(fullname string) string {
 	spl := strings.Split(fullname, "@")
 	if len(spl) != 2 {
@@ -20,9 +30,7 @@ func QueryIdentifier(fullname string) string {
 		return ""
 	}
 
-	var result struct {
-		Names map[string]string `json:"names"`
-	}
+	var result WellKnownResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return ""
 	}
