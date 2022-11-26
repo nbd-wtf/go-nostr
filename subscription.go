@@ -1,11 +1,15 @@
 package nostr
 
-import "sync"
+import (
+	"sync"
+)
 
 type Subscription struct {
-	id   string
-	conn *Connection
+	id    string
+	conn  *Connection
+	mutex sync.Mutex
 
+	Relay             *Relay
 	Filters           Filters
 	Events            chan Event
 	EndOfStoredEvents chan struct{}
@@ -19,13 +23,15 @@ type EventMessage struct {
 	Relay string
 }
 
-func (sub Subscription) Unsub() {
-	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.id})
+func (sub *Subscription) Unsub() {
+	sub.mutex.Lock()
+	defer sub.mutex.Unlock()
 
-	sub.stopped = true
-	if sub.Events != nil {
+	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.id})
+	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
 	}
+	sub.stopped = true
 }
 
 func (sub *Subscription) Sub(filters Filters) {

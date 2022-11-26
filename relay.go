@@ -232,6 +232,7 @@ func (r *Relay) PrepareSubscription() *Subscription {
 
 func (r *Relay) prepareSubscription(id string) *Subscription {
 	sub := &Subscription{
+		Relay:             r,
 		conn:              r.Connection,
 		id:                id,
 		Events:            make(chan Event),
