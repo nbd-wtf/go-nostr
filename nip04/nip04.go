@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 // ECDH
@@ -19,14 +19,14 @@ func ComputeSharedSecret(senderPrivKey string, receiverPubKey string) (sharedSec
 	if err != nil {
 		return nil, fmt.Errorf("Error decoding sender private key: %s. \n", err)
 	}
-	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privKeyBytes)
+	privKey, _ := btcec.PrivKeyFromBytes(privKeyBytes)
 
 	// adding 02 to signal that this is a compressed public key (33 bytes)
 	pubKeyBytes, err := hex.DecodeString("02" + receiverPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("Error decoding hex string of receiver public key: %s. \n", err)
 	}
-	pubKey, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
+	pubKey, err := btcec.ParsePubKey(pubKeyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing receiver public key: %s. \n", err)
 	}
