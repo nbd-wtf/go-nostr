@@ -51,10 +51,12 @@ func Encrypt(message string, key []byte) (string, error) {
 	}
 	mode := cipher.NewCBCEncrypter(block, iv)
 
-	// PKCS5 padding
-	padding := block.BlockSize() - len([]byte(message))%block.BlockSize()
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	paddedMsgBytes := append([]byte(message), padtext...)
+	plaintext := []byte(message)
+
+	// add padding
+	padding := block.BlockSize() - len(plaintext)%block.BlockSize() // will be a number between 1 and 16 (inc), never 0
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)         // encode the padding in all the padding bytes
+	paddedMsgBytes := append(plaintext, padtext...)
 
 	ciphertext := make([]byte, len(paddedMsgBytes))
 	mode.CryptBlocks(ciphertext, paddedMsgBytes)
@@ -87,5 +89,9 @@ func Decrypt(content string, key []byte) (string, error) {
 	plaintext := make([]byte, len(ciphertext))
 	mode.CryptBlocks(plaintext, ciphertext)
 
-	return string(plaintext[:]), nil
+	// remove padding
+	padding := int(plaintext[len(plaintext)-1]) // the padding amount is encoded in the padding bytes themselves
+	message := string(plaintext[0 : len(plaintext)-padding])
+
+	return message, nil
 }
