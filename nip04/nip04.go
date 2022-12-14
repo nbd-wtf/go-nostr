@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	mrand "math/rand"
 	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -54,8 +55,20 @@ func Encrypt(message string, key []byte) (string, error) {
 	plaintext := []byte(message)
 
 	// add padding
-	padding := block.BlockSize() - len(plaintext)%block.BlockSize() // will be a number between 1 and 16 (inc), never 0
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)         // encode the padding in all the padding bytes
+	base := len(plaintext)
+	extra := 0
+	var padding int
+	if base < 100 {
+		// add some random padding to this message since it is too small
+		extra = mrand.Intn(230) // the total padding will be padding + extra, which can't be more than 256
+	}
+
+	// this will be a number between 1 and 16 (including), never 0
+	padding = block.BlockSize() - (base+extra)%block.BlockSize()
+
+	// encode the padding in all the padding bytes themselves
+	padtext := bytes.Repeat([]byte{byte(padding + extra)}, padding+extra)
+
 	paddedMsgBytes := append(plaintext, padtext...)
 
 	ciphertext := make([]byte, len(paddedMsgBytes))
