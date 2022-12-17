@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -58,44 +59,57 @@ func NewRelayPool() *RelayPool {
 	}
 }
 
-// Add adds a new relay to the pool, if policy is nil, it will be a simple
-// read+write policy.
-func (r *RelayPool) Add(url string, policy RelayPoolPolicy) chan error {
+// Add calls AddContext with background context in a separate goroutine, sending
+// any connection error over the returned channel.
+//
+// The returned channel is closed once the connection is successfully
+// established or RelayConnectContext returned an error.
+func (r *RelayPool) Add(url string, policy RelayPoolPolicy) <-chan error {
+	cherr := make(chan error)
+	go func() {
+		defer close(cherr)
+		if err := r.AddContext(context.Background(), url, policy); err != nil {
+			cherr <- err
+		}
+	}()
+	return cherr
+}
+
+// AddContext connects to a relay at a canonical version specified by the url
+// and adds it to the pool. The returned error is non-nil only on connection
+// errors, including an expired context before the connection is complete.
+//
+// Once successfully connected, AddContext returns and the context expiration
+// has no effect: call r.Remove to close the connection and delete a relay from the pool.
+func (r *RelayPool) AddContext(ctx context.Context, url string, policy RelayPoolPolicy) error {
+	relay, err := RelayConnectContext(ctx, url)
+	if err != nil {
+		return fmt.Errorf("failed to connect to %s: %w", url, err)
+	}
 	if policy == nil {
 		policy = SimplePolicy{Read: true, Write: true}
 	}
+	r.addConnected(relay, policy)
+	return nil
+}
 
-	cherr := make(chan error)
+func (r *RelayPool) addConnected(relay *Relay, policy RelayPoolPolicy) {
+	r.Policies.Store(relay.URL, policy)
+	r.Relays.Store(relay.URL, relay)
 
-	go func() {
-		relay, err := RelayConnect(url)
-		if err != nil {
-			cherr <- fmt.Errorf("failed to connect to %s: %w", url, err)
-			return
-		}
+	r.subscriptions.Range(func(id string, filters Filters) bool {
+		sub := relay.prepareSubscription(id)
+		sub.Sub(filters)
+		eventStream, _ := r.eventStreams.Load(id)
 
-		r.Policies.Store(relay.URL, policy)
-		r.Relays.Store(relay.URL, relay)
+		go func(sub *Subscription) {
+			for evt := range sub.Events {
+				eventStream <- EventMessage{Relay: relay.URL, Event: evt}
+			}
+		}(sub)
 
-		r.subscriptions.Range(func(id string, filters Filters) bool {
-			sub := relay.prepareSubscription(id)
-			sub.Sub(filters)
-			eventStream, _ := r.eventStreams.Load(id)
-
-			go func(sub *Subscription) {
-				for evt := range sub.Events {
-					eventStream <- EventMessage{Relay: relay.URL, Event: evt}
-				}
-			}(sub)
-
-			return true
-		})
-
-		cherr <- nil
-		close(cherr)
-	}()
-
-	return cherr
+		return true
+	})
 }
 
 // Remove removes a relay from the pool.

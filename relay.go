@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -45,9 +46,16 @@ type Relay struct {
 	statusChans s.MapOf[string, chan Status]
 }
 
+// RelayConnect forwards calls to RelayConnectContext with a background context.
 func RelayConnect(url string) (*Relay, error) {
+	return RelayConnectContext(context.Background(), url)
+}
+
+// RelayConnectContext creates a new relay client and connects to a canonical
+// URL using Relay.ConnectContext, passing ctx as is.
+func RelayConnectContext(ctx context.Context, url string) (*Relay, error) {
 	r := &Relay{URL: NormalizeURL(url)}
-	err := r.Connect()
+	err := r.ConnectContext(ctx)
 	return r, err
 }
 
@@ -55,12 +63,21 @@ func (r *Relay) String() string {
 	return r.URL
 }
 
+// Connect calls ConnectContext with a background context.
 func (r *Relay) Connect() error {
+	return r.ConnectContext(context.Background())
+}
+
+// ConnectContext tries to establish a websocket connection to r.URL.
+// If the context expires before the connection is complete, an error is returned.
+// Once successfully connected, context expiration has no effect: call r.Close
+// to close the connection.
+func (r *Relay) ConnectContext(ctx context.Context) error {
 	if r.URL == "" {
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
 	}
 
-	socket, _, err := websocket.DefaultDialer.Dial(r.URL, nil)
+	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, nil)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
