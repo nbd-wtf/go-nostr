@@ -11,6 +11,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/valyala/fastjson v1.6.3
 	golang.org/x/exp v0.0.0-20221106115401-f9659909a136
+	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
 )
 
 require (
