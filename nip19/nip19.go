@@ -1,7 +1,6 @@
 package nip19
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 )
@@ -15,25 +14,11 @@ func EncodePrivateKey(privateKeyHex string) (string, error) {
 	return encode("nsec", b)
 }
 
-func EncodePublicKey(publicKeyHex string, masterRelay string) (string, error) {
+func EncodePublicKey(publicKeyHex string) (string, error) {
 	b, err := hex.DecodeString(publicKeyHex)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode public key hex: %w", err)
 	}
-
-	tlv := make([]byte, 0, 64)
-	if masterRelay != "" {
-		relayBytes := []byte(masterRelay)
-		length := len(relayBytes)
-		if length >= 65536 {
-			return "", fmt.Errorf("masterRelay URL is too large")
-		}
-
-		binary.BigEndian.PutUint16(tlv, 1)
-		binary.BigEndian.PutUint16(tlv, uint16(length))
-		tlv = append(tlv, relayBytes...)
-	}
-	b = append(b, tlv...)
 
 	bits5, err := convertBits(b, 8, 5, true)
 	if err != nil {
