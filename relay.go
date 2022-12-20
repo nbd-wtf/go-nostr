@@ -2,11 +2,11 @@ package nostr
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"time"
 
 	s "github.com/SaveTheRbtz/generic-sync-map-go"
