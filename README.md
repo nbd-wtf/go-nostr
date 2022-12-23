@@ -24,7 +24,7 @@ for notice := range pool.Notices {
 ### Listening for events
 
 ```go
-subId, events, unsub := pool.Sub(nostr.Filters{
+subId, events, unsubscribe := pool.Sub(nostr.Filters{
 	{
 		Authors: []string{"0ded86bf80c76847320b16f22b7451c08169434837a51ad5fe3b178af6c35f5d"},
 		Kinds:   []int{nostr.KindTextNote}, // or {1}
@@ -38,7 +38,7 @@ go func() {
 }()
 
 time.Sleep(5 * time.Second)
-unsub()
+unsubscribe()
 ```
 
 ### Publishing an event

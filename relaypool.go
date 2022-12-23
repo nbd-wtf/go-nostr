@@ -124,7 +124,10 @@ func (r *RelayPool) Remove(url string) {
 	}
 }
 
-func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage, func()) {
+//Sub subscribes to events matching the passed filters and returns the subscription ID,
+//a channel which you should pass into Unique to get unique events, and a function which
+//you should call to clean up and close your subscription so that the relay doesn't block you.
+func (r *RelayPool) Sub(filters Filters) (subID string, events chan EventMessage, unsubscribe func()) {
 	random := make([]byte, 7)
 	rand.Read(random)
 	id := hex.EncodeToString(random)

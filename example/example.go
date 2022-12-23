@@ -8,7 +8,7 @@ import (
 )
 
 // some nostr relay in the wild
-var relayURL = "wss://nostr-relay.wlvs.space"
+var relayURL = "wss://nostr.688.org"
 
 func main() {
 	// create key pair
@@ -26,13 +26,15 @@ func main() {
 	pool.SecretKey = &secretKey
 
 	// add a nostr relay to our pool
-	err = pool.Add(relayURL, nostr.SimplePolicy{Read: true, Write: true})
-	if err != nil {
-		fmt.Printf("error calling Add(): %s\n", err.Error())
-	}
+	errchan := pool.Add(relayURL, nostr.SimplePolicy{Read: true, Write: true})
+	go func() {
+		for err := range errchan {
+			fmt.Println(err.Error())
+		}
+	}()
 
 	// subscribe to relays in our pool, with filtering
-	sub := pool.Sub(nostr.Filters{
+	_, events, unsubscribe := pool.Sub(nostr.Filters{
 		{
 			Authors: []string{publicKey},
 			Kinds:   []int{nostr.KindTextNote},
@@ -41,7 +43,7 @@ func main() {
 
 	// listen for events from our subscriptions
 	go func() {
-		for event := range sub.UniqueEvents {
+		for event := range nostr.Unique(events) {
 			fmt.Printf("Received Event: %+v\n\n", event)
 		}
 	}()
@@ -69,7 +71,7 @@ func main() {
 	// after 20 seconds, unsubscribe from our pool and terminate program
 	time.Sleep(20 * time.Second)
 	fmt.Println("unsubscribing from nostr subscription")
-	sub.Unsub()
+	unsubscribe()
 }
 
 // handle events from out publish events
