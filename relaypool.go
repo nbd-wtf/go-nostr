@@ -124,7 +124,7 @@ func (r *RelayPool) Remove(url string) {
 	}
 }
 
-func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage, chan struct{}) {
+func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage, func()) {
 	random := make([]byte, 7)
 	rand.Read(random)
 	id := hex.EncodeToString(random)
@@ -154,7 +154,7 @@ func (r *RelayPool) Sub(filters Filters) (string, chan EventMessage, chan struct
 		return true
 	})
 
-	return id, eventStream, unsub
+	return id, eventStream, func() { close(unsub) }
 }
 
 func Unique(all chan EventMessage) chan Event {

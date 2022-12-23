@@ -38,7 +38,7 @@ go func() {
 }()
 
 time.Sleep(5 * time.Second)
-close(unsub)
+unsub()
 ```
 
 ### Publishing an event
