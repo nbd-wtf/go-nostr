@@ -157,7 +157,15 @@ func (r *RelayPool) Sub(filters Filters) (subID string, events chan EventMessage
 		return true
 	})
 
-	return id, eventStream, func() { close(unsub) }
+	return id, eventStream, func() { gracefulClose(unsub) }
+}
+
+func gracefulClose(c chan struct{}) {
+	select {
+	case <-c:
+	default:
+		close(c)
+	}
 }
 
 func Unique(all chan EventMessage) chan Event {
