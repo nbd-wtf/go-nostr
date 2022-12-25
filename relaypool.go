@@ -105,6 +105,7 @@ func (r *RelayPool) addConnected(relay *Relay, policy RelayPoolPolicy) {
 		go func(sub *Subscription) {
 			for evt := range sub.Events {
 				eventStream <- EventMessage{Relay: relay.URL, Event: evt}
+				eventStream <- EventMessage{Relay: relay.URL, Event: evt}
 			}
 		}(sub)
 
