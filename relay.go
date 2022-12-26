@@ -176,7 +176,7 @@ func (r *Relay) ConnectContext(ctx context.Context) error {
 				json.Unmarshal(jsonMessage[1], &eventId)
 				json.Unmarshal(jsonMessage[2], &ok)
 
-				if statusChan, ok := r.statusChans.Load(eventId); ok {
+				if statusChan, exist := r.statusChans.Load(eventId); exist {
 					if ok {
 						statusChan <- PublishStatusSucceeded
 					} else {
@@ -190,7 +190,7 @@ func (r *Relay) ConnectContext(ctx context.Context) error {
 	return nil
 }
 
-func (r Relay) Publish(event Event) chan Status {
+func (r *Relay) Publish(event Event) chan Status {
 	statusChan := make(chan Status, 4)
 
 	go func() {
@@ -206,6 +206,9 @@ func (r Relay) Publish(event Event) chan Status {
 		}
 		statusChan <- PublishStatusSent
 
+		// TODO: there's no reason to sub if the relay supports nip-20 (command results).
+		// in fact, subscribing here with nip20-enabled relays makes it send PublishStatusSucceded
+		// twice: once here, and the other on "OK" command result.
 		sub := r.Subscribe(Filters{Filter{IDs: []string{event.ID}}})
 		for {
 			select {
