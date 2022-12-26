@@ -187,6 +187,31 @@ func parseEventMessage(t *testing.T, raw []json.RawMessage) Event {
 	return event
 }
 
+func parseSubscriptionMessage(t *testing.T, raw []json.RawMessage) (subid string, filters []Filter) {
+	t.Helper()
+	if len(raw) < 3 {
+		t.Fatalf("len(raw) = %d; want at least 3", len(raw))
+	}
+	var typ string
+	json.Unmarshal(raw[0], &typ)
+	if typ != "REQ" {
+		t.Errorf("typ = %q; want REQ", typ)
+	}
+	var id string
+	if err := json.Unmarshal(raw[1], &id); err != nil {
+		t.Errorf("json.Unmarshal sub id: %v", err)
+	}
+	var ff []Filter
+	for i, b := range raw[2:] {
+		var f Filter
+		if err := json.Unmarshal(b, &f); err != nil {
+			t.Errorf("json.Unmarshal filter %d: %v", i, err)
+		}
+		ff = append(ff, f)
+	}
+	return id, ff
+}
+
 func testPublishStatus(t *testing.T, ch <-chan Status, want map[Status]bool) {
 	for stat := range ch {
 		if !want[stat] {
