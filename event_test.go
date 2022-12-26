@@ -85,3 +85,10 @@ func TestEventSerialization(t *testing.T) {
 		}
 	}
 }
+
+func mustSignEvent(t *testing.T, privkey string, event *Event) {
+	t.Helper()
+	if err := event.Sign(privkey); err != nil {
+		t.Fatalf("event.Sign: %v", err)
+	}
+}
