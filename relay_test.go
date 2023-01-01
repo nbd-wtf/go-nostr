@@ -55,11 +55,11 @@ func TestPublish(t *testing.T) {
 
 	// connect a client and send the text note
 	rl := mustRelayConnect(ws.URL)
-	want := map[Status]bool{
-		PublishStatusSent:      true,
-		PublishStatusSucceeded: true,
+	status := rl.Publish(context.Background(), textNote)
+	if status != PublishStatusSucceeded {
+		t.Errorf("published status is %d, not %d", status, PublishStatusSucceeded)
 	}
-	testPublishStatus(t, rl.Publish(textNote), want)
+
 	if !published {
 		t.Errorf("fake relay server saw no event")
 	}
@@ -85,11 +85,10 @@ func TestPublishBlocked(t *testing.T) {
 
 	// connect a client and send a text note
 	rl := mustRelayConnect(ws.URL)
-	want := map[Status]bool{
-		PublishStatusSent:   true,
-		PublishStatusFailed: true,
+	status := rl.Publish(context.Background(), textNote)
+	if status != PublishStatusFailed {
+		t.Errorf("published status is %d, not %d", status, PublishStatusSucceeded)
 	}
-	testPublishStatus(t, rl.Publish(textNote), want)
 }
 
 func TestConnectContext(t *testing.T) {
@@ -107,7 +106,7 @@ func TestConnectContext(t *testing.T) {
 	// relay client
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := RelayConnectContext(ctx, ws.URL)
+	r, err := RelayConnect(ctx, ws.URL)
 	if err != nil {
 		t.Fatalf("RelayConnectContext: %v", err)
 	}
@@ -130,7 +129,7 @@ func TestConnectContextCanceled(t *testing.T) {
 	// relay client
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // make ctx expired
-	_, err := RelayConnectContext(ctx, ws.URL)
+	_, err := RelayConnect(ctx, ws.URL)
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("RelayConnectContext returned %v error; want context.Canceled", err)
 	}
@@ -163,7 +162,7 @@ func makeKeyPair(t *testing.T) (priv, pub string) {
 func mustRelayConnect(url string) *Relay {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	rl, err := RelayConnectContext(ctx, url)
+	rl, err := RelayConnect(ctx, url)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -210,22 +209,4 @@ func parseSubscriptionMessage(t *testing.T, raw []json.RawMessage) (subid string
 		ff = append(ff, f)
 	}
 	return id, ff
-}
-
-func testPublishStatus(t *testing.T, ch <-chan Status, want map[Status]bool) {
-	for stat := range ch {
-		if !want[stat] {
-			t.Errorf("client reported %q status", stat)
-		}
-		delete(want, stat)
-		// stop early to speed up tests
-		if len(want) == 0 {
-			break
-		}
-	}
-	for stat, missed := range want {
-		if missed {
-			t.Errorf("client didn't report %q", stat)
-		}
-	}
 }

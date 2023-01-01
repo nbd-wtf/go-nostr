@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"context"
 	"sync"
 )
 
@@ -34,16 +35,22 @@ func (sub *Subscription) Unsub() {
 	sub.stopped = true
 }
 
-func (sub *Subscription) Sub(filters Filters) {
+func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 	sub.Filters = filters
-	sub.Fire()
+	sub.Fire(ctx)
 }
 
-func (sub *Subscription) Fire() {
+func (sub *Subscription) Fire(ctx context.Context) {
 	message := []interface{}{"REQ", sub.id}
 	for _, filter := range sub.Filters {
 		message = append(message, filter)
 	}
 
 	sub.conn.WriteJSON(message)
+
+	// the subscription ends once the context is canceled
+	go func() {
+		<-ctx.Done()
+		sub.Unsub()
+	}()
 }
