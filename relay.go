@@ -65,6 +65,13 @@ func (r *Relay) Connect(ctx context.Context) error {
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
 	}
 
+	if _, ok := ctx.Deadline(); !ok {
+		// if no timeout is set, force it to 7 seconds
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
+		defer cancel()
+	}
+
 	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, nil)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
