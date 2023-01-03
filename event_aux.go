@@ -70,7 +70,7 @@ func (evt *Event) UnmarshalJSON(payload []byte) error {
 			evt.Sig = string(id)
 		default:
 			var anyValue any
-			json.Unmarshal(v.MarshalTo(nil), anyValue)
+			json.Unmarshal(v.MarshalTo([]byte{}), &anyValue)
 			evt.extra[key] = anyValue
 		}
 	})

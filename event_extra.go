@@ -36,11 +36,17 @@ func (evt Event) GetExtraNumber(key string) float64 {
 	if !ok {
 		return 0
 	}
-	val, ok := ival.(float64)
-	if !ok {
-		return 0
+
+	switch val := ival.(type) {
+	case float64:
+		return val
+	case int:
+		return float64(val)
+	case int64:
+		return float64(val)
 	}
-	return val
+
+	return 0
 }
 
 // GetExtraBoolean is like [Event.GetExtra], but only works if the value is a boolean,
