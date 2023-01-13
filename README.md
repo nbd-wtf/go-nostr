@@ -15,3 +15,9 @@ sk, _ := nostr.GenerateKey()
 fmt.Println("sk:", sk)
 fmt.Println("pk:", nostr.GetPublicKey(sk))
 ```
+
+### Subscriptions
+
+```
+go run example/example.go
+```
