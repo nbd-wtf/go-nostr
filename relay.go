@@ -200,6 +200,7 @@ func (r *Relay) Publish(event Event) chan Status {
 
 		err := r.Connection.WriteJSON([]interface{}{"EVENT", event})
 		if err != nil {
+			fmt.Println(err.Error())
 			statusChan <- PublishStatusFailed
 			close(statusChan)
 			return
