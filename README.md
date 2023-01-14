@@ -56,7 +56,7 @@ for ev := range sub.Events {
 }
 ```
 
-### Publishing to a single relay
+### Publishing to two relays
 
 ``` go
 sk := nostr.GeneratePrivateKey()
