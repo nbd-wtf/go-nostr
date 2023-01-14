@@ -37,7 +37,7 @@ func main() {
 	if _, v, err := nip19.Decode(npub); err == nil {
 		t := make(map[string][]string)
 		// making a "p" tag for the above public key.
-		// this filters for messages tagged with the user "npub1sg6plz..." (mainly replies to this user).
+		// this filters for messages tagged with the user, mainly replies.
 		t["p"] = []string{v.(string)}
 		filters = []nostr.Filter{{
 			Kinds: []int{1},
