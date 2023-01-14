@@ -172,9 +172,13 @@ func (r *Relay) ConnectContext(ctx context.Context) error {
 				var (
 					eventId string
 					ok      bool
+					msg     string
 				)
 				json.Unmarshal(jsonMessage[1], &eventId)
 				json.Unmarshal(jsonMessage[2], &ok)
+				json.Unmarshal(jsonMessage[3], &msg)
+
+				log.Println(msg)
 
 				if statusChan, exist := r.statusChans.Load(eventId); exist {
 					if ok {
@@ -200,7 +204,6 @@ func (r *Relay) Publish(event Event) chan Status {
 
 		err := r.Connection.WriteJSON([]interface{}{"EVENT", event})
 		if err != nil {
-			fmt.Println(err.Error())
 			statusChan <- PublishStatusFailed
 			close(statusChan)
 			return
