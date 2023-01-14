@@ -12,8 +12,8 @@ A set of useful things for [Nostr Protocol](https://github.com/nostr-protocol/no
 ``` go
 sk, _ := nostr.GenerateKey()
 pk, _ := nostr.GetPublicKey(sk)
-nsec, _ = nip19.EncodePrivateKey(sk)
-npub, _ = nip19.EncodePublicKey(pk)
+nsec, _ := nip19.EncodePrivateKey(sk)
+npub, _ := nip19.EncodePublicKey(pk)
 
 fmt.Println("sk:", sk)
 fmt.Println("pk:", nostr.GetPublicKey(sk))
