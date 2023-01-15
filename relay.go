@@ -141,13 +141,14 @@ func (r *Relay) Connect(ctx context.Context) error {
 					}
 
 					// check if the event matches the desired filter, ignore otherwise
-					if !subscription.Filters.Match(&event) {
-						continue
-					}
-
-					if !subscription.stopped {
+					func() {
+						subscription.mutex.Lock()
+						defer subscription.mutex.Unlock()
+						if !subscription.Filters.Match(&event) || subscription.stopped {
+							return
+						}
 						subscription.Events <- event
-					}
+					}()
 				}
 			case "EOSE":
 				if len(jsonMessage) < 2 {

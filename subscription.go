@@ -24,6 +24,8 @@ type EventMessage struct {
 	Relay string
 }
 
+// Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01
+// Unsub() also closes the channel sub.Events
 func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
