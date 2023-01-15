@@ -43,7 +43,8 @@ if _, v, err := nip19.Decode(npub); err == nil {
 	panic(err)
 }
 
-sub := relay.Subscribe(context.Background(), filters)
+ctx, cancel := context.WithCancel(context.Background())
+sub := relay.Subscribe(ctx, filters)
 
 go func() {
 	<-sub.EndOfStoredEvents
@@ -52,7 +53,9 @@ go func() {
 
 for ev := range sub.Events {
 	// handle returned event.
-	// channel will stay open until sub.Unsub() is called
+	// channel will stay open until the ctx is cancelled (in this case, by calling cancel())
+	
+	fmt.Println(ev.ID)
 }
 ```
 
