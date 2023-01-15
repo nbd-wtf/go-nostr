@@ -37,11 +37,14 @@ func (sub *Subscription) Unsub() {
 	sub.stopped = true
 }
 
+// Sub sets sub.Filters and then calls sub.Fire(ctx)
 func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 	sub.Filters = filters
 	sub.Fire(ctx)
 }
 
+// Fire sends the "REQ" command to the relay
+// when ctx is cancelled, sub.Unsub() is called, closing the subscription
 func (sub *Subscription) Fire(ctx context.Context) {
 	message := []interface{}{"REQ", sub.id}
 	for _, filter := range sub.Filters {
