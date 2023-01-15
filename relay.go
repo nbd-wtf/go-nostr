@@ -46,9 +46,9 @@ type Relay struct {
 	okCallbacks s.MapOf[string, func(bool)]
 }
 
-// RelayConnect returns a relay object connected to url
-// Once successfully connected, cancelling ctx has no effect 
-// To close the connection, call r.Close()
+// RelayConnect returns a relay object connected to url.
+// Once successfully connected, cancelling ctx has no effect.
+// To close the connection, call r.Close().
 func RelayConnect(ctx context.Context, url string) (*Relay, error) {
 	r := &Relay{URL: NormalizeURL(url)}
 	err := r.Connect(ctx)
@@ -185,8 +185,8 @@ func (r *Relay) Connect(ctx context.Context) error {
 	return nil
 }
 
-// Publish sends an "EVENT" command to the relay r as in NIP-01
-// status can be: success, failed, or sent (no response from relay before ctx times out)
+// Publish sends an "EVENT" command to the relay r as in NIP-01.
+// Status can be: success, failed, or sent (no response from relay before ctx times out).
 func (r *Relay) Publish(ctx context.Context, event Event) Status {
 	status := PublishStatusFailed
 
@@ -242,9 +242,9 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 	}
 }
 
-// Subscribe sends a "REQ" command to the relay r as in NIP-01
-// Events are returned through the channel sub.Events
-// the subscription is closed when context ctx is cancelled ("CLOSE" in NIP-01)
+// Subscribe sends a "REQ" command to the relay r as in NIP-01.
+// Events are returned through the channel sub.Events.
+// The subscription is closed when context ctx is cancelled ("CLOSE" in NIP-01).
 func (r *Relay) Subscribe(ctx context.Context, filters Filters) *Subscription {
 	if r.Connection == nil {
 		panic(fmt.Errorf("must call .Connect() first before calling .Subscribe()"))
