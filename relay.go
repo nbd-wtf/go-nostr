@@ -46,7 +46,9 @@ type Relay struct {
 	okCallbacks s.MapOf[string, func(bool)]
 }
 
-// RelayConnect sets the URL field to url and calls Connect()
+// RelayConnect returns a relay object connected to url
+// Once successfully connected, cancelling ctx has no effect 
+// To close the connection, call r.Close()
 func RelayConnect(ctx context.Context, url string) (*Relay, error) {
 	r := &Relay{URL: NormalizeURL(url)}
 	err := r.Connect(ctx)
