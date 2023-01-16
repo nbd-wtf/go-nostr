@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -13,7 +14,7 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 
 	// connect to relay
 	url := "wss://nostr.zebedee.cloud"
@@ -58,7 +59,7 @@ func main() {
 
 	go func() {
 		<-sub.EndOfStoredEvents
-		sub.Unsub()
+		cancel()
 	}()
 	for ev := range sub.Events {
 		evs = append(evs, ev)
@@ -106,19 +107,14 @@ func main() {
 	fmt.Fprintln(os.Stderr, "enter content of note, ending with an empty newline:")
 	for {
 		if n, err := reader.Read(b[:]); err == nil {
-			new_line := strings.TrimSpace(fmt.Sprintf("%s", b[:n]))
-			if new_line == "" {
-				break
-			} else if content == "" {
-				content = new_line
-			} else {
-				content = fmt.Sprintf("%s\n%s", content, new_line)
-			}
+			content = fmt.Sprintf("%s%s", content, fmt.Sprintf("%s", b[:n]))
+		} else if err == io.EOF {
+			break
 		} else {
 			panic(err)
 		}
 	}
-	ev.Content = content
+	ev.Content = strings.TrimSpace(content)
 	ev.Sign(sk)
 	for _, url := range []string{"wss://nostr.zebedee.cloud"} {
 		ctx := context.WithValue(context.Background(), "url", url)
