@@ -199,6 +199,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 func (r *Relay) Publish(ctx context.Context, event Event) Status {
 	status := PublishStatusFailed
 
+	// data races on status variable without this mutex
+	var mu sync.Mutex
+
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 3 seconds
 		var cancel context.CancelFunc
@@ -213,6 +216,8 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 
 	// listen for an OK callback
 	okCallback := func(ok bool) {
+		mu.Lock()
+		defer mu.Unlock()
 		if ok {
 			status = PublishStatusSucceeded
 		} else {
@@ -224,20 +229,23 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// publish event
-	err := r.Connection.WriteJSON([]interface{}{"EVENT", event})
-	if err != nil {
+	if err := r.Connection.WriteJSON([]interface{}{"EVENT", event}); err != nil {
 		return status
 	}
 
 	// update status (this will be returned later)
+	mu.Lock()
 	status = PublishStatusSent
+	mu.Unlock()
 
 	sub := r.Subscribe(ctx, Filters{Filter{IDs: []string{event.ID}}})
+	defer mu.Unlock()
 	for {
 		select {
 		case receivedEvent := <-sub.Events:
 			if receivedEvent.ID == event.ID {
 				// we got a success, so update our status and proceed to return
+				mu.Lock()
 				status = PublishStatusSucceeded
 				return status
 			}
@@ -246,6 +254,8 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 			// will proceed to return status as it is
 			// e.g. if this happens because of the timeout then status will probably be "failed"
 			//      but if it happens because okCallback was called then it might be "succeeded"
+			// do not return if okCallback is in process
+			mu.Lock()
 			return status
 		}
 	}
@@ -289,12 +299,12 @@ func (r *Relay) Auth(ctx context.Context, event Event) Status {
 	if err := r.Connection.WriteJSON([]interface{}{"AUTH", event}); err != nil {
 		// status will be "failed"
 		return status
-	} else {
-		// use mu.Lock() just in case the okCallback got called, extremely unlikely.
-		mu.Lock()
-		status = PublishStatusSent
-		mu.Unlock()
 	}
+	// use mu.Lock() just in case the okCallback got called, extremely unlikely.
+	mu.Lock()
+	status = PublishStatusSent
+	mu.Unlock()
+
 	// the context either times out, and the status is "sent"
 	// or the okCallback is called and the status is set to "succeeded" or "failed"
 	// NIP-42 does not mandate an "OK" reply to an "AUTH" message
