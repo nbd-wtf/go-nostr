@@ -251,7 +251,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 	}
 }
 
-// Auth sends an "AUTH" command client -> relay as in NIP-01.
+// Auth sends an "AUTH" command client -> relay as in NIP-42.
 // Status can be: success, failed, or sent (no response from relay before ctx times out).
 func (r *Relay) Auth(ctx context.Context, event Event) Status {
 	status := PublishStatusFailed
