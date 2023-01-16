@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	s "github.com/SaveTheRbtz/generic-sync-map-go"
@@ -40,6 +41,7 @@ type Relay struct {
 	Connection    *Connection
 	subscriptions s.MapOf[string, *Subscription]
 
+	Challenges      chan string // NIP-42 Challenges
 	Notices         chan string
 	ConnectionError chan error
 
@@ -80,6 +82,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
 
+	r.Challenges = make(chan string)
 	r.Notices = make(chan string)
 	r.ConnectionError = make(chan error)
 
@@ -121,6 +124,12 @@ func (r *Relay) Connect(ctx context.Context) error {
 				var content string
 				json.Unmarshal(jsonMessage[1], &content)
 				r.Notices <- content
+			case "AUTH":
+				var challenge string
+				json.Unmarshal(jsonMessage[1], &challenge)
+				go func() {
+					r.Challenges <- challenge
+				}()
 			case "EVENT":
 				if len(jsonMessage) < 3 {
 					continue
@@ -240,6 +249,59 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 			return status
 		}
 	}
+}
+
+// Auth sends an "AUTH" command client -> relay as in NIP-01.
+// Status can be: success, failed, or sent (no response from relay before ctx times out).
+func (r *Relay) Auth(ctx context.Context, event Event) Status {
+	status := PublishStatusFailed
+
+	// data races on status variable without this mutex
+	var mu sync.Mutex
+
+	if _, ok := ctx.Deadline(); !ok {
+		// if no timeout is set, force it to 3 seconds
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+	}
+
+	// make it cancellable so we can stop everything upon receiving an "OK"
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
+
+	// listen for an OK callback
+	okCallback := func(ok bool) {
+		mu.Lock()
+		if ok {
+			status = PublishStatusSucceeded
+		} else {
+			status = PublishStatusFailed
+		}
+		mu.Unlock()
+		cancel()
+	}
+	r.okCallbacks.Store(event.ID, okCallback)
+	defer r.okCallbacks.Delete(event.ID)
+
+	// send AUTH
+	if err := r.Connection.WriteJSON([]interface{}{"AUTH", event}); err != nil {
+		// status will be "failed"
+		return status
+	} else {
+		// use mu.Lock() just in case the okCallback got called, extremely unlikely.
+		mu.Lock()
+		status = PublishStatusSent
+		mu.Unlock()
+	}
+	// the context either times out, and the status is "sent"
+	// or the okCallback is called and the status is set to "succeeded" or "failed"
+	// NIP-42 does not mandate an "OK" reply to an "AUTH" message
+	<-ctx.Done()
+	mu.Lock()
+	defer mu.Unlock()
+	return status
 }
 
 // Subscribe sends a "REQ" command to the relay r as in NIP-01.
