@@ -97,11 +97,11 @@ func (evt *Event) Serialize() []byte {
 	ser = append(ser, []byte{'"', ','}...)
 
 	// created_at
-	ser = append(ser, []byte(fmt.Sprintf("%d", int(evt.CreatedAt.Unix())))...)
+	ser = append(ser, []byte(fmt.Sprintf("%d", evt.CreatedAt.Unix()))...)
 	ser = append(ser, ',')
 
 	// kind
-	ser = append(ser, []byte(fmt.Sprintf("%d,", int(evt.Kind)))...)
+	ser = append(ser, []byte(fmt.Sprintf("%d,", evt.Kind))...)
 
 	// tags
 	ser = append(ser, '[')
