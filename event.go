@@ -8,7 +8,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/valyala/fastjson"
 )
 
 type Event struct {
@@ -46,33 +45,86 @@ func (evt *Event) GetID() string {
 	return hex.EncodeToString(h[:])
 }
 
-// Serialize outputs a byte array that can be hashed/signed to identify/authenticate
+// Escaping strings for JSON encoding according to RFC4627.
+// Also encloses result in quotation marks "".
+func quoteEscapeString(dst []byte, s string) []byte {
+	dst = append(dst, '"')
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '"':
+			// quotation mark
+			dst = append(dst, []byte{'\\', '"'}...)
+		case c == '\\':
+			// reverse solidus
+			dst = append(dst, []byte{'\\', '\\'}...)
+		case c >= 0x20:
+			// default, rest below are control chars
+			dst = append(dst, c)
+		case c < 0x09:
+			dst = append(dst, []byte{'\\', 'u', '0', '0', '0', '0' + c}...)
+		case c == 0x09:
+			dst = append(dst, []byte{'\\', 't'}...)
+		case c == 0x0a:
+			dst = append(dst, []byte{'\\', 'n'}...)
+		case c == 0x0d:
+			dst = append(dst, []byte{'\\', 'r'}...)
+		case c < 0x10:
+			dst = append(dst, []byte{'\\', 'u', '0', '0', '0', 0x57 + c}...)
+		case c < 0x1a:
+			dst = append(dst, []byte{'\\', 'u', '0', '0', '1', 0x20 + c}...)
+		case c < 0x20:
+			dst = append(dst, []byte{'\\', 'u', '0', '0', '1', 0x47 + c}...)
+		}
+	}
+	dst = append(dst, '"')
+	return dst
+}
+
+// Serialize outputs a byte array that can be hashed/signed to identify/authenticate.
+// JSON encoding as defined in RFC4627.
 func (evt *Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
-	// so the order is kept
-	var arena fastjson.Arena
-
-	arr := arena.NewArray()
+	// so the order is kept. See NIP-01
+	ser := make([]byte, 0)
 
 	// version: 0
-	arr.SetArrayItem(0, arena.NewNumberInt(0))
+	ser = append(ser, []byte{'[', '0', ','}...)
 
 	// pubkey
-	arr.SetArrayItem(1, arena.NewString(evt.PubKey))
+	ser = append(ser, '"')
+	ser = append(ser, []byte(evt.PubKey)...)
+	ser = append(ser, []byte{'"', ','}...)
 
 	// created_at
-	arr.SetArrayItem(2, arena.NewNumberInt(int(evt.CreatedAt.Unix())))
+	ser = append(ser, []byte(fmt.Sprintf("%d", int(evt.CreatedAt.Unix())))...)
+	ser = append(ser, ',')
 
 	// kind
-	arr.SetArrayItem(3, arena.NewNumberInt(evt.Kind))
+	ser = append(ser, []byte(fmt.Sprintf("%d,", int(evt.Kind)))...)
 
 	// tags
-	arr.SetArrayItem(4, tagsToFastjsonArray(&arena, evt.Tags))
+	ser = append(ser, '[')
+	for i, tag := range evt.Tags {
+		if i > 0 {
+			ser = append(ser, ',')
+		}
+		ser = append(ser, '[')
+		for i, s := range tag {
+			if i > 0 {
+				ser = append(ser, ',')
+			}
+			ser = quoteEscapeString(ser, s)
+		}
+		ser = append(ser, ']')
+	}
+	ser = append(ser, []byte{']', ','}...)
 
 	// content
-	arr.SetArrayItem(5, arena.NewString(evt.Content))
+	ser = quoteEscapeString(ser, evt.Content)
+	ser = append(ser, ']')
 
-	return arr.MarshalTo(nil)
+	return ser
 }
 
 // CheckSignature checks if the signature is valid for the id
