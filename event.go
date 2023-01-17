@@ -88,23 +88,16 @@ func (evt *Event) Serialize() []byte {
 	// so the order is kept. See NIP-01
 	ser := make([]byte, 0)
 
-	// version: 0
-	ser = append(ser, []byte{'[', '0', ','}...)
-
-	// pubkey
-	ser = append(ser, '"')
-	ser = append(ser, []byte(evt.PubKey)...)
-	ser = append(ser, []byte{'"', ','}...)
-
-	// created_at
-	ser = append(ser, []byte(fmt.Sprintf("%d", evt.CreatedAt.Unix()))...)
-	ser = append(ser, ',')
-
-	// kind
-	ser = append(ser, []byte(fmt.Sprintf("%d,", evt.Kind))...)
-
-	// tags
-	ser = append(ser, '[')
+	// the header portion is easy to serialize
+	// [0,"pubkey",created_at,kind,[
+	ser = append(ser, []byte(
+		fmt.Sprintf(
+			"[0,\"%s\",%d,%d,[",
+			evt.PubKey,
+			evt.CreatedAt.Unix(),
+			evt.Kind,
+		))...)
+	// tags need to be escaped in general.
 	for i, tag := range evt.Tags {
 		if i > 0 {
 			ser = append(ser, ',')
@@ -120,7 +113,7 @@ func (evt *Event) Serialize() []byte {
 	}
 	ser = append(ser, []byte{']', ','}...)
 
-	// content
+	// content needs to be escaped in general as it is user generated.
 	ser = quoteEscapeString(ser, evt.Content)
 	ser = append(ser, ']')
 
