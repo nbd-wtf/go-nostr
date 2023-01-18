@@ -26,7 +26,7 @@ func CreateUnsignedAuthEvent(challenge, pubkey, relayURL string) nostr.Event {
 // ValidateAuthEvent checks whether event is a valid NIP-42 event for given challenge and relayURL.
 // The result of the validation is encoded in the ok bool.
 func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (pubkey string, ok bool) {
-	if ok, _ := event.CheckSignature(); ok == false {
+	if ok, _ := event.CheckSignature(); !ok {
 		return "", false
 	}
 	if event.Kind != 22242 {
