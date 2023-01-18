@@ -229,7 +229,15 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// publish event
-	if err := r.Connection.WriteJSON([]interface{}{"EVENT", event}); err != nil {
+	message := []byte("[\"EVENT\",")
+	if m, e := event.MarshalJSON(); e == nil {
+		message = append(message, m...)
+		message = append(message, ']')
+	} else {
+		return status
+	}
+
+	if err := r.Connection.WriteMessage(websocket.TextMessage, message); err != nil {
 		return status
 	}
 
