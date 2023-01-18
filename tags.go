@@ -157,7 +157,7 @@ func (tag Tag) marshalTo(dst []byte) []byte {
 
 // MarshalTo appends the JSON encoded byte of Tags as [][]string to dst.
 // String escaping is as described in RFC8259.
-func (tags Tags) MarshalTo(dst []byte) []byte {
+func (tags Tags) marshalTo(dst []byte) []byte {
 	dst = append(dst, '[')
 	for i, tag := range tags {
 		if i > 0 {
