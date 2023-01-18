@@ -42,12 +42,20 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 		return "", false
 	}
 
-	expected, err := url.Parse(strings.TrimSuffix(relayURL, "/"))
+	parseUrl := func(input string) (*url.URL, error) {
+		return url.Parse(
+			strings.ToLower(
+				strings.TrimSuffix(input, "/"),
+			),
+		)
+	}
+
+	expected, err := parseUrl(relayURL)
 	if err != nil {
 		return "", false
 	}
 
-	found, err := url.Parse(strings.TrimSuffix(event.Tags.GetFirst([]string{"relay", ""}).Value(), "/"))
+	found, err := parseUrl(event.Tags.GetFirst([]string{"relay", ""}).Value())
 	if err != nil {
 		return "", false
 	}
