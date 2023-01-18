@@ -312,7 +312,6 @@ func (r *Relay) Auth(ctx context.Context, event Event) Status {
 	if err := r.Connection.WriteMessage(websocket.TextMessage, message); err != nil {
 		return status
 	}
-
 	// use mu.Lock() just in case the okCallback got called, extremely unlikely.
 	mu.Lock()
 	status = PublishStatusSent
