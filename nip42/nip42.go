@@ -2,6 +2,7 @@ package nip42
 
 import (
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -41,16 +42,20 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 		return "", false
 	}
 
-	expected, err1 := url.Parse(relayURL)
-	found, err2 := url.Parse(event.Tags.GetFirst([]string{"relay", ""}).Value())
-	if err1 != nil || err2 != nil {
+	expected, err := url.Parse(strings.TrimSuffix(relayURL, "/"))
+	if err != nil {
 		return "", false
-	} else {
-		if expected.Scheme != found.Scheme ||
-			expected.Host != found.Host ||
-			expected.Path != found.Path {
-			return "", false
-		}
+	}
+
+	found, err := url.Parse(strings.TrimSuffix(event.Tags.GetFirst([]string{"relay", ""}).Value(), "/"))
+	if err != nil {
+		return "", false
+	}
+
+	if expected.Scheme != found.Scheme ||
+		expected.Host != found.Host ||
+		expected.Path != found.Path {
+		return "", false
 	}
 
 	return event.PubKey, true
