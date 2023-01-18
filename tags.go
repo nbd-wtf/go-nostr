@@ -12,11 +12,16 @@ type Tag []string
 
 // StartsWith checks if a tag contains a prefix.
 // for example,
-//     ["p", "abcdef...", "wss://relay.com"]
+//
+//	["p", "abcdef...", "wss://relay.com"]
+//
 // would match against
-//     ["p", "abcdef..."]
+//
+//	["p", "abcdef..."]
+//
 // or even
-//     ["p", "abcdef...", "wss://"]
+//
+//	["p", "abcdef...", "wss://"]
 func (tag Tag) StartsWith(prefix []string) bool {
 	prefixLen := len(prefix)
 
@@ -155,8 +160,9 @@ func (tag Tag) marshalTo(dst []byte) []byte {
 	return dst
 }
 
-// Marshal Tags. Used for Serialization so string escaping should be as in RFC8259.
-func (tags Tags) marshalTo(dst []byte) []byte {
+// MarshalTo appends the JSON encoded byte of Tags as [][]string to dst.
+// String escaping is as described in RFC8259.
+func (tags Tags) MarshalTo(dst []byte) []byte {
 	dst = append(dst, '[')
 	for i, tag := range tags {
 		if i > 0 {

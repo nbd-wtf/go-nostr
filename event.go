@@ -62,7 +62,7 @@ func (evt *Event) Serialize() []byte {
 		))...)
 
 	// tags
-	dst = evt.Tags.marshalTo(dst)
+	dst = evt.Tags.MarshalTo(dst)
 	dst = append(dst, ',')
 
 	// content needs to be escaped in general as it is user generated.

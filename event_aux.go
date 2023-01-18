@@ -115,7 +115,7 @@ func (evt *Event) MarshalJSON() ([]byte, error) {
 		evt.CreatedAt.Unix(),
 		evt.Kind,
 	))...)
-	dst = evt.Tags.marshalTo(dst)
+	dst = evt.Tags.MarshalTo(dst)
 	dst = append(dst, []byte(",\"content\":")...)
 	dst = escapeString(dst, evt.Content)
 	dst = append(dst, []byte(fmt.Sprintf(",\"sig\":\"%s\"",
