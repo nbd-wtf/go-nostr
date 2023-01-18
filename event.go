@@ -46,7 +46,7 @@ func (evt *Event) GetID() string {
 
 // Serialize outputs a byte array that can be hashed/signed to identify/authenticate.
 // JSON encoding as defined in RFC4627.
-func (evt Event) Serialize() []byte {
+func (evt *Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
 	// so the order is kept. See NIP-01
 	dst := make([]byte, 0)

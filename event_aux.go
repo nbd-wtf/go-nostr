@@ -106,7 +106,7 @@ func fastjsonArrayToTags(v *fastjson.Value) (Tags, error) {
 }
 
 // MarshalJSON() returns the JSON byte encoding of the event, as in NIP-01.
-func (evt *Event) MarshalJSON() ([]byte, error) {
+func (evt Event) MarshalJSON() ([]byte, error) {
 	dst := make([]byte, 0)
 	dst = append(dst, '{')
 	dst = append(dst, []byte(fmt.Sprintf("\"id\":\"%s\",\"pubkey\":\"%s\",\"created_at\":%d,\"kind\":%d,\"tags\":",
