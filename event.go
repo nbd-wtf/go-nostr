@@ -10,13 +10,13 @@ import (
 )
 
 type Event struct {
-	ID        string    `json:"id"`
-	PubKey    string    `json:"pubkey"`
-	CreatedAt time.Time `json:"created_at"`
-	Kind      int       `json:"kind"`
-	Tags      Tags      `json:"tags"`
-	Content   string    `json:"content"`
-	Sig       string    `json:"sig"`
+	ID        string
+	PubKey    string
+	CreatedAt time.Time
+	Kind      int
+	Tags      Tags
+	Content   string
+	Sig       string
 
 	// anything here will be mashed together with the main event object when serializing
 	extra map[string]any

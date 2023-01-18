@@ -139,14 +139,16 @@ func (r *Relay) Connect(ctx context.Context) error {
 				json.Unmarshal(jsonMessage[1], &channel)
 				if subscription, ok := r.subscriptions.Load(channel); ok {
 					var event Event
-					if err := (&event).UnmarshalJSON(jsonMessage[2]); err != nil {
-						log.Printf("unmarshaling error: %s", err.Error())
-						continue
-					}
+					json.Unmarshal(jsonMessage[2], &event)
 
 					// check signature of all received events, ignore invalid
-					if ok, err := event.CheckSignature(); !ok {
-						log.Printf("bad signature: %s", err.Error())
+					ok, err := event.CheckSignature()
+					if !ok {
+						errmsg := ""
+						if err != nil {
+							errmsg = err.Error()
+						}
+						log.Printf("bad signature: %s", errmsg)
 						continue
 					}
 
@@ -302,14 +304,8 @@ func (r *Relay) Auth(ctx context.Context, event Event) Status {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// send AUTH
-	message := []byte("[\"AUTH\",")
-	if m, e := event.MarshalJSON(); e == nil {
-		message = append(message, m...)
-		message = append(message, ']')
-	} else {
-		return status
-	}
-	if err := r.Connection.WriteMessage(websocket.TextMessage, message); err != nil {
+	if err := r.Connection.WriteJSON([]interface{}{"AUTH", event}); err != nil {
+		// status will be "failed"
 		return status
 	}
 	// use mu.Lock() just in case the okCallback got called, extremely unlikely.
