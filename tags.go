@@ -77,7 +77,7 @@ func (tags Tags) GetLast(tagPrefix []string) *Tag {
 	return nil
 }
 
-// GetLast gets all the tags that match the prefix, see [Tag.StartsWith]
+// GetAll gets all the tags that match the prefix, see [Tag.StartsWith]
 func (tags Tags) GetAll(tagPrefix []string) Tags {
 	result := make(Tags, 0, len(tags))
 	for _, v := range tags {
