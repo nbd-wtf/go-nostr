@@ -1,11 +1,11 @@
 package nostr
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/valyala/fastjson"
+	"time"
 )
 
 func (evt *Event) UnmarshalJSON(payload []byte) error {
@@ -74,35 +74,10 @@ func (evt *Event) UnmarshalJSON(payload []byte) error {
 			evt.extra[key] = anyValue
 		}
 	})
-	if visiterr != nil {
-		return visiterr
-	}
-
-	return nil
+	return visiterr
 }
 
-func (evt Event) MarshalJSON() ([]byte, error) {
-	var arena fastjson.Arena
-
-	o := arena.NewObject()
-	o.Set("id", arena.NewString(evt.ID))
-	o.Set("pubkey", arena.NewString(evt.PubKey))
-	o.Set("created_at", arena.NewNumberInt(int(evt.CreatedAt.Unix())))
-	o.Set("kind", arena.NewNumberInt(evt.Kind))
-	o.Set("tags", tagsToFastjsonArray(&arena, evt.Tags))
-	o.Set("content", arena.NewString(evt.Content))
-	o.Set("sig", arena.NewString(evt.Sig))
-
-	for k, v := range evt.extra {
-		b, _ := json.Marshal(v)
-		if val, err := fastjson.ParseBytes(b); err == nil {
-			o.Set(k, val)
-		}
-	}
-
-	return o.MarshalTo(nil), nil
-}
-
+// unmarshaling helper
 func fastjsonArrayToTags(v *fastjson.Value) (Tags, error) {
 	arr, err := v.Array()
 	if err != nil {
@@ -130,14 +105,37 @@ func fastjsonArrayToTags(v *fastjson.Value) (Tags, error) {
 	return sll, nil
 }
 
-func tagsToFastjsonArray(arena *fastjson.Arena, tags Tags) *fastjson.Value {
-	jtags := arena.NewArray()
-	for i, v := range tags {
-		arr := arena.NewArray()
-		for j, subv := range v {
-			arr.SetArrayItem(j, arena.NewString(subv))
+// MarshalJSON() returns the JSON byte encoding of the event, as in NIP-01.
+func (evt Event) MarshalJSON() ([]byte, error) {
+	dst := make([]byte, 0)
+	dst = append(dst, '{')
+	dst = append(dst, []byte(fmt.Sprintf("\"id\":\"%s\",\"pubkey\":\"%s\",\"created_at\":%d,\"kind\":%d,\"tags\":",
+		evt.ID,
+		evt.PubKey,
+		evt.CreatedAt.Unix(),
+		evt.Kind,
+	))...)
+	dst = evt.Tags.marshalTo(dst)
+	dst = append(dst, []byte(",\"content\":")...)
+	dst = escapeString(dst, evt.Content)
+	dst = append(dst, []byte(fmt.Sprintf(",\"sig\":\"%s\"",
+		evt.Sig,
+	))...)
+	// slower marshaling of "any" interface type
+	if evt.extra != nil {
+		buf := bytes.NewBuffer(nil)
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		for k, v := range evt.extra {
+			if e := enc.Encode(v); e == nil {
+				dst = append(dst, ',')
+				dst = escapeString(dst, k)
+				dst = append(dst, ':')
+				dst = append(dst, buf.Bytes()[:buf.Len()-1]...)
+			}
+			buf.Reset()
 		}
-		jtags.SetArrayItem(i, arr)
 	}
-	return jtags
+	dst = append(dst, '}')
+	return dst, nil
 }

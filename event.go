@@ -4,10 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"time"
-
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"time"
 )
 
 type Event struct {
@@ -45,79 +44,32 @@ func (evt *Event) GetID() string {
 	return hex.EncodeToString(h[:])
 }
 
-// Escaping strings for JSON encoding according to RFC4627.
-// Also encloses result in quotation marks "".
-func quoteEscapeString(dst []byte, s string) []byte {
-	dst = append(dst, '"')
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case c == '"':
-			// quotation mark
-			dst = append(dst, []byte{'\\', '"'}...)
-		case c == '\\':
-			// reverse solidus
-			dst = append(dst, []byte{'\\', '\\'}...)
-		case c >= 0x20:
-			// default, rest below are control chars
-			dst = append(dst, c)
-		case c < 0x09:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '0', '0' + c}...)
-		case c == 0x09:
-			dst = append(dst, []byte{'\\', 't'}...)
-		case c == 0x0a:
-			dst = append(dst, []byte{'\\', 'n'}...)
-		case c == 0x0d:
-			dst = append(dst, []byte{'\\', 'r'}...)
-		case c < 0x10:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '0', 0x57 + c}...)
-		case c < 0x1a:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '1', 0x20 + c}...)
-		case c < 0x20:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '1', 0x47 + c}...)
-		}
-	}
-	dst = append(dst, '"')
-	return dst
-}
-
 // Serialize outputs a byte array that can be hashed/signed to identify/authenticate.
 // JSON encoding as defined in RFC4627.
 func (evt *Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
 	// so the order is kept. See NIP-01
-	ser := make([]byte, 0)
+	dst := make([]byte, 0)
 
 	// the header portion is easy to serialize
 	// [0,"pubkey",created_at,kind,[
-	ser = append(ser, []byte(
+	dst = append(dst, []byte(
 		fmt.Sprintf(
-			"[0,\"%s\",%d,%d,[",
+			"[0,\"%s\",%d,%d,",
 			evt.PubKey,
 			evt.CreatedAt.Unix(),
 			evt.Kind,
 		))...)
-	// tags need to be escaped in general.
-	for i, tag := range evt.Tags {
-		if i > 0 {
-			ser = append(ser, ',')
-		}
-		ser = append(ser, '[')
-		for i, s := range tag {
-			if i > 0 {
-				ser = append(ser, ',')
-			}
-			ser = quoteEscapeString(ser, s)
-		}
-		ser = append(ser, ']')
-	}
-	ser = append(ser, []byte{']', ','}...)
+
+	// tags
+	dst = evt.Tags.marshalTo(dst)
+	dst = append(dst, ',')
 
 	// content needs to be escaped in general as it is user generated.
-	ser = quoteEscapeString(ser, evt.Content)
-	ser = append(ser, ']')
+	dst = escapeString(dst, evt.Content)
+	dst = append(dst, ']')
 
-	return ser
+	return dst
 }
 
 // CheckSignature checks if the signature is valid for the id
