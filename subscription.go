@@ -12,7 +12,7 @@ type Subscription struct {
 
 	Relay             *Relay
 	Filters           Filters
-	Events            chan Event
+	Events            chan *Event
 	EndOfStoredEvents chan struct{}
 
 	stopped  bool
