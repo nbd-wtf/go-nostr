@@ -159,7 +159,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 						if !subscription.Filters.Match(&event) || subscription.stopped {
 							return
 						}
-						subscription.Events <- event
+						subscription.Events <- &event
 					}()
 				}
 			case "EOSE":
@@ -333,7 +333,7 @@ func (r *Relay) Subscribe(ctx context.Context, filters Filters) *Subscription {
 	return sub
 }
 
-func (r *Relay) QuerySync(ctx context.Context, filter Filter) []Event {
+func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
 	sub := r.Subscribe(ctx, Filters{filter})
 	defer sub.Unsub()
 
@@ -344,7 +344,7 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) []Event {
 		defer cancel()
 	}
 
-	var events []Event
+	var events []*Event
 	for {
 		select {
 		case evt := <-sub.Events:
@@ -370,7 +370,7 @@ func (r *Relay) prepareSubscription(id string) *Subscription {
 		Relay:             r,
 		conn:              r.Connection,
 		id:                id,
-		Events:            make(chan Event),
+		Events:            make(chan *Event),
 		EndOfStoredEvents: make(chan struct{}, 1),
 	}
 
