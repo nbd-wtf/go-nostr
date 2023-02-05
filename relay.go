@@ -230,13 +230,12 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 
 	// publish event
 	if err := r.Connection.WriteJSON([]interface{}{"EVENT", event}); err != nil {
+		// update status (this will be returned later)
+		mu.Lock()
+		status = PublishStatusSent
+		mu.Unlock()
 		return status
 	}
-
-	// update status (this will be returned later)
-	mu.Lock()
-	status = PublishStatusSent
-	mu.Unlock()
 
 	sub := r.Subscribe(ctx, Filters{Filter{IDs: []string{event.ID}}})
 	defer mu.Unlock()
