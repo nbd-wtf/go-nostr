@@ -123,7 +123,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 			case "NOTICE":
 				var content string
 				json.Unmarshal(jsonMessage[1], &content)
-				r.Notices <- content
+				go func() {
+					r.Notices <- content
+				}()
 			case "AUTH":
 				var challenge string
 				json.Unmarshal(jsonMessage[1], &challenge)
