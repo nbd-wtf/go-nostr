@@ -19,12 +19,23 @@ type WellKnownResponse struct {
 
 func QueryIdentifier(fullname string) string {
 	spl := strings.Split(fullname, "@")
-	if len(spl) != 2 {
+
+	var name, domain string
+	switch len(spl) {
+	case 1:
+		name = "_"
+		domain = spl[0]
+	case 2:
+		name = spl[0]
+		domain = spl[1]
+	default:
 		return ""
 	}
 
-	name := spl[0]
-	domain := spl[1]
+	if strings.Index(domain, ".") == -1 {
+		return ""
+	}
+
 	res, err := http.Get(fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name))
 	if err != nil {
 		return ""
