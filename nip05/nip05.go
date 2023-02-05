@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/nbd-wtf/go-nostr"
 )
 
 type (
@@ -17,7 +19,7 @@ type WellKnownResponse struct {
 	Relays key2RelaysMap `json:"relays"` // NIP-35
 }
 
-func QueryIdentifier(fullname string) string {
+func QueryIdentifier(fullname string) *nostr.ProfilePointer {
 	spl := strings.Split(fullname, "@")
 
 	var name, domain string
@@ -29,25 +31,30 @@ func QueryIdentifier(fullname string) string {
 		name = spl[0]
 		domain = spl[1]
 	default:
-		return ""
+		return nil
 	}
 
 	if strings.Index(domain, ".") == -1 {
-		return ""
+		return nil
 	}
 
 	res, err := http.Get(fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name))
 	if err != nil {
-		return ""
+		return nil
 	}
 
 	var result WellKnownResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return ""
+		return nil
 	}
 
 	pubkey, _ := result.Names[name]
-	return pubkey
+	relays, _ := result.Relays[pubkey]
+
+	return &nostr.ProfilePointer{
+		PublicKey: pubkey,
+		Relays:    relays,
+	}
 }
 
 func NormalizeIdentifier(fullname string) string {
