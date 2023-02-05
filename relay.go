@@ -197,7 +197,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 // Publish sends an "EVENT" command to the relay r as in NIP-01.
 // Status can be: success, failed, or sent (no response from relay before ctx times out).
 func (r *Relay) Publish(ctx context.Context, event Event) Status {
-	status := PublishStatusFailed
+	status := PublishStatusSent
 
 	// data races on status variable without this mutex
 	var mu sync.Mutex
@@ -230,10 +230,6 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 
 	// publish event
 	if err := r.Connection.WriteJSON([]interface{}{"EVENT", event}); err != nil {
-		// update status (this will be returned later)
-		mu.Lock()
-		status = PublishStatusSent
-		mu.Unlock()
 		return status
 	}
 
