@@ -8,13 +8,13 @@ import (
 )
 
 type (
-	Name2KeyMap   map[string]string
-	Key2RelaysMap map[string][]string
+	name2KeyMap   map[string]string
+	key2RelaysMap map[string][]string
 )
 
 type WellKnownResponse struct {
-	Names  Name2KeyMap   `json:"names"`  // NIP-05
-	Relays Key2RelaysMap `json:"relays"` // NIP-35
+	Names  name2KeyMap   `json:"names"`  // NIP-05
+	Relays key2RelaysMap `json:"relays"` // NIP-35
 }
 
 func QueryIdentifier(fullname string) string {
