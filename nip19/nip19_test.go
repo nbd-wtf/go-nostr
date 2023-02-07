@@ -2,6 +2,7 @@ package nip19
 
 import (
 	"testing"
+	"github.com/nbd-wtf/go-nostr"
 )
 
 func TestEncodeNpub(t *testing.T) {
@@ -52,7 +53,7 @@ func TestDecodeNprofile(t *testing.T) {
 	if prefix != "nprofile" {
 		t.Error("what")
 	}
-	pp, ok := data.(ProfilePointer)
+	pp, ok := data.(nostr.ProfilePointer)
 	if !ok {
 		t.Error("value returned of wrong type")
 	}
@@ -77,7 +78,7 @@ func TestDecodeOtherNprofile(t *testing.T) {
 	if prefix != "nprofile" {
 		t.Error("what")
 	}
-	pp, ok := data.(ProfilePointer)
+	pp, ok := data.(nostr.ProfilePointer)
 	if !ok {
 		t.Error("value returned of wrong type")
 	}
