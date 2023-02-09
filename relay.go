@@ -237,7 +237,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 	for {
 		select {
 		case receivedEvent := <-sub.Events:
-			if receivedEvent.ID == event.ID {
+			if receivedEvent != nil && receivedEvent.ID == event.ID {
 				// we got a success, so update our status and proceed to return
 				mu.Lock()
 				status = PublishStatusSucceeded
