@@ -65,7 +65,8 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 	}
 
 	// save for last, as it is most expensive operation
-	if ok, err := event.CheckSignature(); !ok || err != nil {
+	// no need to check returned error, since ok == true implies err == nil.
+	if ok, _ := event.CheckSignature(); !ok {
 		return "", false
 	}
 
