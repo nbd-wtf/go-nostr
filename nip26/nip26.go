@@ -44,8 +44,8 @@ func (d *DelegationToken) Conditions() (conditions string) {
 // This error is returned by d.Parse(ev) if the event ev does not have a delegation token.
 var NoDelegationTag error = fmt.Errorf("No Delegation Tag")
 
-// This error is returned by Import(t,delegatee_pk) if the token delegatee does not match delegatee_pk.
-var WrongDelegatee error = fmt.Errorf("Wrong Delegatee")
+// This error is returned by Import(t,delegatee_pk) if the token signature verification fails.
+var VerificationFailed error = fmt.Errorf("VerificationFailed")
 
 // CheckDelegation reads the event and reports whether or not it is correctly delegated.
 // If there is a delegation tag, the delegation token signature will be checked according to NIP-26.
@@ -61,8 +61,8 @@ func CheckDelegation(ev *nostr.Event) (ok bool, err error) {
 }
 
 // Import verifies that t is NIP-26 delegation token for the given delegatee.
-// The returned DelegationToken object can be used in DelegatedSign
-// If the delegatee implicit in the token does not match delegatee_pk, WrongDelegatee error will be returned.
+// The returned DelegationToken object can be used in DelegatedSign.
+// If the token signature verification fails, the error VerificationFailed will be returned.
 func Import(t nostr.Tag, delegatee_pk string) (d *DelegationToken, e error) {
 	d = new(DelegationToken)
 	if len(t) == 4 && t[0] == "delegation" {
@@ -93,7 +93,7 @@ func Import(t nostr.Tag, delegatee_pk string) (d *DelegationToken, e error) {
 		return nil, fmt.Errorf("Error: %s", err.Error())
 	}
 	if !sig.Verify(h[:], pubkey) {
-		return nil, WrongDelegatee
+		return nil, VerificationFailed
 	}
 	return d, nil
 }
@@ -204,6 +204,7 @@ func CreateToken(delegator_sk string, delegatee_pk string, kinds []int, since *t
 	sk, tor_pk := btcec.PrivKeyFromBytes(s)
 	copy(d.delegator[:], schnorr.SerializePubKey(tor_pk))
 
+	d.kinds = kinds
 	d.since = since
 	d.until = until
 
