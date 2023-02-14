@@ -6,6 +6,8 @@ go-nostr
 A set of useful things for [Nostr Protocol](https://github.com/nostr-protocol/nostr) implementations.
 
 <a href="https://godoc.org/github.com/nbd-wtf/go-nostr"><img src="https://img.shields.io/badge/api-reference-blue.svg?style=flat-square" alt="GoDoc"></a>
+<br/>
+[![test every commit](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml/badge.svg)](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml)
 
 Install go-nostr:
 
