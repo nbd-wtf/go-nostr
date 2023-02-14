@@ -17,6 +17,7 @@ type Filter struct {
 	Since   *time.Time
 	Until   *time.Time
 	Limit   int
+	Search  string
 }
 
 type TagMap map[string][]string
@@ -106,6 +107,10 @@ func FilterEqual(a Filter, b Filter) bool {
 	}
 
 	if a.Until != b.Until {
+		return false
+	}
+
+	if a.Search != b.Search {
 		return false
 	}
 
