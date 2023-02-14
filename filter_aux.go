@@ -61,6 +61,8 @@ func (f *Filter) UnmarshalJSON(payload []byte) error {
 				visiterr = fmt.Errorf("invalid 'limit' field: %w", err)
 			}
 			f.Limit = val
+		case "search":
+			f.Search = v.String()
 		default:
 			if strings.HasPrefix(key, "#") {
 				f.Tags[key[1:]], err = fastjsonArrayToStringList(v)
@@ -104,6 +106,9 @@ func (f Filter) MarshalJSON() ([]byte, error) {
 	}
 	if f.Limit != 0 {
 		o.Set("limit", arena.NewNumberInt(f.Limit))
+	}
+	if f.Search != "" {
+		o.Set("search", arena.NewString(f.Search))
 	}
 
 	return o.MarshalTo(nil), nil
