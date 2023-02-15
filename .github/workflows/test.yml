@@ -12,6 +12,7 @@ jobs:
         with:
           go-version: 1.19.x
       - run: go test -v -race
+      - run: go test -v -race ./nip04
       - run: go test -v -race ./nip13
       - run: go test -v -race ./nip19
-      - run: go test -v -race ./nip04
+      - run: go test -v -race ./nip26
