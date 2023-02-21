@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -36,7 +37,8 @@ func (s Status) String() string {
 }
 
 type Relay struct {
-	URL string
+	URL           string
+	RequestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
 	subscriptions s.MapOf[string, *Subscription]
@@ -77,7 +79,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		defer cancel()
 	}
 
-	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, nil)
+	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, r.RequestHeader)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}

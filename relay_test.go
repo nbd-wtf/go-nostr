@@ -121,9 +121,7 @@ func TestConnectContext(t *testing.T) {
 
 func TestConnectContextCanceled(t *testing.T) {
 	// fake relay server
-	ws := newWebsocketServer(func(conn *websocket.Conn) {
-		io.ReadAll(conn) // discard all input
-	})
+	ws := newWebsocketServer(discardingHandler)
 	defer ws.Close()
 
 	// relay client
@@ -133,6 +131,26 @@ func TestConnectContextCanceled(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("RelayConnectContext returned %v error; want context.Canceled", err)
 	}
+}
+
+func TestConnectWithOrigin(t *testing.T) {
+	// fake relay server
+	// default handler requires origin golang.org/x/net/websocket
+	ws := httptest.NewServer(websocket.Handler(discardingHandler))
+	defer ws.Close()
+
+	// relay client
+	r := &Relay{URL: NormalizeURL(ws.URL), RequestHeader: http.Header{"origin": {"https://example.com"}}}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err := r.Connect(ctx)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func discardingHandler(conn *websocket.Conn) {
+	io.ReadAll(conn) // discard all input
 }
 
 func newWebsocketServer(handler func(*websocket.Conn)) *httptest.Server {
