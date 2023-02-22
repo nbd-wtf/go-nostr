@@ -16,7 +16,7 @@ func TestFilterUnmarshal(t *testing.T) {
 		t.Errorf("failed to parse filter json: %v", err)
 	}
 
-	if f.Since == nil || f.Since.Format("2006-01-02") != "2022-02-07" ||
+	if f.Since == nil || f.Since.UTC().Format("2006-01-02") != "2022-02-07" ||
 		f.Until != nil ||
 		f.Tags == nil || len(f.Tags) != 2 || !slices.Contains(f.Tags["something"], "bab") {
 		t.Error("failed to parse filter correctly")

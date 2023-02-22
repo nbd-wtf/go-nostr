@@ -5,38 +5,56 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/nbd-wtf/go-nostr"
 )
 
 type (
-	Name2KeyMap   map[string]string
-	Key2RelaysMap map[string][]string
+	name2KeyMap   map[string]string
+	key2RelaysMap map[string][]string
 )
 
 type WellKnownResponse struct {
-	Names  Name2KeyMap   `json:"names"`  // NIP-05
-	Relays Key2RelaysMap `json:"relays"` // NIP-35
+	Names  name2KeyMap   `json:"names"`  // NIP-05
+	Relays key2RelaysMap `json:"relays"` // NIP-35
 }
 
-func QueryIdentifier(fullname string) string {
+func QueryIdentifier(fullname string) *nostr.ProfilePointer {
 	spl := strings.Split(fullname, "@")
-	if len(spl) != 2 {
-		return ""
+
+	var name, domain string
+	switch len(spl) {
+	case 1:
+		name = "_"
+		domain = spl[0]
+	case 2:
+		name = spl[0]
+		domain = spl[1]
+	default:
+		return nil
 	}
 
-	name := spl[0]
-	domain := spl[1]
+	if strings.Index(domain, ".") == -1 {
+		return nil
+	}
+
 	res, err := http.Get(fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name))
 	if err != nil {
-		return ""
+		return nil
 	}
 
 	var result WellKnownResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return ""
+		return nil
 	}
 
 	pubkey, _ := result.Names[name]
-	return pubkey
+	relays, _ := result.Relays[pubkey]
+
+	return &nostr.ProfilePointer{
+		PublicKey: pubkey,
+		Relays:    relays,
+	}
 }
 
 func NormalizeIdentifier(fullname string) string {

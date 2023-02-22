@@ -4,17 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/nbd-wtf/go-nostr"
 )
-
-type ProfilePointer struct {
-	PublicKey string
-	Relays    []string
-}
-
-type EventPointer struct {
-	ID     string
-	Relays []string
-}
 
 func Decode(bech32string string) (prefix string, value any, err error) {
 	prefix, bits5, err := decode(bech32string)
@@ -35,7 +27,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 
 		return prefix, hex.EncodeToString(data[0:32]), nil
 	case "nprofile":
-		var result ProfilePointer
+		var result nostr.ProfilePointer
 		curr := 0
 		for {
 			t, v := readTLVEntry(data[curr:])
@@ -60,7 +52,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 			curr = curr + 2 + len(v)
 		}
 	case "nevent":
-		var result EventPointer
+		var result nostr.EventPointer
 		curr := 0
 		for {
 			t, v := readTLVEntry(data[curr:])

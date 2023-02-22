@@ -62,7 +62,7 @@ func main() {
 		cancel()
 	}()
 	for ev := range sub.Events {
-		evs = append(evs, ev)
+		evs = append(evs, *ev)
 	}
 
 	filename := "example_output.json"
@@ -104,7 +104,7 @@ func main() {
 	ev.CreatedAt = time.Now()
 	ev.Kind = 1
 	var content string
-	fmt.Fprintln(os.Stderr, "enter content of note, ending with an empty newline:")
+	fmt.Fprintln(os.Stderr, "enter content of note, ending with an empty newline (ctrl+d):")
 	for {
 		if n, err := reader.Read(b[:]); err == nil {
 			content = fmt.Sprintf("%s%s", content, fmt.Sprintf("%s", b[:n]))

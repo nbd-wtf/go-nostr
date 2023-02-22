@@ -23,31 +23,24 @@ func CreateUnsignedAuthEvent(challenge, pubkey, relayURL string) nostr.Event {
 	}
 }
 
+// helper function for ValidateAuthEvent
+func parseUrl(input string) (*url.URL, error) {
+	return url.Parse(
+		strings.ToLower(
+			strings.TrimSuffix(input, "/"),
+		),
+	)
+}
+
 // ValidateAuthEvent checks whether event is a valid NIP-42 event for given challenge and relayURL.
 // The result of the validation is encoded in the ok bool.
 func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (pubkey string, ok bool) {
-	if ok, _ := event.CheckSignature(); !ok {
-		return "", false
-	}
 	if event.Kind != 22242 {
-		return "", false
-	}
-
-	now := time.Now()
-	if event.CreatedAt.After(now.Add(10*time.Minute)) || event.CreatedAt.Before(now.Add(-10*time.Minute)) {
 		return "", false
 	}
 
 	if event.Tags.GetFirst([]string{"challenge", challenge}) == nil {
 		return "", false
-	}
-
-	parseUrl := func(input string) (*url.URL, error) {
-		return url.Parse(
-			strings.ToLower(
-				strings.TrimSuffix(input, "/"),
-			),
-		)
 	}
 
 	expected, err := parseUrl(relayURL)
@@ -63,6 +56,17 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 	if expected.Scheme != found.Scheme ||
 		expected.Host != found.Host ||
 		expected.Path != found.Path {
+		return "", false
+	}
+
+	now := time.Now()
+	if event.CreatedAt.After(now.Add(10*time.Minute)) || event.CreatedAt.Before(now.Add(-10*time.Minute)) {
+		return "", false
+	}
+
+	// save for last, as it is most expensive operation
+	// no need to check returned error, since ok == true implies err == nil.
+	if ok, _ := event.CheckSignature(); !ok {
 		return "", false
 	}
 
