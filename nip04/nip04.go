@@ -101,8 +101,17 @@ func Decrypt(content string, key []byte) (string, error) {
 	mode.CryptBlocks(plaintext, ciphertext)
 
 	// remove padding
-	padding := int(plaintext[len(plaintext)-1]) // the padding amount is encoded in the padding bytes themselves
-	message := string(plaintext[0 : len(plaintext)-padding])
+	var (
+		message      = string(plaintext)
+		plaintextLen = len(plaintext)
+	)
+	if plaintextLen > 0 {
+		padding := int(plaintext[plaintextLen-1]) // the padding amount is encoded in the padding bytes themselves
+		if padding > plaintextLen {
+			return "", fmt.Errorf("Invalid padding amount: %d. \n", padding)
+		}
+		message = string(plaintext[0 : plaintextLen-padding])
+	}
 
 	return message, nil
 }
