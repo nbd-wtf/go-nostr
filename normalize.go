@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// NormalizeURL normalizes the url and replaces http://, https:// schemes by ws://, wss://.
 func NormalizeURL(u string) string {
 	if u == "" {
 		return ""

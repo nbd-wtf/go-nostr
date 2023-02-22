@@ -99,9 +99,15 @@ func (tags Tags) FilterOut(tagPrefix []string) Tags {
 	return filtered
 }
 
-// AppendUnique appends a tag if it doesn't exist yet, otherwise does nothing
+// AppendUnique appends a tag if it doesn't exist yet, otherwise does nothing.
+// the uniqueness comparison is done based only on the first 2 elements of the tag.
 func (tags Tags) AppendUnique(tag Tag) Tags {
-	if tags.GetFirst(tag) == nil {
+	n := len(tag)
+	if n > 2 {
+		n = 2
+	}
+
+	if tags.GetFirst(tag[:n]) == nil {
 		return append(tags, tag)
 	} else {
 		return tags

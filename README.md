@@ -6,19 +6,38 @@ go-nostr
 A set of useful things for [Nostr Protocol](https://github.com/nostr-protocol/nostr) implementations.
 
 <a href="https://godoc.org/github.com/nbd-wtf/go-nostr"><img src="https://img.shields.io/badge/api-reference-blue.svg?style=flat-square" alt="GoDoc"></a>
+<br/>
+[![test every commit](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml/badge.svg)](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml)
+
+Install go-nostr:
+
+```bash
+go get github.com/nbd-wtf/go-nostr
+```
 
 ### Generating a key
 
 ``` go
-sk, _ := nostr.GenerateKey()
-pk, _ := nostr.GetPublicKey(sk)
-nsec, _ := nip19.EncodePrivateKey(sk)
-npub, _ := nip19.EncodePublicKey(pk)
+package main
 
-fmt.Println("sk:", sk)
-fmt.Println("pk:", nostr.GetPublicKey(sk))
-fmt.Println(nsec)
-fmt.Println(npub)
+import (
+    "fmt"
+
+    "github.com/nbd-wtf/go-nostr"
+    "github.com/nbd-wtf/go-nostr/nip19"
+)
+
+func main() {
+    sk := nostr.GeneratePrivateKey()
+    pk, _ := nostr.GetPublicKey(sk)
+    nsec, _ := nip19.EncodePrivateKey(sk)
+    npub, _ := nip19.EncodePublicKey(pk)
+
+    fmt.Println("sk:", sk)
+    fmt.Println("pk:", pk)
+    fmt.Println(nsec)
+    fmt.Println(npub)
+}
 ```
 
 ### Subscribing to a single relay

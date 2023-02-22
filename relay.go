@@ -123,7 +123,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 			case "NOTICE":
 				var content string
 				json.Unmarshal(jsonMessage[1], &content)
-				r.Notices <- content
+				go func() {
+					r.Notices <- content
+				}()
 			case "AUTH":
 				var challenge string
 				json.Unmarshal(jsonMessage[1], &challenge)
@@ -201,7 +203,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 // Publish sends an "EVENT" command to the relay r as in NIP-01.
 // Status can be: success, failed, or sent (no response from relay before ctx times out).
 func (r *Relay) Publish(ctx context.Context, event Event) Status {
-	status := PublishStatusFailed
+	status := PublishStatusSent
 
 	// data races on status variable without this mutex
 	var mu sync.Mutex
@@ -237,13 +239,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 		return status
 	}
 
-	// update status (this will be returned later)
-	mu.Lock()
-	status = PublishStatusSent
-	mu.Unlock()
-
 	sub := r.Subscribe(ctx, Filters{Filter{IDs: []string{event.ID}}})
-	defer mu.Unlock()
 	for {
 		select {
 		case receivedEvent := <-sub.Events:
@@ -251,6 +247,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 				// we got a success, so update our status and proceed to return
 				mu.Lock()
 				status = PublishStatusSucceeded
+				mu.Unlock()
 				return status
 			}
 		case <-ctx.Done():
@@ -259,7 +256,6 @@ func (r *Relay) Publish(ctx context.Context, event Event) Status {
 			// e.g. if this happens because of the timeout then status will probably be "failed"
 			//      but if it happens because okCallback was called then it might be "succeeded"
 			// do not return if okCallback is in process
-			mu.Lock()
 			return status
 		}
 	}
