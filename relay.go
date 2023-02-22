@@ -182,13 +182,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 				var (
 					eventId string
 					ok      bool
-					msg     string
 				)
 				json.Unmarshal(jsonMessage[1], &eventId)
 				json.Unmarshal(jsonMessage[2], &ok)
-				json.Unmarshal(jsonMessage[3], &msg)
-
-				log.Println(msg)
 
 				if okCallback, exist := r.okCallbacks.Load(eventId); exist {
 					okCallback(ok)

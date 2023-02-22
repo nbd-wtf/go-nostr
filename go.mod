@@ -1,4 +1,4 @@
-module github.com/lnconsole/go-nostr 
+module github.com/nbd-wtf/go-nostr
 
 go 1.18
 
