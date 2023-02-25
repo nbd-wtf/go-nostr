@@ -37,8 +37,12 @@ func QueryIdentifier(fullname string) *nostr.ProfilePointer {
 	if strings.Index(domain, ".") == -1 {
 		return nil
 	}
-
-	res, err := http.Get(fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name))
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	res, err := client.Get(fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name))
 	if err != nil {
 		return nil
 	}
