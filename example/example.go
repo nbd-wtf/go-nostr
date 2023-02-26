@@ -17,7 +17,8 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 
 	// connect to relay
-	url := "wss://nostr.zebedee.cloud"
+	//url := "wss://nostr.zebedee.cloud"
+	url := "wss://nostr-relay.nokotaro.com"
 	relay, err := nostr.RelayConnect(ctx, url)
 	if err != nil {
 		panic(err)
@@ -116,7 +117,7 @@ func main() {
 	}
 	ev.Content = strings.TrimSpace(content)
 	ev.Sign(sk)
-	for _, url := range []string{"wss://nostr.zebedee.cloud"} {
+	for _, url := range []string{"wss://nostr-relay.nokotaro.com"} {
 		ctx := context.WithValue(context.Background(), "url", url)
 		relay, e := nostr.RelayConnect(ctx, url)
 		if e != nil {
