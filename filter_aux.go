@@ -62,7 +62,11 @@ func (f *Filter) UnmarshalJSON(payload []byte) error {
 			}
 			f.Limit = val
 		case "search":
-			f.Search = v.String()
+			val, err := v.StringBytes()
+			if err != nil {
+				visiterr = fmt.Errorf("invalid 'search' field: %w", err)
+			}
+			f.Search = string(val)
 		default:
 			if strings.HasPrefix(key, "#") {
 				f.Tags[key[1:]], err = fastjsonArrayToStringList(v)
