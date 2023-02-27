@@ -46,7 +46,7 @@ func (ef Filter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.IDs != nil && !ContainsPrefixOf(ef.IDs, event.ID) {
+	if ef.IDs != nil && !containsPrefixOf(ef.IDs, event.ID) {
 		return false
 	}
 
@@ -54,7 +54,7 @@ func (ef Filter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.Authors != nil && !ContainsPrefixOf(ef.Authors, event.PubKey) {
+	if ef.Authors != nil && !containsPrefixOf(ef.Authors, event.PubKey) {
 		return false
 	}
 
@@ -76,15 +76,15 @@ func (ef Filter) Matches(event *Event) bool {
 }
 
 func FilterEqual(a Filter, b Filter) bool {
-	if !Similar(a.Kinds, b.Kinds) {
+	if !similar(a.Kinds, b.Kinds) {
 		return false
 	}
 
-	if !Similar(a.IDs, b.IDs) {
+	if !similar(a.IDs, b.IDs) {
 		return false
 	}
 
-	if !Similar(a.Authors, b.Authors) {
+	if !similar(a.Authors, b.Authors) {
 		return false
 	}
 
@@ -96,7 +96,7 @@ func FilterEqual(a Filter, b Filter) bool {
 		if bv, ok := b.Tags[f]; !ok {
 			return false
 		} else {
-			if !Similar(av, bv) {
+			if !similar(av, bv) {
 				return false
 			}
 		}
