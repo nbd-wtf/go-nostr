@@ -7,6 +7,8 @@ import (
 const (
 	TLVDefault uint8 = 0
 	TLVRelay   uint8 = 1
+	TLVAuthor  uint8 = 2
+	TLVKind    uint8 = 3
 )
 
 func readTLVEntry(data []byte) (typ uint8, value []byte) {

@@ -9,3 +9,10 @@ type EventPointer struct {
 	ID     string
 	Relays []string
 }
+
+type EntityPointer struct {
+	PublicKey  string
+	Kind       int
+	Identifier string
+	Relays     []string
+}

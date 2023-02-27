@@ -2,6 +2,7 @@ package nip19
 
 import (
 	"testing"
+
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -105,5 +106,66 @@ func TestEncodeNprofile(t *testing.T) {
 	}
 	if nprofile != "nprofile1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8gpp4mhxue69uhhytnc9e3k7mgpz4mhxue69uhkg6nzv9ejuumpv34kytnrdaksjlyr9p" {
 		t.Error("produced an unexpected nprofile string")
+	}
+}
+
+func TestEncodeDecodeNaddr(t *testing.T) {
+	naddr, err := EncodeEntity(
+		"3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
+		30023,
+		"banana",
+		[]string{
+			"wss://relay.nostr.example.mydomain.example.com",
+			"wss://nostr.banana.com",
+		})
+	if err != nil {
+		t.Errorf("shouldn't error: %s", err)
+	}
+	if naddr != "naddr1qqrxyctwv9hxzqfwwaehxw309aex2mrp0yhxummnw3ezuetcv9khqmr99ekhjer0d4skjm3wv4uxzmtsd3jjucm0d5q3vamnwvaz7tmwdaehgu3wvfskuctwvyhxxmmdqgsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8grqsqqqa28a3lkds" {
+		t.Errorf("produced an unexpected naddr string: %s", naddr)
+	}
+
+	prefix, data, err := Decode(naddr)
+	if err != nil {
+		t.Errorf("shouldn't error: %s", err)
+	}
+	if prefix != "naddr" {
+		t.Error("returned invalid prefix")
+	}
+	ep := data.(nostr.EntityPointer)
+	if ep.PublicKey != "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" {
+		t.Error("returned wrong pubkey")
+	}
+	if ep.Kind != 30023 {
+		t.Error("returned wrong kind")
+	}
+	if ep.Identifier != "banana" {
+		t.Error("returned wrong identifier")
+	}
+	if ep.Relays[0] != "wss://relay.nostr.example.mydomain.example.com" || ep.Relays[1] != "wss://nostr.banana.com" {
+		t.Error("returned wrong relays")
+	}
+}
+
+func TestDecodeNaddrWithoutRelays(t *testing.T) {
+	prefix, data, err := Decode("naddr1qq98yetxv4ex2mnrv4esygrl54h466tz4v0re4pyuavvxqptsejl0vxcmnhfl60z3rth2xkpjspsgqqqw4rsf34vl5")
+	if err != nil {
+		t.Errorf("shouldn't error: %s", err)
+	}
+	if prefix != "naddr" {
+		t.Error("returned invalid prefix")
+	}
+	ep := data.(nostr.EntityPointer)
+	if ep.PublicKey != "7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194" {
+		t.Error("returned wrong pubkey")
+	}
+	if ep.Kind != 30023 {
+		t.Error("returned wrong kind")
+	}
+	if ep.Identifier != "references" {
+		t.Error("returned wrong identifier")
+	}
+	if len(ep.Relays) != 0 {
+		t.Error("relays should have been an empty array")
 	}
 }
