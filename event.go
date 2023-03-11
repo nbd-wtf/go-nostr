@@ -4,9 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"time"
+
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"time"
 )
 
 type Event struct {
@@ -36,6 +37,8 @@ const (
 	KindChannelMessage         int = 42
 	KindChannelHideMessage     int = 43
 	KindChannelMuteUser        int = 44
+	KindZapRequest             int = 9734
+	KindZap                    int = 9735
 )
 
 // GetID serializes and returns the event ID as a string
