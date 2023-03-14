@@ -48,6 +48,10 @@ type Relay struct {
 	ConnectionError chan error
 
 	okCallbacks s.MapOf[string, func(bool)]
+
+	// custom things that aren't often used
+	//
+	AssumeValid bool // this will skip verifying signatures for events received from this relay
 }
 
 // RelayConnect returns a relay object connected to url.
@@ -146,14 +150,15 @@ func (r *Relay) Connect(ctx context.Context) error {
 					json.Unmarshal(jsonMessage[2], &event)
 
 					// check signature of all received events, ignore invalid
-					ok, err := event.CheckSignature()
-					if !ok {
-						errmsg := ""
-						if err != nil {
-							errmsg = err.Error()
+					if !r.AssumeValid {
+						if ok, err := event.CheckSignature(); !ok {
+							errmsg := ""
+							if err != nil {
+								errmsg = err.Error()
+							}
+							log.Printf("bad signature: %s", errmsg)
+							continue
 						}
-						log.Printf("bad signature: %s", errmsg)
-						continue
 					}
 
 					// check if the event matches the desired filter, ignore otherwise
