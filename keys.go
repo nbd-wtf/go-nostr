@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"io"
 	"math/big"
+	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -36,4 +37,12 @@ func GetPublicKey(sk string) (string, error) {
 
 	_, pk := btcec.PrivKeyFromBytes(b)
 	return hex.EncodeToString(schnorr.SerializePubKey(pk)), nil
+}
+
+func IsValidPublicKeyHex(pk string) bool {
+	if strings.ToLower(pk) != pk {
+		return false
+	}
+	dec, _ := hex.DecodeString(pk)
+	return len(dec) == 32
 }
