@@ -11,6 +11,9 @@ func NormalizeURL(u string) string {
 		return ""
 	}
 
+	u = strings.TrimSpace(u)
+	u = strings.ToLower(u)
+
 	if !strings.HasPrefix(u, "http") && !strings.HasPrefix(u, "ws") {
 		u = "wss://" + u
 	}
