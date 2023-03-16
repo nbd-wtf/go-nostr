@@ -43,9 +43,10 @@ type Relay struct {
 	Connection    *Connection
 	subscriptions s.MapOf[string, *Subscription]
 
-	Challenges      chan string // NIP-42 Challenges
-	Notices         chan string
-	ConnectionError chan error
+	Challenges        chan string // NIP-42 Challenges
+	Notices           chan string
+	ConnectionError   chan error
+	ConnectionContext context.Context // will be canceled when the connection closes
 
 	okCallbacks s.MapOf[string, func(bool)]
 
@@ -72,7 +73,11 @@ func (r *Relay) String() string {
 // Once successfully connected, context expiration has no effect: call r.Close
 // to close the connection.
 func (r *Relay) Connect(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	r.ConnectionContext = ctx
+
 	if r.URL == "" {
+		cancel()
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
 	}
 
@@ -85,6 +90,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, r.RequestHeader)
 	if err != nil {
+		cancel()
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
 
@@ -198,6 +204,8 @@ func (r *Relay) Connect(ctx context.Context) error {
 				}
 			}
 		}
+
+		cancel()
 	}()
 
 	return nil
@@ -360,7 +368,6 @@ func (r *Relay) PrepareSubscription() *Subscription {
 	random := make([]byte, 7)
 	rand.Read(random)
 	id := hex.EncodeToString(random)
-
 	return r.prepareSubscription(id)
 }
 

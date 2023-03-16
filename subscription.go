@@ -14,6 +14,7 @@ type Subscription struct {
 	Filters           Filters
 	Events            chan *Event
 	EndOfStoredEvents chan struct{}
+	Context           context.Context
 
 	stopped  bool
 	emitEose sync.Once
@@ -46,6 +47,9 @@ func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 // Fire sends the "REQ" command to the relay.
 // When ctx is cancelled, sub.Unsub() is called, closing the subscription.
 func (sub *Subscription) Fire(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	sub.Context = ctx
+
 	message := []interface{}{"REQ", sub.id}
 	for _, filter := range sub.Filters {
 		message = append(message, filter)
@@ -57,5 +61,17 @@ func (sub *Subscription) Fire(ctx context.Context) {
 	go func() {
 		<-ctx.Done()
 		sub.Unsub()
+	}()
+
+	// or when the relay connection is closed
+	go func() {
+		<-sub.Relay.ConnectionContext.Done()
+
+		// this will close the Events channel,
+		// which can be used by an external reader to learn the subscription has stopped
+		sub.Unsub()
+
+		// we also cancel the context
+		cancel()
 	}()
 }
