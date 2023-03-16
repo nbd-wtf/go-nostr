@@ -261,6 +261,11 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	for {
 		select {
 		case receivedEvent := <-sub.Events:
+			if receivedEvent == nil {
+				// channel is closed
+				return status, err
+			}
+
 			if receivedEvent.ID == event.ID {
 				// we got a success, so update our status and proceed to return
 				mu.Lock()
@@ -364,6 +369,10 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
 	for {
 		select {
 		case evt := <-sub.Events:
+			if evt == nil {
+				// channel is closed
+				return events
+			}
 			events = append(events, evt)
 		case <-sub.EndOfStoredEvents:
 			return events
