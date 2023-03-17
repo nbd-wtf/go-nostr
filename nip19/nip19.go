@@ -71,6 +71,8 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				result.ID = hex.EncodeToString(v)
 			case TLVRelay:
 				result.Relays = append(result.Relays, string(v))
+			case TLVAuthor:
+				result.Author = hex.EncodeToString(v)
 			default:
 				// ignore
 			}
@@ -173,16 +175,20 @@ func EncodeProfile(publicKeyHex string, relays []string) (string, error) {
 	return encode("nprofile", bits5)
 }
 
-func EncodeEvent(eventIdHex string, relays []string) (string, error) {
+func EncodeEvent(eventIdHex string, relays []string, author string) (string, error) {
 	buf := &bytes.Buffer{}
 	id, err := hex.DecodeString(eventIdHex)
-	if err != nil {
+	if err != nil || len(id) != 32 {
 		return "", fmt.Errorf("invalid id '%s': %w", eventIdHex, err)
 	}
 	writeTLVEntry(buf, TLVDefault, id)
 
 	for _, url := range relays {
 		writeTLVEntry(buf, TLVRelay, []byte(url))
+	}
+
+	if pubkey, _ := hex.DecodeString(author); len(pubkey) == 32 {
+		writeTLVEntry(buf, TLVAuthor, pubkey)
 	}
 
 	bits5, err := convertBits(buf.Bytes(), 8, 5, true)

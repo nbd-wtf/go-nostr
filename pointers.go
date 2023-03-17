@@ -8,6 +8,7 @@ type ProfilePointer struct {
 type EventPointer struct {
 	ID     string
 	Relays []string
+	Author string
 }
 
 type EntityPointer struct {

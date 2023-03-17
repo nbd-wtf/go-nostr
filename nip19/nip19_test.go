@@ -169,3 +169,40 @@ func TestDecodeNaddrWithoutRelays(t *testing.T) {
 		t.Error("relays should have been an empty array")
 	}
 }
+
+func TestEncodeDecodeNEventTestEncodeDecodeNEvent(t *testing.T) {
+	nevent, err := EncodeEvent(
+		"45326f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194",
+		[]string{"wss://banana.com"},
+		"7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751abb88",
+	)
+	if err != nil {
+		t.Errorf("shouldn't error: %s", err)
+	}
+
+	prefix, res, err := Decode(nevent)
+	if err != nil {
+		t.Errorf("shouldn't error: %s", err)
+	}
+
+	if prefix != "nevent" {
+		t.Errorf("should have 'nevent' prefix, not '%s'", prefix)
+	}
+
+	ep, ok := res.(nostr.EventPointer)
+	if !ok {
+		t.Errorf("'%s' should be an nevent, not %v", nevent, res)
+	}
+
+	if ep.Author != "7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751abb88" {
+		t.Error("wrong author")
+	}
+
+	if ep.ID != "45326f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194" {
+		t.Error("wrong id")
+	}
+
+	if len(ep.Relays) != 1 || ep.Relays[0] != "wss://banana.com" {
+		t.Error("wrong relay")
+	}
+}
