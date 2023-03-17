@@ -2,11 +2,12 @@ package nostr
 
 import (
 	"context"
+	"strconv"
 	"sync"
 )
 
 type Subscription struct {
-	id    string
+	id    int
 	conn  *Connection
 	mutex sync.Mutex
 
@@ -25,13 +26,18 @@ type EventMessage struct {
 	Relay string
 }
 
+// GetID return the Nostr subscription ID as given to the relay, it will be a sequential number, stringified
+func (sub *Subscription) GetID() string {
+	return strconv.Itoa(sub.id)
+}
+
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
 // Unsub() also closes the channel sub.Events.
 func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
 
-	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.id})
+	sub.conn.WriteJSON([]interface{}{"CLOSE", strconv.Itoa(sub.id)})
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
 	}
@@ -50,7 +56,7 @@ func (sub *Subscription) Fire(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	sub.Context = ctx
 
-	message := []interface{}{"REQ", sub.id}
+	message := []interface{}{"REQ", strconv.Itoa(sub.id)}
 	for _, filter := range sub.Filters {
 		message = append(message, filter)
 	}

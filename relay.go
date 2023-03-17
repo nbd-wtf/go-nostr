@@ -2,8 +2,6 @@ package nostr
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -23,6 +21,8 @@ const (
 	PublishStatusSucceeded Status = 1
 )
 
+var subscriptionIdCounter = 0
+
 func (s Status) String() string {
 	switch s {
 	case PublishStatusSent:
@@ -41,7 +41,7 @@ type Relay struct {
 	RequestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
-	subscriptions s.MapOf[string, *Subscription]
+	subscriptions s.MapOf[int, *Subscription]
 
 	Challenges        chan string // NIP-42 Challenges
 	Notices           chan string
@@ -149,7 +149,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					continue
 				}
 
-				var channel string
+				var channel int
 				json.Unmarshal(jsonMessage[1], &channel)
 				if subscription, ok := r.subscriptions.Load(channel); ok {
 					var event Event
@@ -181,7 +181,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if len(jsonMessage) < 2 {
 					continue
 				}
-				var channel string
+				var channel int
 				json.Unmarshal(jsonMessage[1], &channel)
 				if subscription, ok := r.subscriptions.Load(channel); ok {
 					subscription.emitEose.Do(func() {
@@ -386,13 +386,9 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
 }
 
 func (r *Relay) PrepareSubscription() *Subscription {
-	random := make([]byte, 7)
-	rand.Read(random)
-	id := hex.EncodeToString(random)
-	return r.prepareSubscription(id)
-}
+	id := subscriptionIdCounter
+	subscriptionIdCounter++
 
-func (r *Relay) prepareSubscription(id string) *Subscription {
 	sub := &Subscription{
 		Relay:             r,
 		conn:              r.Connection,
