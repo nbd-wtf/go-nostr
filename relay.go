@@ -280,6 +280,9 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 			//      but if it happens because okCallback was called then it might be "succeeded"
 			// do not return if okCallback is in process
 			return status, err
+		case <-r.ConnectionContext.Done():
+			// same as above, but when the relay loses connectivity entirely
+			return status, err
 		}
 	}
 }
