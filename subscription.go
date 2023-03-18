@@ -86,11 +86,7 @@ func (sub *Subscription) Fire(ctx context.Context) error {
 	go func() {
 		<-sub.Relay.ConnectionContext.Done()
 
-		// this will close the Events channel,
-		// which can be used by an external reader to learn the subscription has stopped
-		sub.Unsub()
-
-		// we also cancel the context
+		// cancel the context -- this will cause the other context cancelation cause above to be called
 		cancel()
 	}()
 
