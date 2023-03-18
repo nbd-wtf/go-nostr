@@ -55,7 +55,7 @@ func TestPublish(t *testing.T) {
 
 	// connect a client and send the text note
 	rl := mustRelayConnect(ws.URL)
-	status := rl.Publish(context.Background(), textNote)
+	status, _ := rl.Publish(context.Background(), textNote)
 	if status != PublishStatusSucceeded {
 		t.Errorf("published status is %d, not %d", status, PublishStatusSucceeded)
 	}
@@ -85,7 +85,7 @@ func TestPublishBlocked(t *testing.T) {
 
 	// connect a client and send a text note
 	rl := mustRelayConnect(ws.URL)
-	status := rl.Publish(context.Background(), textNote)
+	status, _ := rl.Publish(context.Background(), textNote)
 	if status != PublishStatusFailed {
 		t.Errorf("published status is %d, not %d", status, PublishStatusSucceeded)
 	}

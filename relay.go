@@ -41,11 +41,11 @@ type Relay struct {
 	RequestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
-	subscriptions s.MapOf[int, *Subscription]
+	subscriptions s.MapOf[string, *Subscription]
 
 	Challenges        chan string // NIP-42 Challenges
 	Notices           chan string
-	ConnectionError   chan error
+	ConnectionError   error
 	ConnectionContext context.Context // will be canceled when the connection closes
 
 	okCallbacks s.MapOf[string, func(bool, string)]
@@ -73,8 +73,8 @@ func (r *Relay) String() string {
 // Once successfully connected, context expiration has no effect: call r.Close
 // to close the connection.
 func (r *Relay) Connect(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	r.ConnectionContext = ctx
+	connectionContext, cancel := context.WithCancel(context.Background())
+	r.ConnectionContext = connectionContext
 
 	if r.URL == "" {
 		cancel()
@@ -96,7 +96,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 	r.Challenges = make(chan string)
 	r.Notices = make(chan string)
-	r.ConnectionError = make(chan error)
 
 	conn := NewConnection(socket)
 	r.Connection = conn
@@ -105,7 +104,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		for {
 			typ, message, err := conn.socket.ReadMessage()
 			if err != nil {
-				r.ConnectionError <- err
+				r.ConnectionError = err
 				break
 			}
 
@@ -128,10 +127,10 @@ func (r *Relay) Connect(ctx context.Context) error {
 				continue
 			}
 
-			var label string
-			json.Unmarshal(jsonMessage[0], &label)
+			var command string
+			json.Unmarshal(jsonMessage[0], &command)
 
-			switch label {
+			switch command {
 			case "NOTICE":
 				var content string
 				json.Unmarshal(jsonMessage[1], &content)
@@ -149,9 +148,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 					continue
 				}
 
-				var channel int
-				json.Unmarshal(jsonMessage[1], &channel)
-				if subscription, ok := r.subscriptions.Load(channel); ok {
+				var subId string
+				json.Unmarshal(jsonMessage[1], &subId)
+				if subscription, ok := r.subscriptions.Load(subId); ok {
 					var event Event
 					json.Unmarshal(jsonMessage[2], &event)
 
@@ -162,7 +161,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 							if err != nil {
 								errmsg = err.Error()
 							}
-							log.Printf("bad signature: %s", errmsg)
+							log.Printf("bad signature: %s\n", errmsg)
 							continue
 						}
 					}
@@ -181,9 +180,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if len(jsonMessage) < 2 {
 					continue
 				}
-				var channel int
-				json.Unmarshal(jsonMessage[1], &channel)
-				if subscription, ok := r.subscriptions.Load(channel); ok {
+				var subId string
+				json.Unmarshal(jsonMessage[1], &subId)
+				if subscription, ok := r.subscriptions.Load(subId); ok {
 					subscription.emitEose.Do(func() {
 						subscription.EndOfStoredEvents <- struct{}{}
 					})
@@ -364,7 +363,7 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 3 seconds
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
+		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
 		defer cancel()
 	}
 
@@ -397,7 +396,7 @@ func (r *Relay) PrepareSubscription() *Subscription {
 		EndOfStoredEvents: make(chan struct{}, 1),
 	}
 
-	r.subscriptions.Store(sub.id, sub)
+	r.subscriptions.Store(sub.GetID(), sub)
 	return sub
 }
 

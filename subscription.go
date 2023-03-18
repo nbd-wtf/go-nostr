@@ -7,6 +7,7 @@ import (
 )
 
 type Subscription struct {
+	label string
 	id    int
 	conn  *Connection
 	mutex sync.Mutex
@@ -26,9 +27,15 @@ type EventMessage struct {
 	Relay string
 }
 
-// GetID return the Nostr subscription ID as given to the relay, it will be a sequential number, stringified
+// SetLabel puts a label on the subscription that is prepended to the id that is sent to relays,
+//   it's only useful for debugging and sanity purposes.
+func (sub *Subscription) SetLabel(label string) {
+	sub.label = label
+}
+
+// GetID return the Nostr subscription ID as given to the relay, it will be a sequential number, stringified.
 func (sub *Subscription) GetID() string {
-	return strconv.Itoa(sub.id)
+	return sub.label + ":" + strconv.Itoa(sub.id)
 }
 
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
@@ -37,7 +44,7 @@ func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
 
-	sub.conn.WriteJSON([]interface{}{"CLOSE", strconv.Itoa(sub.id)})
+	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.GetID()})
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
 	}
@@ -52,16 +59,20 @@ func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 
 // Fire sends the "REQ" command to the relay.
 // When ctx is cancelled, sub.Unsub() is called, closing the subscription.
-func (sub *Subscription) Fire(ctx context.Context) {
+func (sub *Subscription) Fire(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	sub.Context = ctx
 
-	message := []interface{}{"REQ", strconv.Itoa(sub.id)}
+	message := []interface{}{"REQ", sub.GetID()}
 	for _, filter := range sub.Filters {
 		message = append(message, filter)
 	}
 
-	sub.conn.WriteJSON(message)
+	err := sub.conn.WriteJSON(message)
+	if err != nil {
+		cancel()
+		return err
+	}
 
 	// the subscription ends once the context is canceled
 	go func() {
@@ -80,4 +91,6 @@ func (sub *Subscription) Fire(ctx context.Context) {
 		// we also cancel the context
 		cancel()
 	}()
+
+	return nil
 }
