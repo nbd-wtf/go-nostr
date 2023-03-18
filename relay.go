@@ -150,29 +150,40 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 				var subId string
 				json.Unmarshal(jsonMessage[1], &subId)
-				if subscription, ok := r.subscriptions.Load(subId); ok {
-					var event Event
-					json.Unmarshal(jsonMessage[2], &event)
-
-					// check signature of all received events, ignore invalid
-					if !r.AssumeValid {
-						if ok, err := event.CheckSignature(); !ok {
-							errmsg := ""
-							if err != nil {
-								errmsg = err.Error()
-							}
-							log.Printf("bad signature: %s\n", errmsg)
-							continue
-						}
-					}
-
-					// check if the event matches the desired filter, ignore otherwise
+				if subscription, ok := r.subscriptions.Load(subId); !ok {
+					log.Printf("no subscription with id '%s'\n", subId)
+					continue
+				} else {
 					func() {
-						subscription.mutex.Lock()
-						defer subscription.mutex.Unlock()
-						if !subscription.Filters.Match(&event) || subscription.stopped {
+						// decode event
+						var event Event
+						json.Unmarshal(jsonMessage[2], &event)
+
+						// check if the event matches the desired filter, ignore otherwise
+						if !subscription.Filters.Match(&event) {
+							log.Printf("filter does not match\n")
 							return
 						}
+
+						subscription.mutex.Lock()
+						defer subscription.mutex.Unlock()
+						if subscription.stopped {
+							log.Printf("subscription '%s' is stopped\n", subId)
+							return
+						}
+
+						// check signature, ignore invalid, except from trusted (AssumeValid) relays
+						if !r.AssumeValid {
+							if ok, err := event.CheckSignature(); !ok {
+								errmsg := ""
+								if err != nil {
+									errmsg = err.Error()
+								}
+								log.Printf("bad signature: %s\n", errmsg)
+								return
+							}
+						}
+
 						subscription.Events <- &event
 					}()
 				}
