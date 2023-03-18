@@ -7,10 +7,10 @@ import (
 )
 
 type Subscription struct {
-	label string
-	id    int
-	conn  *Connection
-	mutex sync.Mutex
+	label   string
+	counter int
+	conn    *Connection
+	mutex   sync.Mutex
 
 	Relay             *Relay
 	Filters           Filters
@@ -35,7 +35,7 @@ func (sub *Subscription) SetLabel(label string) {
 
 // GetID return the Nostr subscription ID as given to the relay, it will be a sequential number, stringified.
 func (sub *Subscription) GetID() string {
-	return sub.label + ":" + strconv.Itoa(sub.id)
+	return sub.label + ":" + strconv.Itoa(sub.counter)
 }
 
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
@@ -60,6 +60,8 @@ func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 // Fire sends the "REQ" command to the relay.
 // When ctx is cancelled, sub.Unsub() is called, closing the subscription.
 func (sub *Subscription) Fire(ctx context.Context) error {
+	sub.Relay.subscriptions.Store(sub.GetID(), sub)
+
 	ctx, cancel := context.WithCancel(ctx)
 	sub.Context = ctx
 

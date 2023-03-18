@@ -385,19 +385,16 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
 }
 
 func (r *Relay) PrepareSubscription() *Subscription {
-	id := subscriptionIdCounter
+	current := subscriptionIdCounter
 	subscriptionIdCounter++
 
-	sub := &Subscription{
+	return &Subscription{
 		Relay:             r,
 		conn:              r.Connection,
-		id:                id,
+		counter:           current,
 		Events:            make(chan *Event),
 		EndOfStoredEvents: make(chan struct{}, 1),
 	}
-
-	r.subscriptions.Store(sub.GetID(), sub)
-	return sub
 }
 
 func (r *Relay) Close() error {
