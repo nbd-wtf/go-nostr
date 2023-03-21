@@ -161,14 +161,13 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 						// check if the event matches the desired filter, ignore otherwise
 						if !subscription.Filters.Match(&event) {
-							log.Printf("filter does not match\n")
+							log.Printf("filter does not match: %v ~ %v\n", subscription.Filters[0], event)
 							return
 						}
 
 						subscription.mutex.Lock()
 						defer subscription.mutex.Unlock()
 						if subscription.stopped {
-							log.Printf("subscription '%s' is stopped\n", subId)
 							return
 						}
 
@@ -360,9 +359,9 @@ func (r *Relay) Subscribe(ctx context.Context, filters Filters) *Subscription {
 		panic(fmt.Errorf("must call .Connect() first before calling .Subscribe()"))
 	}
 
-	sub := r.PrepareSubscription()
+	sub := r.PrepareSubscription(ctx)
 	sub.Filters = filters
-	sub.Fire(ctx)
+	sub.Fire()
 
 	return sub
 }
@@ -395,12 +394,16 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
 	}
 }
 
-func (r *Relay) PrepareSubscription() *Subscription {
+func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 	current := subscriptionIdCounter
 	subscriptionIdCounter++
 
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Subscription{
 		Relay:             r,
+		Context:           ctx,
+		cancel:            cancel,
 		conn:              r.Connection,
 		counter:           current,
 		Events:            make(chan *Event),

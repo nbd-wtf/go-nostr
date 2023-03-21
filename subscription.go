@@ -17,6 +17,7 @@ type Subscription struct {
 	Events            chan *Event
 	EndOfStoredEvents chan struct{}
 	Context           context.Context
+	cancel            context.CancelFunc
 
 	stopped  bool
 	emitEose sync.Once
@@ -54,16 +55,12 @@ func (sub *Subscription) Unsub() {
 // Sub sets sub.Filters and then calls sub.Fire(ctx).
 func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 	sub.Filters = filters
-	sub.Fire(ctx)
+	sub.Fire()
 }
 
 // Fire sends the "REQ" command to the relay.
-// When ctx is cancelled, sub.Unsub() is called, closing the subscription.
-func (sub *Subscription) Fire(ctx context.Context) error {
+func (sub *Subscription) Fire() error {
 	sub.Relay.subscriptions.Store(sub.GetID(), sub)
-
-	ctx, cancel := context.WithCancel(ctx)
-	sub.Context = ctx
 
 	message := []interface{}{"REQ", sub.GetID()}
 	for _, filter := range sub.Filters {
@@ -72,13 +69,13 @@ func (sub *Subscription) Fire(ctx context.Context) error {
 
 	err := sub.conn.WriteJSON(message)
 	if err != nil {
-		cancel()
+		sub.cancel()
 		return err
 	}
 
 	// the subscription ends once the context is canceled
 	go func() {
-		<-ctx.Done()
+		<-sub.Context.Done()
 		sub.Unsub()
 	}()
 
@@ -87,7 +84,7 @@ func (sub *Subscription) Fire(ctx context.Context) error {
 		<-sub.Relay.ConnectionContext.Done()
 
 		// cancel the context -- this will cause the other context cancelation cause above to be called
-		cancel()
+		sub.cancel()
 	}()
 
 	return nil
