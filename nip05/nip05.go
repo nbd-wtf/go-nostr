@@ -1,6 +1,7 @@
 package nip05
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -52,7 +53,17 @@ func QueryIdentifier(fullname string) *nostr.ProfilePointer {
 		return nil
 	}
 
-	pubkey, _ := result.Names[name]
+	pubkey, ok := result.Names[name]
+	if !ok {
+		return nil
+	}
+
+	if len(pubkey) == 64 {
+		if _, err := hex.DecodeString(pubkey); err != nil {
+			return nil
+		}
+	}
+
 	relays, _ := result.Relays[pubkey]
 
 	return &nostr.ProfilePointer{
