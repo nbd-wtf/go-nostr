@@ -100,6 +100,23 @@ func (r *Relay) Connect(ctx context.Context) error {
 	conn := NewConnection(socket)
 	r.Connection = conn
 
+	// ping every 29 seconds
+	ticker := time.NewTicker(29 * time.Second)
+	defer ticker.Stop()
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				err := conn.socket.WriteMessage(websocket.PingMessage, nil)
+				if err != nil {
+					log.Printf("error writing ping: %v; closing websocket", err)
+					return
+				}
+			}
+		}
+	}()
+
+	// handling received messages
 	go func() {
 		for {
 			typ, message, err := conn.socket.ReadMessage()
