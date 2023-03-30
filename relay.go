@@ -73,7 +73,7 @@ func (r *Relay) String() string {
 // Once successfully connected, context expiration has no effect: call r.Close
 // to close the connection.
 func (r *Relay) Connect(ctx context.Context) error {
-	connectionContext, cancel := context.WithCancel(context.Background())
+	connectionContext, cancel := context.WithCancel(ctx)
 	r.ConnectionContext = connectionContext
 
 	if r.URL == "" {
