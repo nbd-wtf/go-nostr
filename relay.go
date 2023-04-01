@@ -137,11 +137,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 				break
 			}
 
-			if typ == websocket.PingMessage {
-				conn.WriteMessage(websocket.PongMessage, nil)
-				continue
-			}
-
 			if typ != websocket.TextMessage || len(message) == 0 || message[0] != '[' {
 				continue
 			}
