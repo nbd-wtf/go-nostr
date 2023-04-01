@@ -49,6 +49,7 @@ type Relay struct {
 	ConnectionContext context.Context // will be canceled when the connection closes
 
 	okCallbacks s.MapOf[string, func(bool, string)]
+	mutex       sync.RWMutex
 
 	// custom things that aren't often used
 	//
@@ -100,8 +101,10 @@ func (r *Relay) Connect(ctx context.Context) error {
 	// close these channels when the connection is dropped
 	go func() {
 		<-r.ConnectionContext.Done()
+		r.mutex.Lock()
 		close(r.Challenges)
 		close(r.Notices)
+		r.mutex.Unlock()
 	}()
 
 	conn := NewConnection(socket)
@@ -161,17 +164,21 @@ func (r *Relay) Connect(ctx context.Context) error {
 				var content string
 				json.Unmarshal(jsonMessage[1], &content)
 				go func() {
+					r.mutex.RLock()
 					if r.ConnectionContext.Err() == nil {
 						r.Notices <- content
 					}
+					r.mutex.RUnlock()
 				}()
 			case "AUTH":
 				var challenge string
 				json.Unmarshal(jsonMessage[1], &challenge)
 				go func() {
+					r.mutex.RLock()
 					if r.ConnectionContext.Err() == nil {
 						r.Challenges <- challenge
 					}
+					r.mutex.RUnlock()
 				}()
 			case "EVENT":
 				if len(jsonMessage) < 3 {
