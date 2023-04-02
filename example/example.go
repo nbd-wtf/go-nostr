@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -13,25 +13,26 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip19"
 )
 
+func utilTrimString(s string) string {
+	return strings.Trim(s, "\r\n\t ")
+}
+
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 
 	// connect to relay
 	url := "wss://nostr.zebedee.cloud"
+	// url := "wss://relay.nostr.net.in"
 	relay, err := nostr.RelayConnect(ctx, url)
 	if err != nil {
 		panic(err)
 	}
 
-	reader := os.Stdin
-	var npub string
-	var b [64]byte
-	fmt.Fprintf(os.Stderr, "using %s\n----\nexample subscription for three most recent notes mentioning user\npaste npub key: ", url)
-	if n, err := reader.Read(b[:]); err == nil {
-		npub = strings.TrimSpace(fmt.Sprintf("%s", b[:n]))
-	} else {
-		panic(err)
-	}
+	reader := bufio.NewReader(os.Stdin)
+
+	_, _ = fmt.Fprintf(os.Stderr, "using %s\n----\nexample subscription for three most recent notes mentioning user\npaste npub key: ", url)
+	npub, _ := reader.ReadString('\n')
+	npub = utilTrimString(npub)
 
 	// create filters
 	var filters nostr.Filters
@@ -78,12 +79,8 @@ func main() {
 	}
 
 	fmt.Fprintf(os.Stderr, "----\nexample publication of note.\npaste nsec key (leave empty to autogenerate): ")
-	var nsec string
-	if n, err := reader.Read(b[:]); err == nil {
-		nsec = strings.TrimSpace(fmt.Sprintf("%s", b[:n]))
-	} else {
-		panic(err)
-	}
+	nsec, _ := reader.ReadString('\n')
+	nsec = utilTrimString(nsec)
 
 	var sk string
 	ev := nostr.Event{}
@@ -106,23 +103,25 @@ func main() {
 	var content string
 	fmt.Fprintln(os.Stderr, "enter content of note, ending with an empty newline (ctrl+d):")
 	for {
-		if n, err := reader.Read(b[:]); err == nil {
-			content = fmt.Sprintf("%s%s", content, fmt.Sprintf("%s", b[:n]))
-		} else if err == io.EOF {
+		curContent, _ := reader.ReadString('\n')
+		curContent = utilTrimString(curContent)
+		if curContent == "" {
 			break
-		} else {
-			panic(err)
 		}
+
+		content += curContent
 	}
 	ev.Content = strings.TrimSpace(content)
 	ev.Sign(sk)
-	for _, url := range []string{"wss://nostr.zebedee.cloud"} {
+	for _, url := range []string{url} {
 		ctx := context.WithValue(context.Background(), "url", url)
 		relay, e := nostr.RelayConnect(ctx, url)
 		if e != nil {
 			fmt.Println(e)
 			continue
 		}
-		fmt.Println("posting to: ", url, relay.Publish(ctx, ev))
+
+		status, e := relay.Publish(ctx, ev)
+		fmt.Println("posting to: ", url, status, e)
 	}
 }
