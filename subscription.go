@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
 
 type Subscription struct {
 	label   string
 	counter int
-	conn    *Connection
+	conn    *websocket.Conn
 	mutex   sync.Mutex
 
 	Relay             *Relay
@@ -46,7 +49,7 @@ func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
 
-	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.GetID()})
+	wsjson.Write(context.Background(), sub.conn, []interface{}{"CLOSE", sub.GetID()})
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
 	}
@@ -68,7 +71,7 @@ func (sub *Subscription) Fire() error {
 		message = append(message, filter)
 	}
 
-	err := sub.conn.WriteJSON(message)
+	err := wsjson.Write(sub.Context, sub.conn, message)
 	if err != nil {
 		sub.cancel()
 		return fmt.Errorf("failed to write: %w", err)

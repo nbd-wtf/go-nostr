@@ -110,7 +110,7 @@ func TestConnectContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RelayConnectContext: %v", err)
 	}
-	defer r.Close()
+	defer r.Close("")
 
 	mu.Lock()
 	defer mu.Unlock()

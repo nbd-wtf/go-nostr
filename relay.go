@@ -10,7 +10,8 @@ import (
 	"time"
 
 	s "github.com/SaveTheRbtz/generic-sync-map-go"
-	"github.com/gorilla/websocket"
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
 
 type Status int
@@ -40,7 +41,7 @@ type Relay struct {
 	URL           string
 	RequestHeader http.Header // e.g. for origin header
 
-	Connection    *Connection
+	Connection    *websocket.Conn
 	subscriptions s.MapOf[string, *Subscription]
 
 	Challenges        chan string // NIP-42 Challenges
@@ -89,7 +90,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 		defer cancel()
 	}
 
-	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, r.RequestHeader)
+	conn, _, err := websocket.Dial(ctx, r.URL, &websocket.DialOptions{
+		HTTPHeader: r.RequestHeader,
+	})
 	if err != nil {
 		cancel()
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
@@ -107,7 +110,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 		r.mutex.Unlock()
 	}()
 
-	conn := NewConnection(socket)
 	r.Connection = conn
 
 	// ping every 29 seconds
@@ -118,9 +120,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
-				err := conn.socket.WriteMessage(websocket.PingMessage, nil)
+				err := conn.Ping(connectionContext)
 				if err != nil {
-					log.Printf("error writing ping: %v; closing websocket", err)
+					log.Printf("error writing ping: %v", err)
 					return
 				}
 			}
@@ -131,18 +133,13 @@ func (r *Relay) Connect(ctx context.Context) error {
 	go func() {
 		defer cancel()
 		for {
-			typ, message, err := conn.socket.ReadMessage()
+			typ, message, err := conn.Read(r.ConnectionContext)
 			if err != nil {
 				r.ConnectionError = err
 				break
 			}
 
-			if typ == websocket.PingMessage {
-				conn.WriteMessage(websocket.PongMessage, nil)
-				continue
-			}
-
-			if typ != websocket.TextMessage || len(message) == 0 || message[0] != '[' {
+			if typ != websocket.MessageText || len(message) == 0 || message[0] != '[' {
 				continue
 			}
 
@@ -297,7 +294,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// publish event
-	if err := r.Connection.WriteJSON([]interface{}{"EVENT", event}); err != nil {
+	if err := wsjson.Write(ctx, r.Connection, []interface{}{"EVENT", event}); err != nil {
 		return status, err
 	}
 
@@ -372,7 +369,7 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// send AUTH
-	if err := r.Connection.WriteJSON([]interface{}{"AUTH", event}); err != nil {
+	if err := wsjson.Write(ctx, r.Connection, []interface{}{"AUTH", event}); err != nil {
 		// status will be "failed"
 		return status, err
 	}
@@ -457,6 +454,6 @@ func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 	}
 }
 
-func (r *Relay) Close() error {
-	return r.Connection.Close()
+func (r *Relay) Close(reason string) error {
+	return r.Connection.Close(websocket.StatusNormalClosure, reason)
 }
