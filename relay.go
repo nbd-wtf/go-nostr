@@ -91,7 +91,8 @@ func (r *Relay) Connect(ctx context.Context) error {
 	}
 
 	conn, _, err := websocket.Dial(ctx, r.URL, &websocket.DialOptions{
-		HTTPHeader: r.RequestHeader,
+		HTTPHeader:      r.RequestHeader,
+		CompressionMode: websocket.CompressionDisabled,
 	})
 	if err != nil {
 		cancel()
