@@ -301,7 +301,11 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 		return status, err
 	}
 
-	sub := r.Subscribe(ctx, Filters{Filter{IDs: []string{event.ID}}})
+	sub, err := r.Subscribe(ctx, Filters{Filter{IDs: []string{event.ID}}})
+	if err != nil {
+		return status, fmt.Errorf("failed to subscribe to just published event %s at %s: %w", event.ID, r.URL, err)
+	}
+
 	for {
 		select {
 		case receivedEvent := <-sub.Events:
@@ -389,20 +393,27 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 // Subscribe sends a "REQ" command to the relay r as in NIP-01.
 // Events are returned through the channel sub.Events.
 // The subscription is closed when context ctx is cancelled ("CLOSE" in NIP-01).
-func (r *Relay) Subscribe(ctx context.Context, filters Filters) *Subscription {
+func (r *Relay) Subscribe(ctx context.Context, filters Filters) (*Subscription, error) {
 	if r.Connection == nil {
 		panic(fmt.Errorf("must call .Connect() first before calling .Subscribe()"))
 	}
 
 	sub := r.PrepareSubscription(ctx)
 	sub.Filters = filters
-	sub.Fire()
 
-	return sub
+	if err := sub.Fire(); err != nil {
+		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filters, r.URL, err)
+	}
+
+	return sub, nil
 }
 
-func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
-	sub := r.Subscribe(ctx, Filters{filter})
+func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) {
+	sub, err := r.Subscribe(ctx, Filters{filter})
+	if err != nil {
+		return nil, err
+	}
+
 	defer sub.Unsub()
 
 	if _, ok := ctx.Deadline(); !ok {
@@ -418,13 +429,13 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) []*Event {
 		case evt := <-sub.Events:
 			if evt == nil {
 				// channel is closed
-				return events
+				return events, nil
 			}
 			events = append(events, evt)
 		case <-sub.EndOfStoredEvents:
-			return events
+			return events, nil
 		case <-ctx.Done():
-			return events
+			return events, nil
 		}
 	}
 }

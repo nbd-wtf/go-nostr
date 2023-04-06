@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 )
@@ -70,7 +71,7 @@ func (sub *Subscription) Fire() error {
 	err := sub.conn.WriteJSON(message)
 	if err != nil {
 		sub.cancel()
-		return err
+		return fmt.Errorf("failed to write: %w", err)
 	}
 
 	// the subscription ends once the context is canceled
