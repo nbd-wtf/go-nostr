@@ -178,9 +178,7 @@ func makeKeyPair(t *testing.T) (priv, pub string) {
 }
 
 func mustRelayConnect(url string) *Relay {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	rl, err := RelayConnect(ctx, url)
+	rl, err := RelayConnect(context.Background(), url)
 	if err != nil {
 		panic(err.Error())
 	}
