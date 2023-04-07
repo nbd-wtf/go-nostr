@@ -2,18 +2,18 @@ package nostr
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
+	"net"
 	"strconv"
 	"sync"
 
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
+	"github.com/gobwas/ws/wsutil"
 )
 
 type Subscription struct {
 	label   string
 	counter int
-	conn    *websocket.Conn
+	conn    net.Conn
 	mutex   sync.Mutex
 
 	Relay             *Relay
@@ -49,7 +49,8 @@ func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
 
-	wsjson.Write(context.Background(), sub.conn, []interface{}{"CLOSE", sub.GetID()})
+	j, _ := json.Marshal([]interface{}{"CLOSE", sub.GetID()})
+	wsutil.WriteClientText(sub.conn, j)
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
 	}
@@ -71,10 +72,11 @@ func (sub *Subscription) Fire() error {
 		message = append(message, filter)
 	}
 
-	err := wsjson.Write(sub.Context, sub.conn, message)
+	j, _ := json.Marshal(message)
+	err := wsutil.WriteClientText(sub.conn, j)
 	if err != nil {
 		sub.cancel()
-		return fmt.Errorf("failed to write: %w", err)
+		return err
 	}
 
 	// the subscription ends once the context is canceled

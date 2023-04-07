@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	s "github.com/SaveTheRbtz/generic-sync-map-go"
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 type Status int
@@ -41,7 +42,7 @@ type Relay struct {
 	URL           string
 	RequestHeader http.Header // e.g. for origin header
 
-	Connection    *websocket.Conn
+	Connection    net.Conn
 	subscriptions s.MapOf[string, *Subscription]
 
 	Challenges        chan string // NIP-42 Challenges
@@ -90,10 +91,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 		defer cancel()
 	}
 
-	conn, _, err := websocket.Dial(ctx, r.URL, &websocket.DialOptions{
-		HTTPHeader:      r.RequestHeader,
-		CompressionMode: websocket.CompressionDisabled,
-	})
+	conn, _, _, err := ws.Dialer{
+		Header: ws.HandshakeHeaderHTTP(r.RequestHeader),
+	}.Dial(ctx, r.URL)
 	if err != nil {
 		cancel()
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
@@ -121,7 +121,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
-				err := conn.Ping(connectionContext)
+				err := wsutil.WriteClientMessage(conn, ws.OpPing, nil)
 				if err != nil {
 					log.Printf("error writing ping: %v", err)
 					return
@@ -133,19 +133,39 @@ func (r *Relay) Connect(ctx context.Context) error {
 	// handling received messages
 	go func() {
 		defer cancel()
+
+		msgbuf := make([]wsutil.Message, 0, 1)
+
 		for {
-			typ, message, err := conn.Read(r.ConnectionContext)
+			message, err := wsutil.ReadServerMessage(conn, msgbuf)
 			if err != nil {
 				r.ConnectionError = err
 				break
 			}
 
-			if typ != websocket.MessageText || len(message) == 0 || message[0] != '[' {
+			if len(message) == 0 {
+				continue
+			}
+
+			if message[0].OpCode == ws.OpClose {
+				r.ConnectionError = fmt.Errorf("server closed connection")
+				break
+			}
+
+			if message[0].OpCode == ws.OpPing {
+				wsutil.WriteClientMessage(conn, ws.OpPong, nil)
+				break
+			}
+
+			if message[0].OpCode != ws.OpText {
 				continue
 			}
 
 			var jsonMessage []json.RawMessage
-			err = json.Unmarshal(message, &jsonMessage)
+			err = json.Unmarshal(message[0].Payload, &jsonMessage)
+
+			msgbuf = message[:0]
+
 			if err != nil {
 				continue
 			}
@@ -295,7 +315,8 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// publish event
-	if err := wsjson.Write(ctx, r.Connection, []interface{}{"EVENT", event}); err != nil {
+	j, _ := json.Marshal([]interface{}{"EVENT", event})
+	if err := wsutil.WriteClientText(r.Connection, j); err != nil {
 		return status, err
 	}
 
@@ -370,7 +391,8 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// send AUTH
-	if err := wsjson.Write(ctx, r.Connection, []interface{}{"AUTH", event}); err != nil {
+	j, _ := json.Marshal([]interface{}{"AUTH", event})
+	if err := wsutil.WriteClientText(r.Connection, j); err != nil {
 		// status will be "failed"
 		return status, err
 	}
@@ -456,5 +478,5 @@ func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 }
 
 func (r *Relay) Close(reason string) error {
-	return r.Connection.Close(websocket.StatusNormalClosure, reason)
+	return wsutil.WriteClientMessage(r.Connection, ws.OpClose, ws.CompiledCloseGoingAway)
 }
