@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -120,7 +119,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 			case <-ticker.C:
 				err := conn.socket.WriteMessage(websocket.PingMessage, nil)
 				if err != nil {
-					log.Printf("error writing ping: %v; closing websocket", err)
+					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
 					return
 				}
 			}
@@ -188,7 +187,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				var subId string
 				json.Unmarshal(jsonMessage[1], &subId)
 				if subscription, ok := r.subscriptions.Load(subId); !ok {
-					log.Printf("no subscription with id '%s'\n", subId)
+					InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, subId)
 					continue
 				} else {
 					func() {
@@ -198,7 +197,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 						// check if the event matches the desired filter, ignore otherwise
 						if !subscription.Filters.Match(&event) {
-							log.Printf("filter does not match (%s): %v ~ %v\n", r.URL, subscription.Filters[0], event)
+							InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, subscription.Filters[0], event)
 							return
 						}
 
@@ -215,7 +214,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 								if err != nil {
 									errmsg = err.Error()
 								}
-								log.Printf("bad signature: %s\n", errmsg)
+								InfoLogger.Printf("{%s} bad signature: %s\n", r.URL, errmsg)
 								return
 							}
 						}
@@ -249,6 +248,8 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if len(jsonMessage) > 3 {
 					json.Unmarshal(jsonMessage[3], &msg)
 				}
+
+				DebugLogger.Printf("{%s} OK: %s %v %s\n", r.URL, eventId, ok, msg)
 
 				if okCallback, exist := r.okCallbacks.Load(eventId); exist {
 					okCallback(ok, msg)

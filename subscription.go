@@ -68,6 +68,8 @@ func (sub *Subscription) Fire() error {
 		message = append(message, filter)
 	}
 
+	DebugLogger.Printf("{%s} REQ: %v", sub.Relay.URL, message)
+
 	err := sub.conn.WriteJSON(message)
 	if err != nil {
 		sub.cancel()
