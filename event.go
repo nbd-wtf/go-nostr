@@ -114,14 +114,16 @@ func (evt Event) CheckSignature() (bool, error) {
 
 // Sign signs an event with a given privateKey
 func (evt *Event) Sign(privateKey string) error {
-	h := sha256.Sum256(evt.Serialize())
-
 	s, err := hex.DecodeString(privateKey)
 	if err != nil {
 		return fmt.Errorf("Sign called with invalid private key '%s': %w", privateKey, err)
 	}
-	sk, _ := btcec.PrivKeyFromBytes(s)
 
+	sk, pk := btcec.PrivKeyFromBytes(s)
+	pkBytes := pk.SerializeCompressed()
+	evt.PubKey = hex.EncodeToString(pkBytes[1:])
+
+	h := sha256.Sum256(evt.Serialize())
 	sig, err := schnorr.Sign(sk, h[:])
 	if err != nil {
 		return err
