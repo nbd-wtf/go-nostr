@@ -273,9 +273,9 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	var mu sync.Mutex
 
 	if _, ok := ctx.Deadline(); !ok {
-		// if no timeout is set, force it to 3 seconds
+		// if no timeout is set, force it to 4 seconds
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
+		ctx, cancel = context.WithTimeout(ctx, 4*time.Second)
 		defer cancel()
 	}
 
@@ -300,18 +300,34 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// publish event
-	if err := r.Connection.WriteJSON([]interface{}{"EVENT", event}); err != nil {
+	message := []interface{}{"EVENT", event}
+	debugLog("{%s} sending %v\n", r.URL, message)
+	if err := r.Connection.WriteJSON(message); err != nil {
 		return status, err
 	}
 	status = PublishStatusSent
 
-	sub, err := r.Subscribe(ctx, Filters{Filter{IDs: []string{event.ID}}})
-	if err != nil {
-		return status, fmt.Errorf("failed to subscribe to just published event %s at %s: %w", event.ID, r.URL, err)
-	}
+	sub := r.PrepareSubscription(ctx)
+	sub.SetLabel("publish-check")
+	sub.Filters = Filters{Filter{IDs: []string{event.ID}}}
 
 	for {
 		select {
+		case <-ctx.Done(): // this will be called when we get an OK
+			// proceed to return status as it is
+			// e.g. if this happens because of the timeout then status will probably be "failed"
+			//      but if it happens because okCallback was called then it might be "succeeded"
+			// do not return if okCallback is in process
+			return status, err
+		case <-r.ConnectionContext.Done():
+			// same as above, but when the relay loses connectivity entirely
+			return status, err
+		case <-time.After(2 * time.Second):
+			// if we don't get an OK after 2 seconds, try to subscribe to the event
+			if err := sub.Fire(); err != nil {
+				InfoLogger.Printf("failed to subscribe to just published event %s at %s: %s", event.ID, r.URL, err)
+			}
+
 		case receivedEvent := <-sub.Events:
 			if receivedEvent == nil {
 				// channel is closed
@@ -325,16 +341,6 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 				mu.Unlock()
 				return status, err
 			}
-		case <-ctx.Done():
-			// return status as it was
-			// will proceed to return status as it is
-			// e.g. if this happens because of the timeout then status will probably be "failed"
-			//      but if it happens because okCallback was called then it might be "succeeded"
-			// do not return if okCallback is in process
-			return status, err
-		case <-r.ConnectionContext.Done():
-			// same as above, but when the relay loses connectivity entirely
-			return status, err
 		}
 	}
 }
