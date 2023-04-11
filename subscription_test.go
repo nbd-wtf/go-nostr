@@ -9,7 +9,7 @@ import (
 // test if we can connect to wss://relay.damus.io and fetch a couple of random events
 func TestSubscribe(t *testing.T) {
 	rl := mustRelayConnect("wss://relay.damus.io")
-	defer rl.Close("")
+	defer rl.Close()
 
 	sub, err := rl.Subscribe(context.Background(), Filters{{Kinds: []int{1}, Limit: 2}})
 	if err != nil {

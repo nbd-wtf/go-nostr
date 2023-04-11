@@ -160,6 +160,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 			switch command {
 			case "NOTICE":
+				DebugLogger.Printf("{%s} %v\n", r.URL, jsonMessage)
 				var content string
 				json.Unmarshal(jsonMessage[1], &content)
 				go func() {
@@ -170,6 +171,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					r.mutex.RUnlock()
 				}()
 			case "AUTH":
+				DebugLogger.Printf("{%s} %v\n", r.URL, jsonMessage)
 				var challenge string
 				json.Unmarshal(jsonMessage[1], &challenge)
 				go func() {
@@ -226,6 +228,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if len(jsonMessage) < 2 {
 					continue
 				}
+				DebugLogger.Printf("{%s} %v\n", r.URL, jsonMessage)
 				var subId string
 				json.Unmarshal(jsonMessage[1], &subId)
 				if subscription, ok := r.subscriptions.Load(subId); ok {
@@ -237,6 +240,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if len(jsonMessage) < 3 {
 					continue
 				}
+				DebugLogger.Printf("{%s} %v\n", r.URL, jsonMessage)
 				var (
 					eventId string
 					ok      bool
@@ -248,8 +252,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if len(jsonMessage) > 3 {
 					json.Unmarshal(jsonMessage[3], &msg)
 				}
-
-				DebugLogger.Printf("{%s} OK: %s %v %s\n", r.URL, eventId, ok, msg)
 
 				if okCallback, exist := r.okCallbacks.Load(eventId); exist {
 					okCallback(ok, msg)
@@ -373,7 +375,9 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// send AUTH
-	if err := r.Connection.WriteJSON([]interface{}{"AUTH", event}); err != nil {
+	authResponse := []interface{}{"AUTH", event}
+	DebugLogger.Printf("{%s} sending %v\n", r.URL, authResponse)
+	if err := r.Connection.WriteJSON(authResponse); err != nil {
 		// status will be "failed"
 		return status, err
 	}
