@@ -273,9 +273,9 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	var mu sync.Mutex
 
 	if _, ok := ctx.Deadline(); !ok {
-		// if no timeout is set, force it to 4 seconds
+		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 4*time.Second)
+		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
 		defer cancel()
 	}
 
@@ -322,12 +322,11 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 		case <-r.ConnectionContext.Done():
 			// same as above, but when the relay loses connectivity entirely
 			return status, err
-		case <-time.After(2 * time.Second):
-			// if we don't get an OK after 2 seconds, try to subscribe to the event
+		case <-time.After(4 * time.Second):
+			// if we don't get an OK after 4 seconds, try to subscribe to the event
 			if err := sub.Fire(); err != nil {
 				InfoLogger.Printf("failed to subscribe to just published event %s at %s: %s", event.ID, r.URL, err)
 			}
-
 		case receivedEvent := <-sub.Events:
 			if receivedEvent == nil {
 				// channel is closed
