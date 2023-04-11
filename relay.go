@@ -266,7 +266,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 // Publish sends an "EVENT" command to the relay r as in NIP-01.
 // Status can be: success, failed, or sent (no response from relay before ctx times out).
 func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
-	status := PublishStatusSent
+	status := PublishStatusFailed
 	var err error
 
 	// data races on status variable without this mutex
@@ -303,6 +303,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	if err := r.Connection.WriteJSON([]interface{}{"EVENT", event}); err != nil {
 		return status, err
 	}
+	status = PublishStatusSent
 
 	sub, err := r.Subscribe(ctx, Filters{Filter{IDs: []string{event.ID}}})
 	if err != nil {
