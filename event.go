@@ -3,6 +3,7 @@ package nostr
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -40,6 +41,15 @@ const (
 	KindZapRequest             int = 9734
 	KindZap                    int = 9735
 )
+
+// Event Stringer interface, just returns the raw JSON as a string
+func (evt *Event) String() string {
+	if evt == nil {
+		return "null"
+	}
+	j, _ := json.Marshal(evt)
+	return string(j)
+}
 
 // GetID serializes and returns the event ID as a string
 func (evt *Event) GetID() string {
