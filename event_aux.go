@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/valyala/fastjson"
 	"time"
+
+	"github.com/valyala/fastjson"
 )
 
 func (evt *Event) UnmarshalJSON(payload []byte) error {
@@ -17,7 +18,7 @@ func (evt *Event) UnmarshalJSON(payload []byte) error {
 
 	obj, err := parsed.Object()
 	if err != nil {
-		return fmt.Errorf("event is not an object")
+		return fmt.Errorf("event is not an object: %w", err)
 	}
 
 	// prepare this to receive any extra property that may serialized along with the event

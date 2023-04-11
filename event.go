@@ -43,10 +43,7 @@ const (
 )
 
 // Event Stringer interface, just returns the raw JSON as a string
-func (evt *Event) String() string {
-	if evt == nil {
-		return "null"
-	}
+func (evt Event) String() string {
 	j, _ := json.Marshal(evt)
 	return string(j)
 }

@@ -300,7 +300,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// publish event
-	message := []interface{}{"EVENT", event}
+	message := []any{"EVENT", event}
 	debugLog("{%s} sending %v\n", r.URL, message)
 	if err := r.Connection.WriteJSON(message); err != nil {
 		return status, err

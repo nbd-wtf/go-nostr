@@ -197,7 +197,7 @@ func parseEventMessage(t *testing.T, raw []json.RawMessage) Event {
 	}
 	var event Event
 	if err := json.Unmarshal(raw[1], &event); err != nil {
-		t.Errorf("json.Unmarshal: %v", err)
+		t.Errorf("json.Unmarshal(`%s`): %v", string(raw[1]), err)
 	}
 	return event
 }
