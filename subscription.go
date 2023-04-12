@@ -46,7 +46,10 @@ func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
 
-	sub.conn.WriteJSON([]interface{}{"CLOSE", sub.GetID()})
+	message := []any{"CLOSE", sub.GetID()}
+	debugLog("{%s} sending %v", sub.Relay.URL, message)
+	sub.conn.WriteJSON(message)
+
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
 	}
