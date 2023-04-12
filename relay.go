@@ -381,7 +381,7 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// send AUTH
-	authResponse := []interface{}{"AUTH", event}
+	authResponse := []any{"AUTH", event}
 	debugLog("{%s} sending %v\n", r.URL, authResponse)
 	if err := r.Connection.WriteJSON(authResponse); err != nil {
 		// status will be "failed"

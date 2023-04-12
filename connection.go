@@ -1,8 +1,9 @@
 package nostr
 
 import (
-	"github.com/gorilla/websocket"
 	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 type Connection struct {
@@ -16,7 +17,7 @@ func NewConnection(socket *websocket.Conn) *Connection {
 	}
 }
 
-func (c *Connection) WriteJSON(v interface{}) error {
+func (c *Connection) WriteJSON(v any) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.socket.WriteJSON(v)

@@ -66,7 +66,7 @@ func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 func (sub *Subscription) Fire() error {
 	sub.Relay.subscriptions.Store(sub.GetID(), sub)
 
-	message := []interface{}{"REQ", sub.GetID()}
+	message := []any{"REQ", sub.GetID()}
 	for _, filter := range sub.Filters {
 		message = append(message, filter)
 	}

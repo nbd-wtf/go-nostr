@@ -114,7 +114,7 @@ func (tags Tags) AppendUnique(tag Tag) Tags {
 	}
 }
 
-func (t *Tags) Scan(src interface{}) error {
+func (t *Tags) Scan(src any) error {
 	var jtags []byte = make([]byte, 0)
 
 	switch v := src.(type) {
