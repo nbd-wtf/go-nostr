@@ -182,6 +182,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					r.mutex.RUnlock()
 				}()
 			case "EVENT":
+				debugLog("{%s} %v\n", r.URL, jsonMessage)
 				if len(jsonMessage) < 3 {
 					continue
 				}
