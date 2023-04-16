@@ -170,12 +170,11 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 	out.RawByte('{')
 	first := true
 	_ = first
-	{
+	if len(in.IDs) != 0 {
 		const prefix string = ",\"ids\":"
+		first = false
 		out.RawString(prefix[1:])
-		if in.IDs == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
-		} else {
+		{
 			out.RawByte('[')
 			for v4, v5 := range in.IDs {
 				if v4 > 0 {
@@ -186,12 +185,15 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 			out.RawByte(']')
 		}
 	}
-	{
+	if len(in.Kinds) != 0 {
 		const prefix string = ",\"kinds\":"
-		out.RawString(prefix)
-		if in.Kinds == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
+		if first {
+			first = false
+			out.RawString(prefix[1:])
 		} else {
+			out.RawString(prefix)
+		}
+		{
 			out.RawByte('[')
 			for v6, v7 := range in.Kinds {
 				if v6 > 0 {
@@ -202,12 +204,15 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 			out.RawByte(']')
 		}
 	}
-	{
+	if len(in.Authors) != 0 {
 		const prefix string = ",\"authors\":"
-		out.RawString(prefix)
-		if in.Authors == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
+		if first {
+			first = false
+			out.RawString(prefix[1:])
 		} else {
+			out.RawString(prefix)
+		}
+		{
 			out.RawByte('[')
 			for v8, v9 := range in.Authors {
 				if v8 > 0 {
@@ -218,33 +223,64 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 			out.RawByte(']')
 		}
 	}
-	{
+	if in.Since != nil {
 		const prefix string = ",\"since\":"
-		out.RawString(prefix)
-		if in.Since == nil {
-			out.RawString("null")
+		if first {
+			first = false
+			out.RawString(prefix[1:])
 		} else {
-			out.Int64(int64(*in.Since))
+			out.RawString(prefix)
 		}
+		out.Int64(int64(*in.Since))
 	}
-	{
+	if in.Until != nil {
 		const prefix string = ",\"until\":"
-		out.RawString(prefix)
-		if in.Until == nil {
-			out.RawString("null")
+		if first {
+			first = false
+			out.RawString(prefix[1:])
 		} else {
-			out.Int64(int64(*in.Until))
+			out.RawString(prefix)
 		}
+		out.Int64(int64(*in.Until))
 	}
-	{
+	if in.Limit != 0 {
 		const prefix string = ",\"limit\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.Int(int(in.Limit))
 	}
-	{
+	if in.Search != "" {
 		const prefix string = ",\"search\":"
-		out.RawString(prefix)
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
 		out.String(string(in.Search))
+	}
+	for tag, values := range in.Tags {
+		const prefix string = ",\"authors\":"
+		if first {
+			first = false
+			out.RawString("\"#" + tag + "\":")
+		} else {
+			out.RawString(",\"#" + tag + "\":")
+		}
+		{
+			out.RawByte('[')
+			for i, v := range values {
+				if i > 0 {
+					out.RawByte(',')
+				}
+				out.String(string(v))
+			}
+			out.RawByte(']')
+		}
 	}
 	out.RawByte('}')
 }

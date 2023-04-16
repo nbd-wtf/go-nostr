@@ -9,14 +9,14 @@ import (
 type Filters []Filter
 
 type Filter struct {
-	IDs     []string   `json:"ids"`
-	Kinds   []int      `json:"kinds"`
-	Authors []string   `json:"authors"`
-	Tags    TagMap     `json:"-"`
-	Since   *Timestamp `json:"since"`
-	Until   *Timestamp `json:"until"`
-	Limit   int        `json:"limit"`
-	Search  string     `json:"search"`
+	IDs     []string   `json:"ids,omitempty"`
+	Kinds   []int      `json:"kinds,omitempty"`
+	Authors []string   `json:"authors,omitempty"`
+	Tags    TagMap     `json:"-,omitempty"`
+	Since   *Timestamp `json:"since,omitempty"`
+	Until   *Timestamp `json:"until,omitempty"`
+	Limit   int        `json:"limit,omitempty"`
+	Search  string     `json:"search,omitempty"`
 }
 
 type TagMap map[string][]string
