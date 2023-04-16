@@ -27,6 +27,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		in.Skip()
 		return
 	}
+	out.extra = make(map[string]any)
 	in.Delim('{')
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(true)

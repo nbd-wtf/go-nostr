@@ -9,14 +9,14 @@ import (
 type Filters []Filter
 
 type Filter struct {
-	IDs     []string
-	Kinds   []int
-	Authors []string
-	Tags    TagMap
-	Since   Timestamp
-	Until   Timestamp
-	Limit   int
-	Search  string
+	IDs     []string   `json:"ids"`
+	Kinds   []int      `json:"kinds"`
+	Authors []string   `json:"authors"`
+	Tags    TagMap     `json:"-"`
+	Since   *Timestamp `json:"since"`
+	Until   *Timestamp `json:"until"`
+	Limit   int        `json:"limit"`
+	Search  string     `json:"search"`
 }
 
 type TagMap map[string][]string
@@ -63,11 +63,11 @@ func (ef Filter) Matches(event *Event) bool {
 		}
 	}
 
-	if event.CreatedAt < ef.Since {
+	if ef.Since != nil && event.CreatedAt < *ef.Since {
 		return false
 	}
 
-	if ef.Until != 0 && event.CreatedAt > ef.Until {
+	if ef.Until != nil && event.CreatedAt > *ef.Until {
 		return false
 	}
 

@@ -13,7 +13,7 @@ import (
 func CreateUnsignedAuthEvent(challenge, pubkey, relayURL string) nostr.Event {
 	return nostr.Event{
 		PubKey:    pubkey,
-		CreatedAt: time.Now(),
+		CreatedAt: nostr.Now(),
 		Kind:      22242,
 		Tags: nostr.Tags{
 			nostr.Tag{"relay", relayURL},
@@ -60,7 +60,7 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 	}
 
 	now := time.Now()
-	if event.CreatedAt.After(now.Add(10*time.Minute)) || event.CreatedAt.Before(now.Add(-10*time.Minute)) {
+	if event.CreatedAt.Time().After(now.Add(10*time.Minute)) || event.CreatedAt.Time().Before(now.Add(-10*time.Minute)) {
 		return "", false
 	}
 

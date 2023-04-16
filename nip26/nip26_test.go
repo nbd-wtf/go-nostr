@@ -1,9 +1,10 @@
 package nip26
 
 import (
-	"github.com/nbd-wtf/go-nostr"
 	"testing"
 	"time"
+
+	"github.com/nbd-wtf/go-nostr"
 )
 
 func TestDelegateSign(t *testing.T) {
@@ -16,7 +17,7 @@ func TestDelegateSign(t *testing.T) {
 		t.Error(err)
 	}
 	ev := &nostr.Event{}
-	ev.CreatedAt = time.Unix(1600000050, 0)
+	ev.CreatedAt = nostr.Timestamp(1600000050)
 	ev.Content = "hello world"
 	ev.Kind = 1
 	if err != nil {

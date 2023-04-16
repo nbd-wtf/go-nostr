@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -22,12 +21,6 @@ type Event struct {
 
 	// anything here will be mashed together with the main event object when serializing
 	extra map[string]any
-}
-
-type Timestamp int64
-
-func (t Timestamp) Time() time.Time {
-	return time.Unix(int64(t), 0)
 }
 
 const (
