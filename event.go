@@ -3,25 +3,31 @@ package nostr
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/mailru/easyjson"
 )
 
 type Event struct {
-	ID        string
-	PubKey    string
-	CreatedAt time.Time
-	Kind      int
-	Tags      Tags
-	Content   string
-	Sig       string
+	ID        string    `json:"id"`
+	PubKey    string    `json:"pubkey"`
+	CreatedAt Timestamp `json:"created_at"`
+	Kind      int       `json:"kind"`
+	Tags      Tags      `json:"tags"`
+	Content   string    `json:"content"`
+	Sig       string    `json:"sig"`
 
 	// anything here will be mashed together with the main event object when serializing
 	extra map[string]any
+}
+
+type Timestamp int64
+
+func (t Timestamp) Time() time.Time {
+	return time.Unix(int64(t), 0)
 }
 
 const (
@@ -44,7 +50,7 @@ const (
 
 // Event Stringer interface, just returns the raw JSON as a string
 func (evt Event) String() string {
-	j, _ := json.Marshal(evt)
+	j, _ := easyjson.Marshal(evt)
 	return string(j)
 }
 
@@ -67,7 +73,7 @@ func (evt *Event) Serialize() []byte {
 		fmt.Sprintf(
 			"[0,\"%s\",%d,%d,",
 			evt.PubKey,
-			evt.CreatedAt.Unix(),
+			evt.CreatedAt,
 			evt.Kind,
 		))...)
 
