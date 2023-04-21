@@ -52,7 +52,7 @@ func main() {
 
 	// create a subscription and submit to relay
 	// results will be returned on the sub.Events channel
-	sub := relay.Subscribe(ctx, filters)
+	sub, _ := relay.Subscribe(ctx, filters)
 
 	// we will append the returned events to this slice
 	evs := make([]nostr.Event, 0)
@@ -101,7 +101,7 @@ func main() {
 		panic(e)
 	}
 
-	ev.CreatedAt = time.Now()
+	ev.CreatedAt = nostr.Now()
 	ev.Kind = 1
 	var content string
 	fmt.Fprintln(os.Stderr, "enter content of note, ending with an empty newline (ctrl+d):")
@@ -123,6 +123,7 @@ func main() {
 			fmt.Println(e)
 			continue
 		}
-		fmt.Println("posting to: ", url, relay.Publish(ctx, ev))
+		fmt.Println("posting to: ", url)
+		relay.Publish(ctx, ev)
 	}
 }

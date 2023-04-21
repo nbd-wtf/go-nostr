@@ -64,7 +64,7 @@ func Generate(event *nostr.Event, targetDifficulty int, timeout time.Duration) (
 	for {
 		nonce++
 		tag[1] = strconv.FormatUint(nonce, 10)
-		event.CreatedAt = time.Now()
+		event.CreatedAt = nostr.Now()
 		if Difficulty(event.GetID()) >= targetDifficulty {
 			return event, nil
 		}

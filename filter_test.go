@@ -3,7 +3,6 @@ package nostr
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
 	"golang.org/x/exp/slices"
 )
@@ -16,7 +15,7 @@ func TestFilterUnmarshal(t *testing.T) {
 		t.Errorf("failed to parse filter json: %v", err)
 	}
 
-	if f.Since == nil || f.Since.UTC().Format("2006-01-02") != "2022-02-07" ||
+	if f.Since == nil || f.Since.Time().UTC().Format("2006-01-02") != "2022-02-07" ||
 		f.Until != nil ||
 		f.Tags == nil || len(f.Tags) != 2 || !slices.Contains(f.Tags["something"], "bab") ||
 		f.Search != "test" {
@@ -25,12 +24,11 @@ func TestFilterUnmarshal(t *testing.T) {
 }
 
 func TestFilterMarshal(t *testing.T) {
-	tm := time.Unix(12345678, 0)
-
+	until := Timestamp(12345678)
 	filterj, err := json.Marshal(Filter{
 		Kinds: []int{1, 2, 4},
 		Tags:  TagMap{"fruit": {"banana", "mango"}},
-		Until: &tm,
+		Until: &until,
 	})
 	if err != nil {
 		t.Errorf("failed to marshal filter json: %v", err)
@@ -93,7 +91,7 @@ func TestFilterEquality(t *testing.T) {
 		t.Error("kind+tags filters should be equal")
 	}
 
-	tm := time.Now()
+	tm := Now()
 	if !FilterEqual(
 		Filter{
 			Kinds: []int{4, 5},

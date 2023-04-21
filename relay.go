@@ -42,10 +42,11 @@ type Relay struct {
 	Connection    *Connection
 	subscriptions s.MapOf[string, *Subscription]
 
-	Challenges        chan string // NIP-42 Challenges
-	Notices           chan string
-	ConnectionError   error
-	ConnectionContext context.Context // will be canceled when the connection closes
+	Challenges              chan string // NIP-42 Challenges
+	Notices                 chan string
+	ConnectionError         error
+	ConnectionContext       context.Context // will be canceled when the connection closes
+	connectionContextCancel context.CancelFunc
 
 	okCallbacks s.MapOf[string, func(bool, string)]
 	mutex       sync.RWMutex
@@ -75,6 +76,7 @@ func (r *Relay) String() string {
 func (r *Relay) Connect(ctx context.Context) error {
 	connectionContext, cancel := context.WithCancel(ctx)
 	r.ConnectionContext = connectionContext
+	r.connectionContextCancel = cancel
 
 	if r.URL == "" {
 		cancel()
@@ -471,5 +473,11 @@ func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 }
 
 func (r *Relay) Close() error {
+	if r.connectionContextCancel == nil {
+		return fmt.Errorf("relay not connected")
+	}
+
+	r.connectionContextCancel()
+	r.connectionContextCancel = nil
 	return r.Connection.Close()
 }

@@ -2,7 +2,6 @@ package nostr
 
 import (
 	"encoding/json"
-	"time"
 
 	"golang.org/x/exp/slices"
 )
@@ -10,14 +9,14 @@ import (
 type Filters []Filter
 
 type Filter struct {
-	IDs     []string
-	Kinds   []int
-	Authors []string
-	Tags    TagMap
-	Since   *time.Time
-	Until   *time.Time
-	Limit   int
-	Search  string
+	IDs     []string   `json:"ids,omitempty"`
+	Kinds   []int      `json:"kinds,omitempty"`
+	Authors []string   `json:"authors,omitempty"`
+	Tags    TagMap     `json:"-,omitempty"`
+	Since   *Timestamp `json:"since,omitempty"`
+	Until   *Timestamp `json:"until,omitempty"`
+	Limit   int        `json:"limit,omitempty"`
+	Search  string     `json:"search,omitempty"`
 }
 
 type TagMap map[string][]string
@@ -64,11 +63,11 @@ func (ef Filter) Matches(event *Event) bool {
 		}
 	}
 
-	if ef.Since != nil && time.Time(event.CreatedAt).Before(*ef.Since) {
+	if ef.Since != nil && event.CreatedAt < *ef.Since {
 		return false
 	}
 
-	if ef.Until != nil && time.Time(event.CreatedAt).After(*ef.Until) {
+	if ef.Until != nil && event.CreatedAt > *ef.Until {
 		return false
 	}
 

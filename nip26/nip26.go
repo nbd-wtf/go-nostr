@@ -135,10 +135,10 @@ jump1:
 	}
 
 jump2:
-	if d.since != nil && ev.CreatedAt.Before(*d.since) {
+	if d.since != nil && ev.CreatedAt.Time().Before(*d.since) {
 		return false, fmt.Errorf("Event is created before delegation conditions allow.")
 	}
-	if d.until != nil && ev.CreatedAt.After(*d.until) {
+	if d.until != nil && ev.CreatedAt.Time().After(*d.until) {
 		return false, fmt.Errorf("Event is created after delegation conditions allow.")
 	}
 
@@ -166,7 +166,7 @@ func DelegatedSign(ev *nostr.Event, d *DelegationToken, delegatee_sk string) err
 			return fmt.Errorf("event already has delegation token")
 		}
 	}
-	if d.since != nil && ev.CreatedAt.Before(*d.since) || d.until != nil && ev.CreatedAt.After(*d.until) {
+	if d.since != nil && ev.CreatedAt.Time().Before(*d.since) || d.until != nil && ev.CreatedAt.Time().After(*d.until) {
 		return fmt.Errorf("event created_at field is not compatible with delegation token time conditions.")
 	}
 	if len(d.kinds) > 0 {

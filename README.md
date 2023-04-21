@@ -73,7 +73,7 @@ go func() {
 for ev := range sub.Events {
 	// handle returned event.
 	// channel will stay open until the ctx is cancelled (in this case, by calling cancel())
-	
+
 	fmt.Println(ev.ID)
 }
 ```
@@ -86,7 +86,7 @@ pub, _ := nostr.GetPublicKey(sk)
 
 ev := nostr.Event{
 	PubKey:    pub,
-	CreatedAt: time.Now(),
+	CreatedAt: nostr.Now(),
 	Kind:      1,
 	Tags:      nil,
 	Content:   "Hello World!",

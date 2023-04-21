@@ -3,7 +3,6 @@ package nostr
 import (
 	"encoding/json"
 	"testing"
-	"time"
 )
 
 func TestEventParsingAndVerifying(t *testing.T) {
@@ -47,7 +46,7 @@ func TestEventSerialization(t *testing.T) {
 			ID:        "92570b321da503eac8014b23447301eb3d0bbdfbace0d11a4e4072e72bb7205d",
 			PubKey:    "e9142f724955c5854de36324dab0434f97b15ec6b33464d56ebe491e3f559d1b",
 			Kind:      4,
-			CreatedAt: time.Unix(1671028682, 0),
+			CreatedAt: Timestamp(1671028682),
 			Tags:      Tags{Tag{"p", "f8340b2bde651576b75af61aa26c80e13c65029f00f7f64004eece679bf7059f"}},
 			Content:   "you say yes, I say no",
 			Sig:       "ed08d2dd5b0f7b6a3cdc74643d4adee3158ddede9cc848e8cd97630c097001acc2d052d2d3ec2b7ac4708b2314b797106d1b3c107322e61b5e5cc2116e099b79",
@@ -68,7 +67,7 @@ func TestEventSerialization(t *testing.T) {
 		}
 
 		if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
-			!evt.CreatedAt.Equal(re.CreatedAt) || evt.Sig != re.Sig ||
+			evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
 			len(evt.Tags) != len(evt.Tags) {
 			t.Error("reparsed event differs from original")
 		}
@@ -93,7 +92,7 @@ func TestEventSerializationWithExtraFields(t *testing.T) {
 		ID:        "92570b321da503eac8014b23447301eb3d0bbdfbace0d11a4e4072e72bb7205d",
 		PubKey:    "e9142f724955c5854de36324dab0434f97b15ec6b33464d56ebe491e3f559d1b",
 		Kind:      7,
-		CreatedAt: time.Unix(1671028682, 0),
+		CreatedAt: Timestamp(1671028682),
 		Content:   "there is an extra field here",
 		Sig:       "ed08d2dd5b0f7b6a3cdc74643d4adee3158ddede9cc848e8cd97630c097001acc2d052d2d3ec2b7ac4708b2314b797106d1b3c107322e61b5e5cc2116e099b79",
 	}
@@ -115,7 +114,7 @@ func TestEventSerializationWithExtraFields(t *testing.T) {
 	}
 
 	if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
-		!evt.CreatedAt.Equal(re.CreatedAt) || evt.Sig != re.Sig ||
+		evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
 		len(evt.Tags) != len(evt.Tags) {
 		t.Error("reparsed event differs from original")
 	}
