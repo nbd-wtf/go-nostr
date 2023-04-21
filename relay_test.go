@@ -87,7 +87,27 @@ func TestPublishBlocked(t *testing.T) {
 	rl := mustRelayConnect(ws.URL)
 	status, _ := rl.Publish(context.Background(), textNote)
 	if status != PublishStatusFailed {
-		t.Errorf("published status is %d, not %d", status, PublishStatusSucceeded)
+		t.Errorf("published status is %d, not %d", status, PublishStatusFailed)
+	}
+}
+
+func TestPublishWriteFailed(t *testing.T) {
+	// test note to be sent over websocket
+	textNote := Event{Kind: 1, Content: "hello"}
+	textNote.ID = textNote.GetID()
+
+	// fake relay server
+	ws := newWebsocketServer(func(conn *websocket.Conn) {
+		// reject receive - force send error
+		conn.Close()
+	})
+	defer ws.Close()
+
+	// connect a client and send a text note
+	rl := mustRelayConnect(ws.URL)
+	status, _ := rl.Publish(context.Background(), textNote)
+	if status != PublishStatusFailed {
+		t.Errorf("published status is %d, not %d", status, PublishStatusFailed)
 	}
 }
 
