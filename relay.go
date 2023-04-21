@@ -303,10 +303,11 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	// publish event
 	message := []any{"EVENT", event}
 	debugLog("{%s} sending %v\n", r.URL, message)
+	status = PublishStatusSent
 	if err := r.Connection.WriteJSON(message); err != nil {
+		status = PublishStatusFailed
 		return status, err
 	}
-	status = PublishStatusSent
 
 	sub := r.PrepareSubscription(ctx)
 	sub.SetLabel("publish-check")
