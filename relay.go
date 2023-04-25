@@ -9,7 +9,7 @@ import (
 	"time"
 
 	s "github.com/SaveTheRbtz/generic-sync-map-go"
-	"github.com/gorilla/websocket"
+	"nhooyr.io/websocket"
 )
 
 type Status int
@@ -90,7 +90,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		defer cancel()
 	}
 
-	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, r.RequestHeader)
+	socket, _, err := websocket.Dial(ctx, r.URL, &websocket.DialOptions{HTTPHeader: r.RequestHeader})
 	if err != nil {
 		cancel()
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
@@ -119,11 +119,14 @@ func (r *Relay) Connect(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
-				err := conn.socket.WriteMessage(websocket.PingMessage, nil)
+				ctx, pingcancel := context.WithTimeout(connectionContext, 5*time.Second)
+				err := conn.socket.Ping(ctx)
 				if err != nil {
-					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
+					r.ConnectionError = err
+					pingcancel()
 					return
 				}
+				pingcancel()
 			}
 		}
 	}()
@@ -132,18 +135,13 @@ func (r *Relay) Connect(ctx context.Context) error {
 	go func() {
 		defer cancel()
 		for {
-			typ, message, err := conn.socket.ReadMessage()
+			typ, message, err := conn.socket.Read(connectionContext)
 			if err != nil {
 				r.ConnectionError = err
 				break
 			}
 
-			if typ == websocket.PingMessage {
-				conn.WriteMessage(websocket.PongMessage, nil)
-				continue
-			}
-
-			if typ != websocket.TextMessage || len(message) == 0 || message[0] != '[' {
+			if typ != websocket.MessageText || len(message) == 0 || message[0] != '[' {
 				continue
 			}
 
@@ -306,7 +304,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	message := []any{"EVENT", event}
 	debugLog("{%s} sending %v\n", r.URL, message)
 	status = PublishStatusSent
-	if err := r.Connection.WriteJSON(message); err != nil {
+	if err := r.Connection.WriteJSON(ctx, message); err != nil {
 		status = PublishStatusFailed
 		return status, err
 	}
@@ -387,7 +385,7 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	// send AUTH
 	authResponse := []any{"AUTH", event}
 	debugLog("{%s} sending %v\n", r.URL, authResponse)
-	if err := r.Connection.WriteJSON(authResponse); err != nil {
+	if err := r.Connection.WriteJSON(ctx, authResponse); err != nil {
 		// status will be "failed"
 		return status, err
 	}

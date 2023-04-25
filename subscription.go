@@ -30,7 +30,8 @@ type EventMessage struct {
 }
 
 // SetLabel puts a label on the subscription that is prepended to the id that is sent to relays,
-//   it's only useful for debugging and sanity purposes.
+//
+//	it's only useful for debugging and sanity purposes.
 func (sub *Subscription) SetLabel(label string) {
 	sub.label = label
 }
@@ -48,7 +49,7 @@ func (sub *Subscription) Unsub() {
 
 	message := []any{"CLOSE", sub.GetID()}
 	debugLog("{%s} sending %v", sub.Relay.URL, message)
-	sub.conn.WriteJSON(message)
+	sub.conn.WriteJSON(sub.Context, message)
 
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
@@ -73,7 +74,7 @@ func (sub *Subscription) Fire() error {
 
 	debugLog("{%s} sending %v", sub.Relay.URL, message)
 
-	err := sub.conn.WriteJSON(message)
+	err := sub.conn.WriteJSON(sub.Context, message)
 	if err != nil {
 		sub.cancel()
 		return fmt.Errorf("failed to write: %w", err)

@@ -105,7 +105,9 @@ func TestPublishWriteFailed(t *testing.T) {
 
 	// connect a client and send a text note
 	rl := mustRelayConnect(ws.URL)
-	status, _ := rl.Publish(context.Background(), textNote)
+	time.Sleep(100 * time.Millisecond) // wait for connection to be closed (avoid race condition with sending before the other side has a chance to close)
+	status, err := rl.Publish(context.Background(), textNote)
+	t.Log(err)
 	if status != PublishStatusFailed {
 		t.Errorf("published status is %d, not %d", status, PublishStatusFailed)
 	}
