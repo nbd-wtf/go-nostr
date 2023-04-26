@@ -119,7 +119,9 @@ func (r *Relay) Connect(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
+				conn.mutex.Lock()
 				err := conn.socket.WriteMessage(websocket.PingMessage, nil)
+				conn.mutex.Unlock()
 				if err != nil {
 					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
 					return
