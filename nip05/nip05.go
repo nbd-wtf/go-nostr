@@ -1,6 +1,7 @@
 package nip05
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -20,7 +21,7 @@ type WellKnownResponse struct {
 	Relays key2RelaysMap `json:"relays"` // NIP-35
 }
 
-func QueryIdentifier(fullname string) *nostr.ProfilePointer {
+func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointer, error) {
 	spl := strings.Split(fullname, "@")
 
 	var name, domain string
@@ -32,35 +33,41 @@ func QueryIdentifier(fullname string) *nostr.ProfilePointer {
 		name = spl[0]
 		domain = spl[1]
 	default:
-		return nil
+		return nil, fmt.Errorf("not a valid nip-05 identifier")
 	}
 
 	if strings.Index(domain, ".") == -1 {
-		return nil
+		return nil, fmt.Errorf("hostname doesn't have a dot")
 	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a request: %w", err)
+	}
+
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
-	res, err := client.Get(fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name))
+	res, err := client.Do(req)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
 	var result WellKnownResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to decode json response: %w", err)
 	}
 
 	pubkey, ok := result.Names[name]
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	if len(pubkey) == 64 {
 		if _, err := hex.DecodeString(pubkey); err != nil {
-			return nil
+			return nil, nil
 		}
 	}
 
@@ -69,7 +76,7 @@ func QueryIdentifier(fullname string) *nostr.ProfilePointer {
 	return &nostr.ProfilePointer{
 		PublicKey: pubkey,
 		Relays:    relays,
-	}
+	}, nil
 }
 
 func NormalizeIdentifier(fullname string) string {

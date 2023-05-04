@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"context"
 	"encoding/hex"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -9,7 +10,7 @@ import (
 )
 
 // InputToProfile turns any npub/nprofile/hex/nip05 input into a ProfilePointer (or nil)
-func InputToProfile(input string) *nostr.ProfilePointer {
+func InputToProfile(ctx context.Context, input string) *nostr.ProfilePointer {
 	// handle if it is a hex string
 	if len(input) == 64 {
 		if _, err := hex.DecodeString(input); err == nil {
@@ -29,7 +30,7 @@ func InputToProfile(input string) *nostr.ProfilePointer {
 	}
 
 	// handle nip05 ids, if that's the case
-	pp := nip05.QueryIdentifier(input)
+	pp, _ := nip05.QueryIdentifier(ctx, input)
 	if pp != nil {
 		return pp
 	}
