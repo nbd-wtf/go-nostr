@@ -9,7 +9,6 @@ import (
 	"time"
 
 	s "github.com/SaveTheRbtz/generic-sync-map-go"
-	"github.com/gorilla/websocket"
 )
 
 type Status int
@@ -39,8 +38,9 @@ type Relay struct {
 	URL           string
 	RequestHeader http.Header // e.g. for origin header
 
-	Connection    *Connection
-	subscriptions s.MapOf[string, *Subscription]
+	Connection        *Connection
+	EnableCompression bool
+	subscriptions     s.MapOf[string, *Subscription]
 
 	Challenges              chan string // NIP-42 Challenges
 	Notices                 chan string
@@ -90,11 +90,12 @@ func (r *Relay) Connect(ctx context.Context) error {
 		defer cancel()
 	}
 
-	socket, _, err := websocket.DefaultDialer.DialContext(ctx, r.URL, r.RequestHeader)
+	conn, err := NewConnection(ctx, r.URL, r.RequestHeader, r.EnableCompression)
 	if err != nil {
 		cancel()
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
+	r.Connection = conn
 
 	r.Challenges = make(chan string)
 	r.Notices = make(chan string)
@@ -108,9 +109,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 		r.mutex.Unlock()
 	}()
 
-	conn := NewConnection(socket)
-	r.Connection = conn
-
 	// ping every 29 seconds
 	go func() {
 		ticker := time.NewTicker(29 * time.Second)
@@ -119,7 +117,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
-				err := conn.WriteMessage(websocket.PingMessage, nil)
+				err := conn.Ping()
 				if err != nil {
 					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
 					return
@@ -132,13 +130,13 @@ func (r *Relay) Connect(ctx context.Context) error {
 	go func() {
 		defer cancel()
 		for {
-			typ, message, err := conn.socket.ReadMessage()
+			message, err := conn.ReadMessage(r.ConnectionContext)
 			if err != nil {
 				r.ConnectionError = err
 				break
 			}
 
-			if typ != websocket.TextMessage || len(message) == 0 || message[0] != '[' {
+			if len(message) == 0 || message[0] != '[' {
 				continue
 			}
 
