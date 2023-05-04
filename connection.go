@@ -204,10 +204,5 @@ func (c *Connection) ReadMessage(ctx context.Context) ([]byte, error) {
 }
 
 func (c *Connection) Close() error {
-	err := c.conn.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close connection: %w", err)
-	}
-
-	return nil
+	return c.conn.Close()
 }
