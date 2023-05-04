@@ -74,6 +74,8 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				result.Relays = append(result.Relays, string(v))
 			case TLVAuthor:
 				result.Author = hex.EncodeToString(v)
+			case TLVKind:
+				result.Kind = int(binary.BigEndian.Uint32(v))
 			default:
 				// ignore
 			}
