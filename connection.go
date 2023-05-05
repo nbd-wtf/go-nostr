@@ -129,7 +129,7 @@ func (c *Connection) Ping() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	return wsutil.WriteClientMessage(c.writer, ws.OpPing, nil)
+	return wsutil.WriteClientMessage(c.conn, ws.OpPing, nil)
 }
 
 func (c *Connection) WriteMessage(data []byte) error {
