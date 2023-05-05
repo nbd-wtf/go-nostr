@@ -38,9 +38,8 @@ type Relay struct {
 	URL           string
 	RequestHeader http.Header // e.g. for origin header
 
-	Connection        *Connection
-	EnableCompression bool
-	subscriptions     s.MapOf[string, *Subscription]
+	Connection    *Connection
+	subscriptions s.MapOf[string, *Subscription]
 
 	Challenges              chan string // NIP-42 Challenges
 	Notices                 chan string
@@ -90,7 +89,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		defer cancel()
 	}
 
-	conn, err := NewConnection(ctx, r.URL, r.RequestHeader, r.EnableCompression)
+	conn, err := NewConnection(ctx, r.URL, r.RequestHeader)
 	if err != nil {
 		cancel()
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)

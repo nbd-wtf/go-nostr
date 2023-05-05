@@ -29,21 +29,26 @@ type Connection struct {
 	mutex             sync.Mutex
 }
 
-func NewConnection(ctx context.Context, url string, requestHeader http.Header, enableCompression bool) (*Connection, error) {
+func NewConnection(ctx context.Context, url string, requestHeader http.Header) (*Connection, error) {
 	dialer := ws.Dialer{
 		Header: ws.HandshakeHeaderHTTP(requestHeader),
-	}
-	state := ws.StateClientSide
-	if enableCompression {
-		state |= ws.StateExtended
-		dialer.Extensions = []httphead.Option{
+		Extensions: []httphead.Option{
 			wsflate.DefaultParameters.Option(),
-		}
+		},
 	}
-
-	conn, _, _, err := dialer.Dial(ctx, url)
+	conn, _, hs, err := dialer.Dial(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %w", err)
+	}
+
+	enableCompression := false
+	state := ws.StateClientSide
+	for _, extension := range hs.Extensions {
+		if string(extension.Name) == wsflate.ExtensionName {
+			enableCompression = true
+			state |= ws.StateExtended
+			break
+		}
 	}
 
 	// reader
