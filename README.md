@@ -43,7 +43,8 @@ func main() {
 ### Subscribing to a single relay
 
 ``` go
-relay, err := nostr.RelayConnect(context.Background(), "wss://nostr.zebedee.cloud")
+ctx := context.Background()
+relay, err := nostr.RelayConnect(ctx, "wss://nostr.zebedee.cloud")
 if err != nil {
 	panic(err)
 }
@@ -54,7 +55,7 @@ var filters nostr.Filters
 if _, v, err := nip19.Decode(npub); err == nil {
 	pub := v.(string)
 	filters = []nostr.Filter{{
-		Kinds:   []int{1},
+		Kinds:   []int{nostr.KindTextNote},
 		Authors: []string{pub},
 		Limit:   1,
 	}}
@@ -62,18 +63,17 @@ if _, v, err := nip19.Decode(npub); err == nil {
 	panic(err)
 }
 
-ctx, cancel := context.WithCancel(context.Background())
-sub := relay.Subscribe(ctx, filters)
+ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+defer cancel()
 
-go func() {
-	<-sub.EndOfStoredEvents
-	// handle end of stored events (EOSE, see NIP-15)
-}()
+sub, err := relay.Subscribe(ctx, filters)
+if err != nil {
+	panic(err)
+}
 
 for ev := range sub.Events {
 	// handle returned event.
-	// channel will stay open until the ctx is cancelled (in this case, by calling cancel())
-
+	// channel will stay open until the ctx is cancelled (in this case, context timeout)
 	fmt.Println(ev.ID)
 }
 ```
@@ -87,7 +87,7 @@ pub, _ := nostr.GetPublicKey(sk)
 ev := nostr.Event{
 	PubKey:    pub,
 	CreatedAt: nostr.Now(),
-	Kind:      1,
+	Kind:      nostr.KindTextNote,
 	Tags:      nil,
 	Content:   "Hello World!",
 }
@@ -96,13 +96,20 @@ ev := nostr.Event{
 ev.Sign(sk)
 
 // publish the event to two relays
+ctx := context.Background()
 for _, url := range []string{"wss://nostr.zebedee.cloud", "wss://nostr-pub.wellorder.net"} {
-	relay, e := nostr.RelayConnect(context.Background(), url)
-	if e != nil {
-		fmt.Println(e)
+	relay, err := nostr.RelayConnect(ctx, url)
+	if err != nil {
+		fmt.Println(err)
 		continue
 	}
-	fmt.Println("published to ", url, relay.Publish(context.Background(), ev))
+	_, err = relay.Publish(ctx, ev)
+	if err != nil {
+		fmt.Println(err)
+		continue
+	}
+
+	fmt.Printf("published to %s\n", url)
 }
 ```
 
