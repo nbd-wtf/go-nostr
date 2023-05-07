@@ -68,7 +68,7 @@ func TestEventSerialization(t *testing.T) {
 
 		if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
 			evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
-			len(evt.Tags) != len(evt.Tags) {
+			len(evt.Tags) != len(re.Tags) {
 			t.Error("reparsed event differs from original")
 		}
 
@@ -115,7 +115,7 @@ func TestEventSerializationWithExtraFields(t *testing.T) {
 
 	if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
 		evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
-		len(evt.Tags) != len(evt.Tags) {
+		len(evt.Tags) != len(re.Tags) {
 		t.Error("reparsed event differs from original")
 	}
 
