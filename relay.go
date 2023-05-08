@@ -320,7 +320,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 			return status, err
 		case <-time.After(4 * time.Second):
 			// if we don't get an OK after 4 seconds, try to subscribe to the event
-			if err := sub.Fire(); err != nil {
+			if err := sub.Fire(ctx); err != nil {
 				InfoLogger.Printf("failed to subscribe to just published event %s at %s: %s", event.ID, r.URL, err)
 			}
 		case receivedEvent := <-sub.Events:
@@ -408,7 +408,7 @@ func (r *Relay) Subscribe(ctx context.Context, filters Filters) (*Subscription, 
 	sub := r.PrepareSubscription(ctx)
 	sub.Filters = filters
 
-	if err := sub.Fire(); err != nil {
+	if err := sub.Fire(ctx); err != nil {
 		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filters, r.URL, err)
 	}
 
@@ -451,12 +451,8 @@ func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 	current := subscriptionIdCounter
 	subscriptionIdCounter++
 
-	ctx, cancel := context.WithCancel(ctx)
-
 	return &Subscription{
 		Relay:             r,
-		Context:           ctx,
-		cancel:            cancel,
 		conn:              r.Connection,
 		counter:           current,
 		Events:            make(chan *Event),

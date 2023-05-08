@@ -17,8 +17,6 @@ type Subscription struct {
 	Filters           Filters
 	Events            chan *Event
 	EndOfStoredEvents chan struct{}
-	Context           context.Context
-	cancel            context.CancelFunc
 
 	stopped  bool
 	emitEose sync.Once
@@ -30,12 +28,13 @@ type EventMessage struct {
 }
 
 // SetLabel puts a label on the subscription that is prepended to the id that is sent to relays,
-//   it's only useful for debugging and sanity purposes.
+//
+// It's only useful for debugging and sanity purposes.
 func (sub *Subscription) SetLabel(label string) {
 	sub.label = label
 }
 
-// GetID return the Nostr subscription ID as given to the relay, it will be a sequential number, stringified.
+// GetID returns the Nostr subscription ID as given to the relay, it will be a sequential number, stringified.
 func (sub *Subscription) GetID() string {
 	return sub.label + ":" + strconv.Itoa(sub.counter)
 }
@@ -59,11 +58,11 @@ func (sub *Subscription) Unsub() {
 // Sub sets sub.Filters and then calls sub.Fire(ctx).
 func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 	sub.Filters = filters
-	sub.Fire()
+	sub.Fire(ctx)
 }
 
 // Fire sends the "REQ" command to the relay.
-func (sub *Subscription) Fire() error {
+func (sub *Subscription) Fire(ctx context.Context) error {
 	sub.Relay.subscriptions.Store(sub.GetID(), sub)
 
 	message := []any{"REQ", sub.GetID()}
@@ -75,22 +74,17 @@ func (sub *Subscription) Fire() error {
 
 	err := sub.conn.WriteJSON(message)
 	if err != nil {
-		sub.cancel()
 		return fmt.Errorf("failed to write: %w", err)
 	}
 
-	// the subscription ends once the context is canceled
+	// the subscription ends when the context is canceled
+	// or the relay connection is closed
 	go func() {
-		<-sub.Context.Done()
+		select {
+		case <-ctx.Done():
+		case <-sub.Relay.ConnectionContext.Done():
+		}
 		sub.Unsub()
-	}()
-
-	// or when the relay connection is closed
-	go func() {
-		<-sub.Relay.ConnectionContext.Done()
-
-		// cancel the context -- this will cause the other context cancelation cause above to be called
-		sub.cancel()
 	}()
 
 	return nil
