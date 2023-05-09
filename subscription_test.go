@@ -29,8 +29,8 @@ func TestSubscribe(t *testing.T) {
 			events++
 		case <-sub.EndOfStoredEvents:
 			goto end
-		case <-rl.ConnectionContext.Done():
-			t.Errorf("connection closed: %v", rl.ConnectionContext.Err())
+		case <-rl.Context().Done():
+			t.Errorf("connection closed: %v", rl.Context().Err())
 			goto end
 		case <-timeout:
 			t.Errorf("timeout")

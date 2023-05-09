@@ -43,7 +43,7 @@ type Relay struct {
 	Challenges              chan string // NIP-42 Challenges
 	Notices                 chan string
 	ConnectionError         error
-	ConnectionContext       context.Context // will be canceled when the connection closes
+	connectionContext       context.Context // will be canceled when the connection closes
 	connectionContextCancel context.CancelFunc
 
 	okCallbacks s.MapOf[string, func(bool, string)]
@@ -54,11 +54,16 @@ type Relay struct {
 	AssumeValid bool // this will skip verifying signatures for events received from this relay
 }
 
+// NewRelay returns a new relay. The relay connection will be closed when the context is canceled.
+func NewRelay(ctx context.Context, url string) *Relay {
+	return &Relay{URL: NormalizeURL(url), connectionContext: ctx}
+}
+
 // RelayConnect returns a relay object connected to url.
 // Once successfully connected, cancelling ctx has no effect.
 // To close the connection, call r.Close().
 func RelayConnect(ctx context.Context, url string) (*Relay, error) {
-	r := &Relay{URL: NormalizeURL(url)}
+	r := NewRelay(context.Background(), url)
 	err := r.Connect(ctx)
 	return r, err
 }
@@ -67,13 +72,20 @@ func (r *Relay) String() string {
 	return r.URL
 }
 
+// Context retrieves the context that is associated with this relay connection.
+func (r *Relay) Context() context.Context { return r.connectionContext }
+
 // Connect tries to establish a websocket connection to r.URL.
 // If the context expires before the connection is complete, an error is returned.
 // Once successfully connected, context expiration has no effect: call r.Close
 // to close the connection.
+//
+// The underlying relay connection will use a background context. If you want to
+// pass a custom context to the underlying relay connection, use NewRelay() and
+// then Relay.Connect().
 func (r *Relay) Connect(ctx context.Context) error {
 	connectionContext, cancel := context.WithCancel(ctx)
-	r.ConnectionContext = connectionContext
+	r.connectionContext = connectionContext
 	r.connectionContextCancel = cancel
 
 	if r.URL == "" {
@@ -100,7 +112,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 	// close these channels when the connection is dropped
 	go func() {
-		<-r.ConnectionContext.Done()
+		<-r.connectionContext.Done()
 		r.mutex.Lock()
 		close(r.Challenges)
 		close(r.Notices)
@@ -128,7 +140,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 	go func() {
 		defer cancel()
 		for {
-			message, err := conn.ReadMessage(r.ConnectionContext)
+			message, err := conn.ReadMessage(r.connectionContext)
 			if err != nil {
 				r.ConnectionError = err
 				break
@@ -146,7 +158,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				//       we'll consume ever more memory with each new notice
 				go func() {
 					r.mutex.RLock()
-					if r.ConnectionContext.Err() == nil {
+					if r.connectionContext.Err() == nil {
 						r.Notices <- string(*env)
 					}
 					r.mutex.RUnlock()
@@ -159,7 +171,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				// TODO: same as with NoticeEnvelope
 				go func() {
 					r.mutex.RLock()
-					if r.ConnectionContext.Err() == nil {
+					if r.connectionContext.Err() == nil {
 						r.Challenges <- *env.Challenge
 					}
 					r.mutex.RUnlock()
@@ -276,7 +288,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 			//      but if it happens because okCallback was called then it might be "succeeded"
 			// do not return if okCallback is in process
 			return status, err
-		case <-r.ConnectionContext.Done():
+		case <-r.connectionContext.Done():
 			// same as above, but when the relay loses connectivity entirely
 			return status, err
 		case <-time.After(4 * time.Second):

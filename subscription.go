@@ -84,7 +84,7 @@ func (sub *Subscription) Fire() error {
 
 	// or when the relay connection is closed
 	go func() {
-		<-sub.Relay.ConnectionContext.Done()
+		<-sub.Relay.connectionContext.Done()
 
 		// cancel the context -- this will cause the other context cancelation cause above to be called
 		sub.cancel()

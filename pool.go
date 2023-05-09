@@ -34,7 +34,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	defer pool.mutex.Unlock()
 
 	relay, ok := pool.Relays[nm]
-	if ok && relay.ConnectionContext.Err() == nil {
+	if ok && relay.connectionContext.Err() == nil {
 		// already connected, unlock and return
 		return relay, nil
 	} else {
