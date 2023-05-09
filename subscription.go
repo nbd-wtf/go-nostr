@@ -30,7 +30,8 @@ type EventMessage struct {
 }
 
 // SetLabel puts a label on the subscription that is prepended to the id that is sent to relays,
-//   it's only useful for debugging and sanity purposes.
+//
+//	it's only useful for debugging and sanity purposes.
 func (sub *Subscription) SetLabel(label string) {
 	sub.label = label
 }
@@ -46,9 +47,10 @@ func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
 
-	message := []any{"CLOSE", sub.GetID()}
-	debugLog("{%s} sending %v", sub.Relay.URL, message)
-	sub.conn.WriteJSON(message)
+	closeMsg := CloseEnvelope(sub.GetID())
+	closeb, _ := (&closeMsg).MarshalJSON()
+	debugLog("{%s} sending %v", sub.Relay.URL, closeb)
+	sub.conn.WriteMessage(closeb)
 
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
@@ -66,14 +68,9 @@ func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 func (sub *Subscription) Fire() error {
 	sub.Relay.subscriptions.Store(sub.GetID(), sub)
 
-	message := []any{"REQ", sub.GetID()}
-	for _, filter := range sub.Filters {
-		message = append(message, filter)
-	}
-
-	debugLog("{%s} sending %v", sub.Relay.URL, message)
-
-	err := sub.conn.WriteJSON(message)
+	reqb, _ := ReqEnvelope{sub.GetID(), sub.Filters}.MarshalJSON()
+	debugLog("{%s} sending %v", sub.Relay.URL, reqb)
+	err := sub.conn.WriteMessage(reqb)
 	if err != nil {
 		sub.cancel()
 		return fmt.Errorf("failed to write: %w", err)

@@ -141,7 +141,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 			switch env := envelope.(type) {
 			case *NoticeEnvelope:
-				debugLog("{%s} %v\n", r.URL, string(message))
+				debugLog("{%s} %v\n", r.URL, message)
 				// TODO: improve this, otherwise if the application doesn't read the notices
 				//       we'll consume ever more memory with each new notice
 				go func() {
@@ -152,7 +152,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					r.mutex.RUnlock()
 				}()
 			case *AuthEnvelope:
-				debugLog("{%s} %v\n", r.URL, string(message))
+				debugLog("{%s} %v\n", r.URL, message)
 				if env.Challenge == nil {
 					continue
 				}
@@ -165,7 +165,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					r.mutex.RUnlock()
 				}()
 			case *EventEnvelope:
-				debugLog("{%s} %v\n", r.URL, string(message))
+				debugLog("{%s} %v\n", r.URL, message)
 				if env.SubscriptionID == nil {
 					continue
 				}
@@ -202,7 +202,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					}()
 				}
 			case *EOSEEnvelope:
-				debugLog("{%s} %v\n", r.URL, string(message))
+				debugLog("{%s} %v\n", r.URL, message)
 				if subscription, ok := r.subscriptions.Load(string(*env)); ok {
 					subscription.emitEose.Do(func() {
 						subscription.EndOfStoredEvents <- struct{}{}
@@ -256,10 +256,10 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// publish event
-	message := []any{"EVENT", event}
-	debugLog("{%s} sending %v\n", r.URL, message)
+	envb, _ := EventEnvelope{Event: event}.MarshalJSON()
+	debugLog("{%s} sending %v\n", r.URL, envb)
 	status = PublishStatusSent
-	if err := r.Connection.WriteJSON(message); err != nil {
+	if err := r.Connection.WriteMessage(envb); err != nil {
 		status = PublishStatusFailed
 		return status, err
 	}
@@ -338,9 +338,9 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	defer r.okCallbacks.Delete(event.ID)
 
 	// send AUTH
-	authResponse := []any{"AUTH", event}
+	authResponse, _ := AuthEnvelope{Event: event}.MarshalJSON()
 	debugLog("{%s} sending %v\n", r.URL, authResponse)
-	if err := r.Connection.WriteJSON(authResponse); err != nil {
+	if err := r.Connection.WriteMessage(authResponse); err != nil {
 		// status will be "failed"
 		return status, err
 	}

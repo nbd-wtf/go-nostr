@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -103,34 +102,6 @@ func NewConnection(ctx context.Context, url string, requestHeader http.Header) (
 		msgState:          &msgState,
 		writer:            writer,
 	}, nil
-}
-
-func (c *Connection) WriteJSON(v any) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	if c.enableCompression && c.msgState.IsCompressed() {
-		c.flateWriter.Reset(c.writer)
-		if err := json.NewEncoder(c.flateWriter).Encode(v); err != nil {
-			return fmt.Errorf("failed to encode json: %w", err)
-		}
-
-		err := c.flateWriter.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close flate writer: %w", err)
-		}
-	} else {
-		if err := json.NewEncoder(c.writer).Encode(v); err != nil {
-			return fmt.Errorf("failed to encode json: %w", err)
-		}
-	}
-
-	err := c.writer.Flush()
-	if err != nil {
-		return fmt.Errorf("failed to flush writer: %w", err)
-	}
-
-	return nil
 }
 
 func (c *Connection) Ping() error {
