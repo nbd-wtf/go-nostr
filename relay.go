@@ -73,7 +73,9 @@ func (r *Relay) String() string {
 // Once successfully connected, context expiration has no effect: call r.Close
 // to close the connection.
 func (r *Relay) Connect(ctx context.Context) error {
-	connectionContext, cancel := context.WithCancel(ctx)
+	// New context must be created here because incoming ctx cancellation will affect internal logic
+	// TODO: replace in go 1.21 with context.WithoutCancel(ctx)
+	connectionContext, cancel := context.WithCancel(context.Background())
 	r.ConnectionContext = connectionContext
 	r.connectionContextCancel = cancel
 
