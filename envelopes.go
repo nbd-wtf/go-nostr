@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -9,10 +10,57 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+func ParseMessage(message []byte) Envelope {
+	firstComma := bytes.Index(message, []byte{','})
+	if firstComma == -1 {
+		return nil
+	}
+	label := message[0:firstComma]
+	var v Envelope
+	switch {
+	case bytes.Contains(label, []byte("EVENT")):
+		v = &EventEnvelope{}
+	case bytes.Contains(label, []byte("REQ")):
+		v = &ReqEnvelope{}
+	case bytes.Contains(label, []byte("NOTICE")):
+		x := NoticeEnvelope("")
+		v = &x
+	case bytes.Contains(label, []byte("EOSE")):
+		x := EOSEEnvelope("")
+		v = &x
+	case bytes.Contains(label, []byte("OK")):
+		v = &OKEnvelope{}
+	case bytes.Contains(label, []byte("AUTH")):
+		v = &AuthEnvelope{}
+	}
+
+	if err := v.UnmarshalJSON(message); err != nil {
+		return nil
+	}
+	return v
+}
+
+type Envelope interface {
+	Label() string
+	UnmarshalJSON([]byte) error
+	MarshalJSON() ([]byte, error)
+}
+
 type EventEnvelope struct {
 	SubscriptionID *string
 	Event
 }
+
+var (
+	_ Envelope = (*EventEnvelope)(nil)
+	_ Envelope = (*ReqEnvelope)(nil)
+	_ Envelope = (*NoticeEnvelope)(nil)
+	_ Envelope = (*EOSEEnvelope)(nil)
+	_ Envelope = (*OKEnvelope)(nil)
+	_ Envelope = (*AuthEnvelope)(nil)
+)
+
+func (_ EventEnvelope) Label() string { return "EVENT" }
 
 func (v *EventEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -43,6 +91,8 @@ type ReqEnvelope struct {
 	SubscriptionID string
 	Filters
 }
+
+func (_ ReqEnvelope) Label() string { return "REQ" }
 
 func (v *ReqEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -77,6 +127,8 @@ func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 
 type NoticeEnvelope string
 
+func (_ NoticeEnvelope) Label() string { return "NOTICE" }
+
 func (v *NoticeEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
 	arr := r.Array()
@@ -98,6 +150,8 @@ func (v NoticeEnvelope) MarshalJSON() ([]byte, error) {
 }
 
 type EOSEEnvelope string
+
+func (_ EOSEEnvelope) Label() string { return "EOSE" }
 
 func (v *EOSEEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -124,6 +178,8 @@ type OKEnvelope struct {
 	OK      bool
 	Reason  *string
 }
+
+func (_ OKEnvelope) Label() string { return "OK" }
 
 func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -162,6 +218,8 @@ type AuthEnvelope struct {
 	Challenge *string
 	Event     Event
 }
+
+func (_ AuthEnvelope) Label() string { return "AUTH" }
 
 func (v *AuthEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
