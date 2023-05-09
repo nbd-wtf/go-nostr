@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	syncmap "github.com/SaveTheRbtz/generic-sync-map-go"
@@ -26,7 +27,7 @@ func NewSimplePool(ctx context.Context) *SimplePool {
 	}
 }
 
-func (pool *SimplePool) EnsureRelay(url string) *Relay {
+func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	nm := NormalizeURL(url)
 
 	pool.mutex.Lock()
@@ -35,17 +36,17 @@ func (pool *SimplePool) EnsureRelay(url string) *Relay {
 	relay, ok := pool.Relays[nm]
 	if ok && relay.ConnectionContext.Err() == nil {
 		// already connected, unlock and return
-		return relay
+		return relay, nil
 	} else {
 		var err error
 		// we use this ctx here so when the pool dies everything dies
 		relay, err = RelayConnect(pool.Context, nm)
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("failed to connect: %w", err)
 		}
 
 		pool.Relays[nm] = relay
-		return relay
+		return relay, nil
 	}
 }
 
@@ -61,7 +62,12 @@ func (pool *SimplePool) SubMany(
 
 	for _, url := range urls {
 		go func(nm string) {
-			sub, _ := pool.EnsureRelay(nm).Subscribe(ctx, filters)
+			relay, err := pool.EnsureRelay(nm)
+			if err != nil {
+				return
+			}
+
+			sub, _ := relay.Subscribe(ctx, filters)
 			if sub == nil {
 				return
 			}
@@ -100,7 +106,12 @@ func (pool *SimplePool) SubManyEose(
 
 	for _, url := range urls {
 		go func(nm string) {
-			sub, _ := pool.EnsureRelay(nm).Subscribe(ctx, filters)
+			relay, err := pool.EnsureRelay(nm)
+			if err != nil {
+				return
+			}
+
+			sub, _ := relay.Subscribe(ctx, filters)
 			if sub == nil {
 				wg.Done()
 				return
