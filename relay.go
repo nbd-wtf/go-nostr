@@ -84,12 +84,13 @@ func (r *Relay) Context() context.Context { return r.connectionContext }
 // pass a custom context to the underlying relay connection, use NewRelay() and
 // then Relay.Connect().
 func (r *Relay) Connect(ctx context.Context) error {
-	connectionContext, cancel := context.WithCancel(ctx)
-	r.connectionContext = connectionContext
-	r.connectionContextCancel = cancel
+	if r.connectionContext == nil {
+		connectionContext, cancel := context.WithCancel(context.Background())
+		r.connectionContext = connectionContext
+		r.connectionContextCancel = cancel
+	}
 
 	if r.URL == "" {
-		cancel()
 		return fmt.Errorf("invalid relay URL '%s'", r.URL)
 	}
 
@@ -102,7 +103,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 	conn, err := NewConnection(ctx, r.URL, r.RequestHeader)
 	if err != nil {
-		cancel()
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
 	r.Connection = conn
@@ -123,7 +123,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 	go func() {
 		ticker := time.NewTicker(29 * time.Second)
 		defer ticker.Stop()
-		defer cancel()
 		for {
 			select {
 			case <-ticker.C:
@@ -138,7 +137,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 	// handling received messages
 	go func() {
-		defer cancel()
 		for {
 			message, err := conn.ReadMessage(r.connectionContext)
 			if err != nil {
