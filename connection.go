@@ -88,7 +88,7 @@ func NewConnection(ctx context.Context, url string, requestHeader http.Header) (
 	writer := wsutil.NewWriter(
 		conn,
 		state,
-		ws.OpBinary,
+		ws.OpText,
 	)
 	writer.SetExtensions(&msgState)
 
