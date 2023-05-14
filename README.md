@@ -147,7 +147,7 @@ func main() {
 
 	// Send the event by calling relay.Auth.
 	// Returned status is either success, fail, or sent (if no reply given in the 3 second timeout).
-	auth_status := relay.Auth(ctx, event)
+	auth_status, err := relay.Auth(ctx, event)
 
 	fmt.Printf("authenticated as %s: %s\n", npub, auth_status)
 }
