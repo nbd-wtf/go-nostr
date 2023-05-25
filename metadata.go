@@ -6,10 +6,14 @@ import (
 )
 
 type ProfileMetadata struct {
-	Name    string `json:"name,omitempty"`
-	About   string `json:"about,omitempty"`
-	Picture string `json:"picture,omitempty"`
-	NIP05   string `json:"nip05,omitempty"`
+	Name        string `json:"name,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+	About       string `json:"about,omitempty"`
+	Website     string `json:"website,omitempty"`
+	Picture     string `json:"picture,omitempty"`
+	Banner      string `json:"banner,omitempty"`
+	NIP05       string `json:"nip05,omitempty"`
+	LUD16       string `json:"lud16,omitempty"`
 }
 
 func ParseMetadata(event Event) (*ProfileMetadata, error) {
