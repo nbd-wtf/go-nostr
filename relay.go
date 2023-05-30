@@ -402,6 +402,12 @@ func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 
 	ctx, cancel := context.WithCancel(ctx)
 
+	go func() {
+		// ensure the subscription dies if the relay connection dies
+		<-r.connectionContext.Done()
+		cancel()
+	}()
+
 	return &Subscription{
 		Relay:             r,
 		Context:           ctx,
