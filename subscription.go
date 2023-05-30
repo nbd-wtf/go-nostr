@@ -47,10 +47,12 @@ func (sub *Subscription) Unsub() {
 	sub.mutex.Lock()
 	defer sub.mutex.Unlock()
 
-	closeMsg := CloseEnvelope(sub.GetID())
+	id := sub.GetID()
+	closeMsg := CloseEnvelope(id)
 	closeb, _ := (&closeMsg).MarshalJSON()
 	debugLog("{%s} sending %v", sub.Relay.URL, closeb)
 	sub.conn.WriteMessage(closeb)
+	sub.Relay.Subscriptions.Delete(id)
 
 	if sub.stopped == false && sub.Events != nil {
 		close(sub.Events)
@@ -59,6 +61,7 @@ func (sub *Subscription) Unsub() {
 }
 
 // Sub sets sub.Filters and then calls sub.Fire(ctx).
+// The subscription will be closed if the context expires.
 func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 	sub.Filters = filters
 	sub.Fire()
@@ -66,9 +69,10 @@ func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 
 // Fire sends the "REQ" command to the relay.
 func (sub *Subscription) Fire() error {
-	sub.Relay.subscriptions.Store(sub.GetID(), sub)
+	id := sub.GetID()
+	sub.Relay.Subscriptions.Store(id, sub)
 
-	reqb, _ := ReqEnvelope{sub.GetID(), sub.Filters}.MarshalJSON()
+	reqb, _ := ReqEnvelope{id, sub.Filters}.MarshalJSON()
 	debugLog("{%s} sending %v", sub.Relay.URL, reqb)
 	err := sub.conn.WriteMessage(reqb)
 	if err != nil {

@@ -38,7 +38,7 @@ type Relay struct {
 	RequestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
-	subscriptions *xsync.MapOf[string, *Subscription]
+	Subscriptions *xsync.MapOf[string, *Subscription]
 
 	Challenges              chan string // NIP-42 Challenges
 	Notices                 chan string
@@ -59,7 +59,7 @@ func NewRelay(ctx context.Context, url string) *Relay {
 	return &Relay{
 		URL:               NormalizeURL(url),
 		connectionContext: ctx,
-		subscriptions:     xsync.NewMapOf[*Subscription](),
+		Subscriptions:     xsync.NewMapOf[*Subscription](),
 		okCallbacks:       xsync.NewMapOf[func(bool, string)](),
 	}
 }
@@ -184,7 +184,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if env.SubscriptionID == nil {
 					continue
 				}
-				if subscription, ok := r.subscriptions.Load(*env.SubscriptionID); !ok {
+				if subscription, ok := r.Subscriptions.Load(*env.SubscriptionID); !ok {
 					InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
 					continue
 				} else {
@@ -218,7 +218,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				}
 			case *EOSEEnvelope:
 				debugLog("{%s} %v\n", r.URL, message)
-				if subscription, ok := r.subscriptions.Load(string(*env)); ok {
+				if subscription, ok := r.Subscriptions.Load(string(*env)); ok {
 					subscription.emitEose.Do(func() {
 						subscription.EndOfStoredEvents <- struct{}{}
 					})
