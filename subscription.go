@@ -9,7 +9,7 @@ import (
 
 type Subscription struct {
 	label   string
-	counter int
+	counter int64
 	conn    *Connection
 	mutex   sync.Mutex
 
@@ -38,7 +38,7 @@ func (sub *Subscription) SetLabel(label string) {
 
 // GetID return the Nostr subscription ID as given to the relay, it will be a sequential number, stringified.
 func (sub *Subscription) GetID() string {
-	return sub.label + ":" + strconv.Itoa(sub.counter)
+	return sub.label + ":" + strconv.FormatInt(sub.counter, 10)
 }
 
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.

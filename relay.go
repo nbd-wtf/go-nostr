@@ -18,7 +18,7 @@ const (
 	PublishStatusSucceeded Status = 1
 )
 
-var subscriptionIdCounter = 0
+var subscriptionIdCounter xsync.Counter
 
 func (s Status) String() string {
 	switch s {
@@ -402,8 +402,8 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) 
 }
 
 func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
-	current := subscriptionIdCounter
-	subscriptionIdCounter++
+	current := subscriptionIdCounter.Value()
+	subscriptionIdCounter.Inc()
 
 	ctx, cancel := context.WithCancel(ctx)
 
