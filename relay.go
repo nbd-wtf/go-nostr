@@ -274,10 +274,6 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 		return status, err
 	}
 
-	sub := r.PrepareSubscription(ctx)
-	sub.SetLabel("publish-check")
-	sub.Filters = Filters{Filter{IDs: []string{event.ID}}}
-
 	for {
 		select {
 		case <-ctx.Done(): // this will be called when we get an OK
@@ -289,24 +285,6 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 		case <-r.connectionContext.Done():
 			// same as above, but when the relay loses connectivity entirely
 			return status, err
-		case <-time.After(4 * time.Second):
-			// if we don't get an OK after 4 seconds, try to subscribe to the event
-			if err := sub.Fire(); err != nil {
-				InfoLogger.Printf("failed to subscribe to just published event %s at %s: %s", event.ID, r.URL, err)
-			}
-		case receivedEvent := <-sub.Events:
-			if receivedEvent == nil {
-				// channel is closed
-				return status, err
-			}
-
-			if receivedEvent.ID == event.ID {
-				// we got a success, so update our status and proceed to return
-				mu.Lock()
-				status = PublishStatusSucceeded
-				mu.Unlock()
-				return status, err
-			}
 		}
 	}
 }
