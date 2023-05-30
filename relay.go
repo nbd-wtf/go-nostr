@@ -56,11 +56,13 @@ type Relay struct {
 
 // NewRelay returns a new relay. The relay connection will be closed when the context is canceled.
 func NewRelay(ctx context.Context, url string) *Relay {
+	ctx, cancel := context.WithCancel(ctx)
 	return &Relay{
-		URL:               NormalizeURL(url),
-		connectionContext: ctx,
-		Subscriptions:     xsync.NewMapOf[*Subscription](),
-		okCallbacks:       xsync.NewMapOf[func(bool, string)](),
+		URL:                     NormalizeURL(url),
+		connectionContext:       ctx,
+		connectionContextCancel: cancel,
+		Subscriptions:           xsync.NewMapOf[*Subscription](),
+		okCallbacks:             xsync.NewMapOf[func(bool, string)](),
 	}
 }
 
@@ -89,10 +91,8 @@ func (r *Relay) Context() context.Context { return r.connectionContext }
 // pass a custom context to the underlying relay connection, use NewRelay() and
 // then Relay.Connect().
 func (r *Relay) Connect(ctx context.Context) error {
-	if r.connectionContext == nil {
-		connectionContext, cancel := context.WithCancel(context.Background())
-		r.connectionContext = connectionContext
-		r.connectionContextCancel = cancel
+	if r.connectionContext == nil || r.Subscriptions == nil {
+		return fmt.Errorf("relay must be initialized with a call to NewRelay()")
 	}
 
 	if r.URL == "" {
@@ -134,6 +134,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				err := conn.Ping()
 				if err != nil {
 					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
+					r.Close()
 					return
 				}
 			}
@@ -406,12 +407,6 @@ func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 	subscriptionIdCounter.Inc()
 
 	ctx, cancel := context.WithCancel(ctx)
-
-	go func() {
-		// ensure the subscription dies if the relay connection dies
-		<-r.connectionContext.Done()
-		cancel()
-	}()
 
 	return &Subscription{
 		Relay:             r,

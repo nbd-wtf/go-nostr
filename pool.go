@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/puzpuzpuz/xsync"
 )
@@ -40,7 +41,9 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	} else {
 		var err error
 		// we use this ctx here so when the pool dies everything dies
-		relay, err = RelayConnect(pool.Context, nm)
+		ctx, cancel := context.WithTimeout(pool.Context, time.Second*15)
+		defer cancel()
+		relay, err = RelayConnect(ctx, nm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect: %w", err)
 		}
