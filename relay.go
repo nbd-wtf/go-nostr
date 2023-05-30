@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	s "github.com/SaveTheRbtz/generic-sync-map-go"
+	"github.com/puzpuzpuz/xsync"
 )
 
 type Status int
@@ -38,7 +38,7 @@ type Relay struct {
 	RequestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
-	subscriptions s.MapOf[string, *Subscription]
+	subscriptions *xsync.MapOf[string, *Subscription]
 
 	Challenges              chan string // NIP-42 Challenges
 	Notices                 chan string
@@ -46,7 +46,7 @@ type Relay struct {
 	connectionContext       context.Context // will be canceled when the connection closes
 	connectionContextCancel context.CancelFunc
 
-	okCallbacks s.MapOf[string, func(bool, string)]
+	okCallbacks *xsync.MapOf[string, func(bool, string)]
 	mutex       sync.RWMutex
 
 	// custom things that aren't often used
@@ -56,7 +56,12 @@ type Relay struct {
 
 // NewRelay returns a new relay. The relay connection will be closed when the context is canceled.
 func NewRelay(ctx context.Context, url string) *Relay {
-	return &Relay{URL: NormalizeURL(url), connectionContext: ctx}
+	return &Relay{
+		URL:               NormalizeURL(url),
+		connectionContext: ctx,
+		subscriptions:     xsync.NewMapOf[*Subscription](),
+		okCallbacks:       xsync.NewMapOf[func(bool, string)](),
+	}
 }
 
 // RelayConnect returns a relay object connected to url.

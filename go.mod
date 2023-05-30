@@ -3,12 +3,12 @@ module github.com/nbd-wtf/go-nostr
 go 1.18
 
 require (
-	github.com/SaveTheRbtz/generic-sync-map-go v0.0.0-20220414055132-a37292614db8
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0
 	github.com/btcsuite/btcd/btcutil v1.1.3
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.2.0
 	github.com/mailru/easyjson v0.7.7
+	github.com/puzpuzpuz/xsync v1.5.2
 	github.com/tidwall/gjson v1.14.4
 	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/tyler-smith/go-bip39 v1.1.0

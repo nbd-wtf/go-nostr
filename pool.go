@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	syncmap "github.com/SaveTheRbtz/generic-sync-map-go"
+	"github.com/puzpuzpuz/xsync"
 )
 
 type SimplePool struct {
@@ -58,7 +58,7 @@ func (pool *SimplePool) SubMany(
 	filters Filters,
 ) chan *Event {
 	uniqueEvents := make(chan *Event)
-	seenAlready := syncmap.MapOf[string, struct{}]{}
+	seenAlready := xsync.NewMapOf[bool]()
 
 	for _, url := range urls {
 		go func(nm string) {
@@ -74,7 +74,7 @@ func (pool *SimplePool) SubMany(
 
 			for evt := range sub.Events {
 				// dispatch unique events to client
-				if _, ok := seenAlready.LoadOrStore(evt.ID, struct{}{}); !ok {
+				if _, ok := seenAlready.LoadOrStore(evt.ID, true); !ok {
 					uniqueEvents <- evt
 				}
 			}
@@ -93,7 +93,7 @@ func (pool *SimplePool) SubManyEose(
 	ctx, cancel := context.WithCancel(ctx)
 
 	uniqueEvents := make(chan *Event)
-	seenAlready := syncmap.MapOf[string, struct{}]{}
+	seenAlready := xsync.NewMapOf[bool]()
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))
 
@@ -129,7 +129,7 @@ func (pool *SimplePool) SubManyEose(
 					}
 
 					// dispatch unique events to client
-					if _, ok := seenAlready.LoadOrStore(evt.ID, struct{}{}); !ok {
+					if _, ok := seenAlready.LoadOrStore(evt.ID, true); !ok {
 						uniqueEvents <- evt
 					}
 				}
