@@ -60,6 +60,9 @@ func (pool *SimplePool) SubMany(
 	uniqueEvents := make(chan *Event)
 	seenAlready := xsync.NewMapOf[bool]()
 
+	pending := xsync.Counter{}
+	initial := len(urls)
+	pending.Add(int64(initial))
 	for _, url := range urls {
 		go func(nm string) {
 			relay, err := pool.EnsureRelay(nm)
@@ -77,6 +80,11 @@ func (pool *SimplePool) SubMany(
 				if _, ok := seenAlready.LoadOrStore(evt.ID, true); !ok {
 					uniqueEvents <- evt
 				}
+			}
+
+			pending.Dec()
+			if pending.Value() == 0 {
+				close(uniqueEvents)
 			}
 		}(NormalizeURL(url))
 	}
