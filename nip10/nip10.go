@@ -16,7 +16,7 @@ func GetImmediateReply(tags nostr.Tags) *nostr.Tag {
 	var root *nostr.Tag
 	var lastE *nostr.Tag
 
-	for i := len(tags) - 1; i >= 0; i-- {
+	for i := 0; i <= len(tags)-1; i++ {
 		tag := tags[i]
 
 		if len(tag) < 2 {
