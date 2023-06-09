@@ -193,7 +193,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					func() {
 						// check if the event matches the desired filter, ignore otherwise
 						if !subscription.Filters.Match(&env.Event) {
-							InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, subscription.Filters[0], env.Event)
+							InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, subscription.Filters, env.Event)
 							return
 						}
 
