@@ -187,7 +187,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					continue
 				}
 				if subscription, ok := r.Subscriptions.Load(*env.SubscriptionID); !ok {
-					InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
+					// InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
 					continue
 				} else {
 					func() {
