@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/puzpuzpuz/xsync"
@@ -18,7 +19,7 @@ const (
 	PublishStatusSucceeded Status = 1
 )
 
-var subscriptionIdCounter xsync.Counter
+var subscriptionIdCounter atomic.Int32
 
 func (s Status) String() string {
 	switch s {
@@ -403,9 +404,7 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) 
 }
 
 func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
-	current := subscriptionIdCounter.Value()
-	subscriptionIdCounter.Inc()
-
+	current := subscriptionIdCounter.Add(1)
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &Subscription{
@@ -413,7 +412,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context) *Subscription {
 		Context:           ctx,
 		cancel:            cancel,
 		conn:              r.Connection,
-		counter:           current,
+		counter:           int(current),
 		Events:            make(chan *Event),
 		EndOfStoredEvents: make(chan struct{}, 1),
 	}
