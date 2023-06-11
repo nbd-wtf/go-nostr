@@ -42,8 +42,7 @@ func PrivateKeyFromSeed(seed []byte) (string, error) {
 	next := key
 	for _, idx := range derivationPath {
 		var err error
-		next, err = next.NewChildKey(idx)
-		if err != nil {
+		if next, err = next.NewChildKey(idx); err != nil {
 			return "", err
 		}
 	}

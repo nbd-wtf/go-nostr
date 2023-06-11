@@ -10,8 +10,7 @@ import (
 func TestFilterUnmarshal(t *testing.T) {
 	raw := `{"ids": ["abc"],"#e":["zzz"],"#something":["nothing","bab"],"since":1644254609,"search":"test"}`
 	var f Filter
-	err := json.Unmarshal([]byte(raw), &f)
-	if err != nil {
+	if err := json.Unmarshal([]byte(raw), &f); err != nil {
 		t.Errorf("failed to parse filter json: %v", err)
 	}
 

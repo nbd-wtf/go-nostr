@@ -54,7 +54,7 @@ func (sub *Subscription) Unsub() {
 	sub.conn.WriteMessage(closeb)
 	sub.Relay.Subscriptions.Delete(id)
 
-	if sub.stopped == false && sub.Events != nil {
+	if !sub.stopped && sub.Events != nil {
 		close(sub.Events)
 	}
 	sub.stopped = true
@@ -74,8 +74,7 @@ func (sub *Subscription) Fire() error {
 
 	reqb, _ := ReqEnvelope{id, sub.Filters}.MarshalJSON()
 	debugLog("{%s} sending %v", sub.Relay.URL, reqb)
-	err := sub.conn.WriteMessage(reqb)
-	if err != nil {
+	if err := sub.conn.WriteMessage(reqb); err != nil {
 		sub.cancel()
 		return fmt.Errorf("failed to write: %w", err)
 	}

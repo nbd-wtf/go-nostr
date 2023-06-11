@@ -43,8 +43,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 		// we use this ctx here so when the pool dies everything dies
 		ctx, cancel := context.WithTimeout(pool.Context, time.Second*15)
 		defer cancel()
-		relay, err = RelayConnect(ctx, nm)
-		if err != nil {
+		if relay, err = RelayConnect(ctx, nm); err != nil {
 			return nil, fmt.Errorf("failed to connect: %w", err)
 		}
 
@@ -55,11 +54,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 
 // SubMany opens a subscription with the given filters to multiple relays
 // the subscriptions only end when the context is canceled
-func (pool *SimplePool) SubMany(
-	ctx context.Context,
-	urls []string,
-	filters Filters,
-) chan *Event {
+func (pool *SimplePool) SubMany(ctx context.Context, urls []string, filters Filters) chan *Event {
 	uniqueEvents := make(chan *Event)
 	seenAlready := xsync.NewMapOf[bool]()
 
@@ -96,11 +91,7 @@ func (pool *SimplePool) SubMany(
 }
 
 // SubManyEose is like SubMany, but it stops subscriptions and closes the channel when gets a EOSE
-func (pool *SimplePool) SubManyEose(
-	ctx context.Context,
-	urls []string,
-	filters Filters,
-) chan *Event {
+func (pool *SimplePool) SubManyEose(ctx context.Context, urls []string, filters Filters) chan *Event {
 	ctx, cancel := context.WithCancel(ctx)
 
 	uniqueEvents := make(chan *Event)
