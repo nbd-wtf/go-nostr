@@ -16,8 +16,7 @@ func GeneratePrivateKey() string {
 	one := new(big.Int).SetInt64(1)
 
 	b := make([]byte, params.BitSize/8+8)
-	_, err := io.ReadFull(rand.Reader, b)
-	if err != nil {
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
 		return ""
 	}
 

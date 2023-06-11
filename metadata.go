@@ -22,8 +22,7 @@ func ParseMetadata(event Event) (*ProfileMetadata, error) {
 	}
 
 	var meta ProfileMetadata
-	err := json.Unmarshal([]byte(event.Content), &meta)
-	if err != nil {
+	if err := json.Unmarshal([]byte(event.Content), &meta); err != nil {
 		cont := event.Content
 		if len(cont) > 100 {
 			cont = cont[0:99]

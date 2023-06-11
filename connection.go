@@ -85,11 +85,7 @@ func NewConnection(ctx context.Context, url string, requestHeader http.Header) (
 		})
 	}
 
-	writer := wsutil.NewWriter(
-		conn,
-		state,
-		ws.OpText,
-	)
+	writer := wsutil.NewWriter(conn, state, ws.OpText)
 	writer.SetExtensions(&msgState)
 
 	return &Connection{
@@ -121,8 +117,7 @@ func (c *Connection) WriteMessage(data []byte) error {
 			return fmt.Errorf("failed to write message: %w", err)
 		}
 
-		err := c.flateWriter.Close()
-		if err != nil {
+		if err := c.flateWriter.Close(); err != nil {
 			return fmt.Errorf("failed to close flate writer: %w", err)
 		}
 	} else {
@@ -131,8 +126,7 @@ func (c *Connection) WriteMessage(data []byte) error {
 		}
 	}
 
-	err := c.writer.Flush()
-	if err != nil {
+	if err := c.writer.Flush(); err != nil {
 		return fmt.Errorf("failed to flush writer: %w", err)
 	}
 

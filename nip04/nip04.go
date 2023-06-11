@@ -43,8 +43,7 @@ func Encrypt(message string, key []byte) (string, error) {
 	// block size is 16 bytes
 	iv := make([]byte, 16)
 	// can probably use a less expensive lib since IV has to only be unique; not perfectly random; math/rand?
-	_, err := rand.Read(iv)
-	if err != nil {
+	if _, err := rand.Read(iv); err != nil {
 		return "", fmt.Errorf("error creating initization vector: %w", err)
 	}
 

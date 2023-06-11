@@ -13,8 +13,7 @@ func TestEventEnvelopeEncodingAndDecoding(t *testing.T) {
 
 	for _, raw := range eventEnvelopes {
 		var env EventEnvelope
-		err := json.Unmarshal([]byte(raw), &env)
-		if err != nil {
+		if err := json.Unmarshal([]byte(raw), &env); err != nil {
 			t.Errorf("failed to parse event envelope json: %v", err)
 		}
 
@@ -46,8 +45,7 @@ func TestNoticeEnvelopeEncodingAndDecoding(t *testing.T) {
 		t.Error("failed to decode NOTICE")
 	}
 
-	res, _ := json.Marshal(env)
-	if string(res) != src {
+	if res, _ := json.Marshal(env); string(res) != src {
 		t.Errorf("failed to encode NOTICE: expected '%s', got '%s'", src, string(res))
 	}
 }
@@ -60,8 +58,7 @@ func TestEoseEnvelopeEncodingAndDecoding(t *testing.T) {
 		t.Error("failed to decode EOSE")
 	}
 
-	res, _ := json.Marshal(env)
-	if string(res) != src {
+	if res, _ := json.Marshal(env); string(res) != src {
 		t.Errorf("failed to encode EOSE: expected '%s', got '%s'", src, string(res))
 	}
 }
@@ -74,8 +71,7 @@ func TestOKEnvelopeEncodingAndDecoding(t *testing.T) {
 
 	for _, raw := range okEnvelopes {
 		var env OKEnvelope
-		err := json.Unmarshal([]byte(raw), &env)
-		if err != nil {
+		if err := json.Unmarshal([]byte(raw), &env); err != nil {
 			t.Errorf("failed to parse ok envelope json: %v", err)
 		}
 
@@ -99,8 +95,7 @@ func TestAuthEnvelopeEncodingAndDecoding(t *testing.T) {
 
 	for _, raw := range authEnvelopes {
 		var env AuthEnvelope
-		err := json.Unmarshal([]byte(raw), &env)
-		if err != nil {
+		if err := json.Unmarshal([]byte(raw), &env); err != nil {
 			t.Errorf("failed to parse auth envelope json: %v", err)
 		}
 

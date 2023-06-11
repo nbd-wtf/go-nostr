@@ -15,8 +15,7 @@ func TestEventParsingAndVerifying(t *testing.T) {
 
 	for _, raw := range rawEvents {
 		var ev Event
-		err := json.Unmarshal([]byte(raw), &ev)
-		if err != nil {
+		if err := json.Unmarshal([]byte(raw), &ev); err != nil {
 			t.Errorf("failed to parse event json: %v", err)
 		}
 
