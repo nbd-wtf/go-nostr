@@ -135,6 +135,10 @@ func (evt *Event) Sign(privateKey string) error {
 		return fmt.Errorf("Sign called with invalid private key '%s': %w", privateKey, err)
 	}
 
+	if evt.Tags == nil {
+		evt.Tags = make(Tags, 0)
+	}
+
 	sk, pk := btcec.PrivKeyFromBytes(s)
 	pkBytes := pk.SerializeCompressed()
 	evt.PubKey = hex.EncodeToString(pkBytes[1:])
@@ -147,5 +151,6 @@ func (evt *Event) Sign(privateKey string) error {
 
 	evt.ID = hex.EncodeToString(h[:])
 	evt.Sig = hex.EncodeToString(sig.Serialize())
+
 	return nil
 }
