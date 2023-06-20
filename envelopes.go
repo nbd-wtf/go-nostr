@@ -35,6 +35,8 @@ func ParseMessage(message []byte) Envelope {
 	case bytes.Contains(label, []byte("CLOSE")):
 		x := CloseEnvelope("")
 		v = &x
+	default:
+		return nil
 	}
 
 	if err := v.UnmarshalJSON(message); err != nil {
