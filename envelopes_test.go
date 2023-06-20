@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -108,5 +109,38 @@ func TestAuthEnvelopeEncodingAndDecoding(t *testing.T) {
 			t.Log(string(asjson))
 			t.Error("json serialization broken")
 		}
+	}
+}
+
+func TestParseMessage(t *testing.T) {
+	testCases := []struct {
+		Name             string
+		Message          []byte
+		ExpectedEnvelope interface{}
+	}{
+		{
+			Name:             "nil",
+			Message:          nil,
+			ExpectedEnvelope: nil,
+		},
+		{
+			Name:             "invalid string",
+			Message:          []byte("invalid input"),
+			ExpectedEnvelope: nil,
+		},
+		{
+			Name:             "invalid string with a comma",
+			Message:          []byte("invalid, input"),
+			ExpectedEnvelope: nil,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			envelope := ParseMessage(testCase.Message)
+			if !reflect.DeepEqual(testCase.ExpectedEnvelope, envelope) {
+				t.Fatal("unexpected output")
+			}
+		})
 	}
 }
