@@ -16,6 +16,7 @@ type RelayInformationDocument struct {
 	PostingPolicy  string                   `json:"posting_policy,omitempty"`
 	PaymentsURL    string                   `json:"payments_url,omitempty"`
 	Fees           *RelayFeesDocument       `json:"fees,omitempty"`
+	Icon           string                   `json:"icon"`
 }
 
 type RelayLimitationDocument struct {
