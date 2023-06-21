@@ -39,9 +39,9 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		}
 		switch key {
 		case "id":
-			out.ID = in.UnsafeString()
+			out.ID = in.String()
 		case "pubkey":
-			out.PubKey = in.UnsafeString()
+			out.PubKey = in.String()
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
@@ -91,9 +91,9 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 				in.Delim(']')
 			}
 		case "content":
-			out.Content = in.UnsafeString()
+			out.Content = in.String()
 		case "sig":
-			out.Sig = in.UnsafeString()
+			out.Sig = in.String()
 		default:
 			out.extra[key] = in.Interface()
 		}
