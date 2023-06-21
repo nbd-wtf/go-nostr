@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"sync"
 
 	"github.com/gobwas/httphead"
 	"github.com/gobwas/ws"
@@ -26,7 +25,6 @@ type Connection struct {
 	flateWriter       *wsflate.Writer
 	writer            *wsutil.Writer
 	msgState          *wsflate.MessageState
-	mutex             sync.Mutex
 }
 
 func NewConnection(ctx context.Context, url string, requestHeader http.Header) (*Connection, error) {
@@ -100,17 +98,7 @@ func NewConnection(ctx context.Context, url string, requestHeader http.Header) (
 	}, nil
 }
 
-func (c *Connection) Ping() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	return wsutil.WriteClientMessage(c.conn, ws.OpPing, nil)
-}
-
 func (c *Connection) WriteMessage(data []byte) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
 	if c.msgState.IsCompressed() && c.enableCompression {
 		c.flateWriter.Reset(c.writer)
 		if _, err := io.Copy(c.flateWriter, bytes.NewReader(data)); err != nil {
