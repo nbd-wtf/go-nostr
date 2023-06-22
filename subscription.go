@@ -10,7 +10,6 @@ import (
 type Subscription struct {
 	label   string
 	counter int
-	conn    *Connection
 
 	Relay   *Relay
 	Filters Filters
