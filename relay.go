@@ -68,12 +68,13 @@ type writeRequest struct {
 func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 	ctx, cancel := context.WithCancel(ctx)
 	r := &Relay{
-		URL:                     NormalizeURL(url),
-		connectionContext:       ctx,
-		connectionContextCancel: cancel,
-		Subscriptions:           xsync.NewMapOf[*Subscription](),
-		okCallbacks:             xsync.NewMapOf[func(bool, string)](),
-		writeQueue:              make(chan writeRequest),
+		URL:                           NormalizeURL(url),
+		connectionContext:             ctx,
+		connectionContextCancel:       cancel,
+		Subscriptions:                 xsync.NewMapOf[*Subscription](),
+		okCallbacks:                   xsync.NewMapOf[func(bool, string)](),
+		writeQueue:                    make(chan writeRequest),
+		subscriptionChannelCloseQueue: make(chan *Subscription),
 	}
 
 	for _, opt := range opts {
@@ -141,7 +142,7 @@ func (_ WithAuthHandler) IsRelayOption() {}
 
 var _ RelayOption = (WithAuthHandler)(nil)
 
-// String() just prints the relay URL.
+// String just returns the relay URL.
 func (r *Relay) String() string {
 	return r.URL
 }
@@ -480,6 +481,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	}
 
 	id := sub.GetID()
+
 	r.Subscriptions.Store(id, sub)
 
 	// the subscription ends once the context is canceled
