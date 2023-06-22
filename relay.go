@@ -206,7 +206,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				ticker.Stop()
 				// close all subscriptions
 				r.Subscriptions.Range(func(_ string, sub *Subscription) bool {
-					sub.Unsub()
+					go sub.Unsub()
 					return true
 				})
 				return
