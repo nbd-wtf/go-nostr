@@ -318,10 +318,10 @@ func (r *Relay) HandleRelayMessage(envelope Envelope) {
 }
 
 // Write queues a message to be sent to the relay.
-func (r *Relay) Write(msg []byte) error {
+func (r *Relay) Write(msg []byte) <-chan error {
 	ch := make(chan error)
 	r.writeQueue <- writeRequest{msg: msg, answer: ch}
-	return <-ch
+	return ch
 }
 
 // Publish sends an "EVENT" command to the relay r as in NIP-01.
@@ -364,7 +364,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	envb, _ := EventEnvelope{Event: event}.MarshalJSON()
 	debugLog("{%s} sending %v\n", r.URL, envb)
 	status = PublishStatusSent
-	if err := r.Write(envb); err != nil {
+	if err := <-r.Write(envb); err != nil {
 		status = PublishStatusFailed
 		return status, err
 	}
@@ -423,7 +423,7 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	// send AUTH
 	authResponse, _ := AuthEnvelope{Event: event}.MarshalJSON()
 	debugLog("{%s} sending %v\n", r.URL, authResponse)
-	if err := r.Write(authResponse); err != nil {
+	if err := <-r.Write(authResponse); err != nil {
 		// status will be "failed"
 		return status, err
 	}

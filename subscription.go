@@ -88,7 +88,7 @@ func (sub *Subscription) Fire() error {
 	debugLog("{%s} sending %v", sub.Relay.URL, reqb)
 
 	sub.live = true
-	if err := sub.Relay.Write(reqb); err != nil {
+	if err := <-sub.Relay.Write(reqb); err != nil {
 		sub.cancel()
 		return fmt.Errorf("failed to write: %w", err)
 	}
