@@ -57,20 +57,25 @@ func (sub *Subscription) GetID() string {
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
 // Unsub() also closes the channel sub.Events and makes a new one.
 func (sub *Subscription) Unsub() {
-	id := sub.GetID()
+	go sub.Close()
 
+	sub.live = false
+	id := sub.GetID()
+	sub.Relay.Subscriptions.Delete(id)
+
+	// do this so we don't have the possibility of closing the Events channel and then trying to send to it
+	sub.Relay.subscriptionChannelCloseQueue <- sub
+}
+
+// Close just sends a CLOSE message. You probably want Unsub() instead.
+func (sub *Subscription) Close() {
 	if sub.Relay.IsConnected() {
+		id := sub.GetID()
 		closeMsg := CloseEnvelope(id)
 		closeb, _ := (&closeMsg).MarshalJSON()
 		debugLog("{%s} sending %v", sub.Relay.URL, closeb)
 		sub.Relay.Write(closeb)
 	}
-
-	sub.live = false
-	sub.Relay.Subscriptions.Delete(id)
-
-	// do this so we don't have the possibility of closing the Events channel and then trying to send to it
-	sub.Relay.subscriptionChannelCloseQueue <- sub
 }
 
 // Sub sets sub.Filters and then calls sub.Fire(ctx).
