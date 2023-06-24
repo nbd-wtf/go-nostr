@@ -32,12 +32,14 @@ const (
 	KindDeletion                 int = 5
 	KindRepost                   int = 6
 	KindReaction                 int = 7
+	KindSimpleChatMessage        int = 9
 	KindChannelCreation          int = 40
 	KindChannelMetadata          int = 41
 	KindChannelMessage           int = 42
 	KindChannelHideMessage       int = 43
 	KindChannelMuteUser          int = 44
 	KindFileMetadata             int = 1063
+	KindSimpleChatAction         int = 9000
 	KindZapRequest               int = 9734
 	KindZap                      int = 9735
 	KindMuteList                 int = 10000
@@ -56,6 +58,9 @@ const (
 	KindProductDefinition        int = 30018
 	KindArticle                  int = 30023
 	KindApplicationSpecificData  int = 30078
+	KindSimpleChatMetadata       int = 39000
+	KindSimpleChatPermissions    int = 39001
+	KindSimpleChatSubGroups      int = 39002
 )
 
 // Event Stringer interface, just returns the raw JSON as a string
