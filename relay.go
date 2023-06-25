@@ -186,9 +186,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 	// ping every 29 seconds
 	ticker := time.NewTicker(29 * time.Second)
 
-	// this ensures we don't send an event to the Events channel after closing it
-	eventsChannelCloserMutex := &sync.Mutex{}
-
 	// to be used when the connection is closed
 	go func() {
 		<-r.connectionContext.Done()
@@ -227,16 +224,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 				}
 				close(writeRequest.answer)
 			}
-		}
-	}()
-
-	// every time a subscription ends we use this queue to close its .Events channel
-	go func() {
-		for toClose := range r.subscriptionChannelCloseQueue {
-			eventsChannelCloserMutex.Lock()
-			close(toClose.Events)
-			toClose.Events = make(chan *Event)
-			eventsChannelCloserMutex.Unlock()
 		}
 	}()
 
@@ -298,19 +285,19 @@ func (r *Relay) Connect(ctx context.Context) error {
 						}
 					}
 
-					go func() {
-						eventsChannelCloserMutex.Lock()
-						if subscription.live {
-							subscription.Events <- &env.Event
-						}
-						eventsChannelCloserMutex.Unlock()
-					}()
+					// dispatch this to the internal .events channel of the subscription
+					subscription.events <- &env.Event
 				}
 			case *EOSEEnvelope:
 				if subscription, ok := r.Subscriptions.Load(string(*env)); ok {
-					subscription.emitEose.Do(func() {
-						close(subscription.EndOfStoredEvents)
-					})
+					// implementation adapted from the naïve/incorrect implementation of sync.Once
+					// (which is ok for this use case)
+					if subscription.eosed.CompareAndSwap(false, true) {
+						go func() {
+							time.Sleep(time.Millisecond) // this basically ensures the EndOfStoredEvents call happens after the last EVENT
+							close(subscription.EndOfStoredEvents)
+						}()
+					}
 				}
 			case *OKEnvelope:
 				if okCallback, exist := r.okCallbacks.Load(env.EventID); exist {
@@ -470,13 +457,15 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	ctx, cancel := context.WithCancel(ctx)
 
 	sub := &Subscription{
-		Relay:             r,
-		Context:           ctx,
-		cancel:            cancel,
-		counter:           int(current),
-		Events:            make(chan *Event),
-		EndOfStoredEvents: make(chan struct{}),
-		Filters:           filters,
+		Relay:              r,
+		Context:            ctx,
+		cancel:             cancel,
+		counter:            int(current),
+		Events:             make(chan *Event),
+		events:             make(chan *Event),
+		EndOfStoredEvents:  make(chan struct{}),
+		Filters:            filters,
+		closeEventsChannel: make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -487,14 +476,10 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	}
 
 	id := sub.GetID()
-
 	r.Subscriptions.Store(id, sub)
 
-	// the subscription ends once the context is canceled
-	go func() {
-		<-sub.Context.Done()
-		sub.Unsub()
-	}()
+	// start handling events, eose, unsub etc:
+	go sub.start()
 
 	return sub
 }

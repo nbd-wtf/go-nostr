@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 type Subscription struct {
@@ -17,6 +18,7 @@ type Subscription struct {
 	// the Events channel emits all EVENTs that come in a Subscription
 	// will be closed when the subscription ends
 	Events chan *Event
+	events chan *Event // underlines the above, this one is never closed
 
 	// the EndOfStoredEvents channel gets closed when an EOSE comes for that subscription
 	EndOfStoredEvents chan struct{}
@@ -24,9 +26,10 @@ type Subscription struct {
 	// Context will be .Done() when the subscription ends
 	Context context.Context
 
-	live     bool
-	cancel   context.CancelFunc
-	emitEose sync.Once
+	live               atomic.Bool
+	eosed              atomic.Bool
+	closeEventsChannel chan struct{}
+	cancel             context.CancelFunc
 }
 
 type EventMessage struct {
@@ -54,17 +57,48 @@ func (sub *Subscription) GetID() string {
 	return sub.label + ":" + strconv.Itoa(sub.counter)
 }
 
+func (sub *Subscription) start() {
+	var mu sync.Mutex
+
+	for {
+		select {
+		case event := <-sub.events:
+			// this is guarded such that it will only fire until the .Events channel is closed
+			go func() {
+				mu.Lock()
+				if sub.live.Load() {
+					sub.Events <- event
+				}
+				mu.Unlock()
+			}()
+		case <-sub.Context.Done():
+			// the subscription ends once the context is canceled
+			sub.Unsub()
+			return
+		case <-sub.closeEventsChannel:
+			// this is called only once on .Unsub() and closes the .Events channel
+			mu.Lock()
+			close(sub.Events)
+			mu.Unlock()
+			return
+		}
+	}
+}
+
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
 // Unsub() also closes the channel sub.Events and makes a new one.
 func (sub *Subscription) Unsub() {
-	go sub.Close()
+	sub.cancel()
 
-	sub.live = false
-	id := sub.GetID()
-	sub.Relay.Subscriptions.Delete(id)
+	// naïve sync.Once implementation:
+	if sub.live.CompareAndSwap(true, false) {
+		go sub.Close()
+		id := sub.GetID()
+		sub.Relay.Subscriptions.Delete(id)
 
-	// do this so we don't have the possibility of closing the Events channel and then trying to send to it
-	sub.Relay.subscriptionChannelCloseQueue <- sub
+		// do this so we don't have the possibility of closing the Events channel and then trying to send to it
+		close(sub.closeEventsChannel)
+	}
 }
 
 // Close just sends a CLOSE message. You probably want Unsub() instead.
@@ -92,7 +126,7 @@ func (sub *Subscription) Fire() error {
 	reqb, _ := ReqEnvelope{id, sub.Filters}.MarshalJSON()
 	debugLog("{%s} sending %v", sub.Relay.URL, reqb)
 
-	sub.live = true
+	sub.live.Store(true)
 	if err := <-sub.Relay.Write(reqb); err != nil {
 		sub.cancel()
 		return fmt.Errorf("failed to write: %w", err)
