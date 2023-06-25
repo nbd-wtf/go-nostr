@@ -108,7 +108,7 @@ func (sub *Subscription) Close() {
 		closeMsg := CloseEnvelope(id)
 		closeb, _ := (&closeMsg).MarshalJSON()
 		debugLog("{%s} sending %v", sub.Relay.URL, closeb)
-		sub.Relay.Write(closeb)
+		<-sub.Relay.Write(closeb)
 	}
 }
 
