@@ -59,8 +59,9 @@ const (
 	KindArticle                  int = 30023
 	KindApplicationSpecificData  int = 30078
 	KindSimpleChatMetadata       int = 39000
-	KindSimpleChatPermissions    int = 39001
-	KindSimpleChatSubGroups      int = 39002
+	KindSimpleChatMembers        int = 39001
+	KindSimpleChatRoles          int = 39002
+	KindSimpleChatSubGroups      int = 39003
 )
 
 // Event Stringer interface, just returns the raw JSON as a string

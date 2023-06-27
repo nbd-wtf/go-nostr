@@ -50,7 +50,7 @@ type Relay struct {
 
 	challenges                    chan string // NIP-42 challenges
 	notices                       chan string // NIP-01 NOTICEs
-	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
+	okCallbacks                   *xsync.MapOf[string, func(bool, *string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
 
@@ -72,7 +72,7 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		connectionContext:             ctx,
 		connectionContextCancel:       cancel,
 		Subscriptions:                 xsync.NewMapOf[*Subscription](),
-		okCallbacks:                   xsync.NewMapOf[func(bool, string)](),
+		okCallbacks:                   xsync.NewMapOf[func(bool, *string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
 	}
@@ -301,7 +301,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				}
 			case *OKEnvelope:
 				if okCallback, exist := r.okCallbacks.Load(env.EventID); exist {
-					okCallback(env.OK, *env.Reason)
+					okCallback(env.OK, env.Reason)
 				}
 			}
 		}
@@ -339,14 +339,18 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 	defer cancel()
 
 	// listen for an OK callback
-	okCallback := func(ok bool, msg string) {
+	okCallback := func(ok bool, msg *string) {
 		mu.Lock()
 		defer mu.Unlock()
 		if ok {
 			status = PublishStatusSucceeded
 		} else {
 			status = PublishStatusFailed
-			err = fmt.Errorf("msg: %s", msg)
+			reason := ""
+			if msg != nil {
+				reason = *msg
+			}
+			err = fmt.Errorf("msg: %s", reason)
 		}
 		cancel()
 	}
@@ -399,13 +403,17 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	defer cancel()
 
 	// listen for an OK callback
-	okCallback := func(ok bool, msg string) {
+	okCallback := func(ok bool, msg *string) {
 		mu.Lock()
 		if ok {
 			status = PublishStatusSucceeded
 		} else {
 			status = PublishStatusFailed
-			err = fmt.Errorf("msg: %s", msg)
+			reason := ""
+			if msg != nil {
+				reason = *msg
+			}
+			err = fmt.Errorf("msg: %s", reason)
 		}
 		mu.Unlock()
 		cancel()
