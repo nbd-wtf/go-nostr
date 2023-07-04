@@ -25,6 +25,25 @@ import (
    "nson":"xxkkccccttnn111122223333nn11112222"
 */
 
+const (
+	ID_START         = 7
+	ID_END           = 7 + 64
+	PUBKEY_START     = 83
+	PUBKEY_END       = 83 + 64
+	SIG_START        = 156
+	SIG_END          = 156 + 128
+	CREATED_AT_START = 299
+	CREATED_AT_END   = 299 + 10
+
+	NSON_STRING_START = 318     // the actual json string for the "nson" field
+	NSON_VALUES_START = 318 + 2 // skipping the first byte which delimits the nson size
+
+	NSON_MARKER_START = 309 // this is used just to determine if an event is nson or not
+	NSON_MARKER_END   = 317 // it's just the `,"nson":` (including ,": garbage to reduce false positives) part
+)
+
+var NotNSON = fmt.Errorf("not nson")
+
 // Unmarshal turns a NSON string into a nostr.Event struct
 func Unmarshal(data string) (evt *nostr.Event, err error) {
 	defer func() {
@@ -34,28 +53,26 @@ func Unmarshal(data string) (evt *nostr.Event, err error) {
 	}()
 
 	// check if it's nson
-	if data[311:315] != "nson" {
-		return nil, fmt.Errorf("not nson")
+	if data[NSON_MARKER_START:NSON_MARKER_END] != ",\"nson\":" {
+		return nil, NotNSON
 	}
 
 	// nson values
-	nsonSizeBytes, _ := hex.DecodeString(data[318 : 318+2])
-	nsonSize := int(nsonSizeBytes[0]) * 2 // number of bytes is given, we x2 because the string is in hex
-	nsonDescriptors, _ := hex.DecodeString(data[320 : 320+nsonSize])
+	nsonSize, nsonDescriptors := parseDescriptors(data)
 
 	evt = &nostr.Event{}
 
 	// static fields
-	evt.ID = data[7 : 7+64]
-	evt.PubKey = data[83 : 83+64]
-	evt.Sig = data[156 : 156+128]
-	ts, _ := strconv.ParseInt(data[299:299+10], 10, 64)
+	evt.ID = data[ID_START:ID_END]
+	evt.PubKey = data[PUBKEY_START:PUBKEY_END]
+	evt.Sig = data[SIG_START:SIG_END]
+	ts, _ := strconv.ParseUint(data[CREATED_AT_START:CREATED_AT_END], 10, 64)
 	evt.CreatedAt = nostr.Timestamp(ts)
 
 	// dynamic fields
 	// kind
 	kindChars := int(nsonDescriptors[0])
-	kindStart := 320 + nsonSize + 9 // len(`","kind":`)
+	kindStart := NSON_VALUES_START + nsonSize + 9 // len(`","kind":`)
 	evt.Kind, _ = strconv.Atoi(data[kindStart : kindStart+kindChars])
 
 	// content
@@ -90,7 +107,7 @@ func Unmarshal(data string) (evt *nostr.Event, err error) {
 	return evt, err
 }
 
-func Marshal(evt *nostr.Event) (string, error) {
+func Marshal(evt nostr.Event) (string, error) {
 	// start building the nson descriptors (without the first byte that represents the nson size)
 	nsonBuf := make([]byte, 256)
 
@@ -136,7 +153,7 @@ func Marshal(evt *nostr.Event) (string, error) {
 
 	// actually build the json
 	base := strings.Builder{}
-	base.Grow(320 + // everything up to "nson":
+	base.Grow(NSON_VALUES_START + // everything up to "nson":
 		2 + len(nsonBuf)*2 + // nson
 		9 + kindChars + // kind and its label
 		12 + contentChars + // content and its label
@@ -158,6 +175,13 @@ func Marshal(evt *nostr.Event) (string, error) {
 	return base.String(), nil
 }
 
+func parseDescriptors(data string) (int, []byte) {
+	nsonSizeBytes, _ := hex.DecodeString(data[NSON_STRING_START:NSON_VALUES_START])
+	size := int(nsonSizeBytes[0]) * 2 // number of bytes is given, we x2 because the string is in hex
+	values, _ := hex.DecodeString(data[NSON_VALUES_START : NSON_VALUES_START+size])
+	return size, values
+}
+
 // A nson.Event is basically a wrapper over the string that makes it easy to get each event property (except tags).
 type Event struct {
 	data string
@@ -172,25 +196,15 @@ func New(nsonText string) Event {
 
 func (ne *Event) parseDescriptors() {
 	if ne.descriptors == nil {
-		nsonSizeBytes, _ := hex.DecodeString(ne.data[318 : 318+2])
-		ne.descriptorsSize = int(nsonSizeBytes[0])
-		ne.descriptors, _ = hex.DecodeString(ne.data[320 : 320+ne.descriptorsSize])
+		ne.descriptorsSize, ne.descriptors = parseDescriptors(ne.data)
 	}
 }
 
-func (ne *Event) parseKind() {
-	if ne.descriptors == nil {
-		nsonSizeBytes, _ := hex.DecodeString(ne.data[318 : 318+2])
-		ne.descriptorsSize = int(nsonSizeBytes[0])
-		ne.descriptors, _ = hex.DecodeString(ne.data[320 : 320+ne.descriptorsSize])
-	}
-}
-
-func (ne Event) GetID() string     { return ne.data[7 : 7+64] }
-func (ne Event) GetPubkey() string { return ne.data[83 : 83+64] }
-func (ne Event) GetSig() string    { return ne.data[156 : 156+128] }
+func (ne Event) GetID() string     { return ne.data[ID_START:ID_END] }
+func (ne Event) GetPubkey() string { return ne.data[PUBKEY_START:PUBKEY_END] }
+func (ne Event) GetSig() string    { return ne.data[SIG_START:SIG_END] }
 func (ne Event) GetCreatedAt() nostr.Timestamp {
-	ts, _ := strconv.ParseInt(ne.data[299:299+10], 10, 64)
+	ts, _ := strconv.ParseUint(ne.data[CREATED_AT_START:CREATED_AT_END], 10, 64)
 	return nostr.Timestamp(ts)
 }
 
@@ -198,7 +212,7 @@ func (ne *Event) GetKind() int {
 	ne.parseDescriptors()
 
 	kindChars := int(ne.descriptors[0])
-	kindStart := 320 + ne.descriptorsSize + 9 // len(`","kind":`)
+	kindStart := NSON_VALUES_START + ne.descriptorsSize + 9 // len(`","kind":`)
 	kind, _ := strconv.Atoi(ne.data[kindStart : kindStart+kindChars])
 
 	return kind
@@ -208,7 +222,7 @@ func (ne *Event) GetContent() string {
 	ne.parseDescriptors()
 
 	kindChars := int(ne.descriptors[0])
-	kindStart := 320 + ne.descriptorsSize + 9 // len(`","kind":`)
+	kindStart := NSON_VALUES_START + ne.descriptorsSize + 9 // len(`","kind":`)
 
 	contentChars := int(binary.BigEndian.Uint16(ne.descriptors[1:3]))
 	contentStart := kindStart + kindChars + 12 // len(`,"content":"`)
