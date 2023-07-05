@@ -45,7 +45,7 @@ const (
 var NotNSON = fmt.Errorf("not nson")
 
 // Unmarshal turns a NSON string into a nostr.Event struct
-func Unmarshal(data string) (evt *nostr.Event, err error) {
+func Unmarshal(data string, evt *nostr.Event) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("failed to decode nson: %v", r)
@@ -54,13 +54,11 @@ func Unmarshal(data string) (evt *nostr.Event, err error) {
 
 	// check if it's nson
 	if data[NSON_MARKER_START:NSON_MARKER_END] != ",\"nson\":" {
-		return nil, NotNSON
+		return NotNSON
 	}
 
 	// nson values
 	nsonSize, nsonDescriptors := parseDescriptors(data)
-
-	evt = &nostr.Event{}
 
 	// static fields
 	evt.ID = data[ID_START:ID_END]
@@ -104,7 +102,7 @@ func Unmarshal(data string) (evt *nostr.Event, err error) {
 		evt.Tags[t] = tag
 	}
 
-	return evt, err
+	return err
 }
 
 func Marshal(evt nostr.Event) (string, error) {
