@@ -105,7 +105,7 @@ func Unmarshal(data string, evt *nostr.Event) (err error) {
 	return err
 }
 
-func Marshal(evt nostr.Event) (string, error) {
+func Marshal(evt *nostr.Event) (string, error) {
 	// start building the nson descriptors (without the first byte that represents the nson size)
 	nsonBuf := make([]byte, 256)
 
