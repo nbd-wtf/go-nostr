@@ -108,6 +108,8 @@ func (pool *SimplePool) SubManyEose(ctx context.Context, urls []string, filters 
 
 	for _, url := range urls {
 		go func(nm string) {
+			defer wg.Done()
+
 			relay, err := pool.EnsureRelay(nm)
 			if err != nil {
 				return
@@ -115,14 +117,13 @@ func (pool *SimplePool) SubManyEose(ctx context.Context, urls []string, filters 
 
 			sub, _ := relay.Subscribe(ctx, filters)
 			if sub == nil {
-				wg.Done()
 				return
 			}
 
-			defer wg.Done()
-
 			for {
 				select {
+				case <-ctx.Done():
+					return
 				case <-sub.EndOfStoredEvents:
 					return
 				case evt, more := <-sub.Events:
@@ -132,7 +133,11 @@ func (pool *SimplePool) SubManyEose(ctx context.Context, urls []string, filters 
 
 					// dispatch unique events to client
 					if _, ok := seenAlready.LoadOrStore(evt.ID, true); !ok {
-						uniqueEvents <- evt
+						select {
+						case uniqueEvents <- evt:
+						case <-ctx.Done():
+							return
+						}
 					}
 				}
 			}
