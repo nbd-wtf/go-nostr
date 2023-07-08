@@ -56,6 +56,11 @@ func ParseRelaysFromKind10002(evt *nostr.Event) []Relay {
 	result := make([]Relay, 0, len(evt.Tags))
 	for _, tag := range evt.Tags {
 		if u := tag.Value(); u != "" && tag[0] == "r" {
+			if !nostr.IsValidRelayURL(u) {
+				continue
+			}
+			u := nostr.NormalizeURL(u)
+
 			relay := Relay{
 				URL: u,
 			}
@@ -88,6 +93,11 @@ func ParseRelaysFromKind3(evt *nostr.Event) []Relay {
 	results := make([]Relay, len(items))
 	i := 0
 	for u, item := range items {
+		if !nostr.IsValidRelayURL(u) {
+			continue
+		}
+		u := nostr.NormalizeURL(u)
+
 		relay := Relay{
 			URL: u,
 		}
