@@ -22,6 +22,8 @@ func ParseMessage(message []byte) Envelope {
 		v = &EventEnvelope{}
 	case bytes.Contains(label, []byte("REQ")):
 		v = &ReqEnvelope{}
+	case bytes.Contains(label, []byte("COUNT")):
+		v = &CountEnvelope{}
 	case bytes.Contains(label, []byte("NOTICE")):
 		x := NoticeEnvelope("")
 		v = &x
@@ -59,6 +61,7 @@ type EventEnvelope struct {
 var (
 	_ Envelope = (*EventEnvelope)(nil)
 	_ Envelope = (*ReqEnvelope)(nil)
+	_ Envelope = (*CountEnvelope)(nil)
 	_ Envelope = (*NoticeEnvelope)(nil)
 	_ Envelope = (*EOSEEnvelope)(nil)
 	_ Envelope = (*CloseEnvelope)(nil)
@@ -122,6 +125,44 @@ func (v *ReqEnvelope) UnmarshalJSON(data []byte) error {
 func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
 	w.RawString(`["REQ",`)
+	w.RawString(`"` + v.SubscriptionID + `"`)
+	for _, filter := range v.Filters {
+		w.RawString(`,`)
+		filter.MarshalEasyJSON(&w)
+	}
+	w.RawString(`]`)
+	return w.BuildBytes()
+}
+
+type CountEnvelope struct {
+	SubscriptionID string
+	Filters
+}
+
+func (_ CountEnvelope) Label() string { return "COUNT" }
+
+func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
+	r := gjson.ParseBytes(data)
+	arr := r.Array()
+	if len(arr) < 3 {
+		return fmt.Errorf("failed to decode COUNT envelope: missing filters")
+	}
+	v.SubscriptionID = arr[1].Str
+	v.Filters = make(Filters, len(arr)-2)
+	f := 0
+	for i := 2; i < len(arr); i++ {
+		if err := easyjson.Unmarshal([]byte(arr[i].Raw), &v.Filters[f]); err != nil {
+			return fmt.Errorf("%w -- on filter %d", err, f)
+		}
+		f++
+	}
+
+	return nil
+}
+
+func (v CountEnvelope) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	w.RawString(`["COUNT",`)
 	w.RawString(`"` + v.SubscriptionID + `"`)
 	for _, filter := range v.Filters {
 		w.RawString(`,`)
