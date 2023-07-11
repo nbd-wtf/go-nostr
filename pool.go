@@ -115,8 +115,9 @@ func (pool *SimplePool) SubManyEose(ctx context.Context, urls []string, filters 
 				return
 			}
 
-			sub, _ := relay.Subscribe(ctx, filters)
+			sub, err := relay.Subscribe(ctx, filters)
 			if sub == nil {
+				debugLogf("error subscribing to %s with %v: %s", relay, filters, err)
 				return
 			}
 

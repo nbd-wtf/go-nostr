@@ -2,6 +2,6 @@
 
 package nostr
 
-func debugLog(str string, args ...any) {
+func debugLogf(str string, args ...any) {
 	return
 }

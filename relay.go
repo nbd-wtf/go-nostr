@@ -240,7 +240,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				break
 			}
 
-			debugLog("{%s} %v\n", r.URL, message)
+			debugLogf("{%s} %v\n", r.URL, message)
 
 			envelope := ParseMessage(message)
 			if envelope == nil {
@@ -370,7 +370,7 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 
 	// publish event
 	envb, _ := EventEnvelope{Event: event}.MarshalJSON()
-	debugLog("{%s} sending %v\n", r.URL, envb)
+	debugLogf("{%s} sending %v\n", r.URL, envb)
 	status = PublishStatusSent
 	if err := <-r.Write(envb); err != nil {
 		status = PublishStatusFailed
@@ -434,7 +434,7 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 
 	// send AUTH
 	authResponse, _ := AuthEnvelope{Event: event}.MarshalJSON()
-	debugLog("{%s} sending %v\n", r.URL, authResponse)
+	debugLogf("{%s} sending %v\n", r.URL, authResponse)
 	if err := <-r.Write(authResponse); err != nil {
 		// status will be "failed"
 		return status, err

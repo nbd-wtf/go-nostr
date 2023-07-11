@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-func debugLog(str string, args ...any) {
+func debugLogf(str string, args ...any) {
 	// this is such that we don't modify the actual args that may be used outside of this function
 	printableArgs := make([]any, len(args))
 
