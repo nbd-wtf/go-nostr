@@ -236,6 +236,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 			message, err := conn.ReadMessage(r.connectionContext)
 			if err != nil {
 				r.ConnectionError = err
+				r.Close()
 				break
 			}
 
@@ -256,7 +257,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				}
 			case *AuthEnvelope:
 				if env.Challenge == nil {
-					return
+					continue
 				}
 				// see WithAuthHandler
 				if r.challenges != nil {
@@ -264,16 +265,16 @@ func (r *Relay) Connect(ctx context.Context) error {
 				}
 			case *EventEnvelope:
 				if env.SubscriptionID == nil {
-					return
+					continue
 				}
 				if subscription, ok := r.Subscriptions.Load(*env.SubscriptionID); !ok {
 					// InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
-					return
+					continue
 				} else {
 					// check if the event matches the desired filter, ignore otherwise
 					if !subscription.Filters.Match(&env.Event) {
 						InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, subscription.Filters, env.Event)
-						return
+						continue
 					}
 
 					// check signature, ignore invalid, except from trusted (AssumeValid) relays
@@ -284,7 +285,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 								errmsg = err.Error()
 							}
 							InfoLogger.Printf("{%s} bad signature: %s\n", r.URL, errmsg)
-							return
+							continue
 						}
 					}
 
