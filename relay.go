@@ -42,7 +42,7 @@ type Relay struct {
 	RequestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
-	Subscriptions *xsync.MapOf[string, *Subscription]
+	Subscriptions *xsync.MapOf[string]*Subscription
 
 	ConnectionError         error
 	connectionContext       context.Context // will be canceled when the connection closes
@@ -50,7 +50,7 @@ type Relay struct {
 
 	challenges                    chan string // NIP-42 challenges
 	notices                       chan string // NIP-01 NOTICEs
-	okCallbacks                   *xsync.MapOf[string, func(bool, *string)]
+	okCallbacks                   *xsync.MapOf[string]func(bool, *string)
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
 
@@ -71,8 +71,8 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		URL:                           NormalizeURL(url),
 		connectionContext:             ctx,
 		connectionContextCancel:       cancel,
-		Subscriptions:                 xsync.NewMapOf[*Subscription](),
-		okCallbacks:                   xsync.NewMapOf[func(bool, *string)](),
+		Subscriptions:                 xsync.NewMapOf[string]*Subscription(),
+		okCallbacks:                   xsync.NewMapOf[string]func(bool, *string)(),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
 	}
@@ -231,7 +231,16 @@ func (r *Relay) Connect(ctx context.Context) error {
 	}()
 
 	// general message reader loop
+	// general message reader loop
 	go func() {
+		// Add a defer statement with a recover function to handle panics
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Recovered in Connect: %s\n", r)
+				r.Close()
+			}
+		}()
+
 		for {
 			message, err := conn.ReadMessage(r.connectionContext)
 			if err != nil {
