@@ -3,6 +3,7 @@ package nostr
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -59,6 +60,14 @@ func (sub *Subscription) GetID() string {
 
 func (sub *Subscription) start() {
 	var mu sync.Mutex
+
+	// Add a defer statement with a recover function to handle panics
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered in start: %s\n", r)
+			sub.Unsub()
+		}
+	}()
 
 	for {
 		select {
