@@ -15,6 +15,9 @@ type Subscription struct {
 	Relay   *Relay
 	Filters Filters
 
+	// for this to be treated as a COUNT and not a REQ this must be set
+	countResult chan int64
+
 	// the Events channel emits all EVENTs that come in a Subscription
 	// will be closed when the subscription ends
 	Events chan *Event
@@ -123,7 +126,12 @@ func (sub *Subscription) Sub(ctx context.Context, filters Filters) {
 func (sub *Subscription) Fire() error {
 	id := sub.GetID()
 
-	reqb, _ := ReqEnvelope{id, sub.Filters}.MarshalJSON()
+	var reqb []byte
+	if sub.countResult == nil {
+		reqb, _ = ReqEnvelope{id, sub.Filters}.MarshalJSON()
+	} else {
+		reqb, _ = CountEnvelope{id, sub.Filters, nil}.MarshalJSON()
+	}
 	debugLogf("{%s} sending %v", sub.Relay.URL, reqb)
 
 	sub.live.Store(true)

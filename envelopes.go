@@ -137,6 +137,7 @@ func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 type CountEnvelope struct {
 	SubscriptionID string
 	Filters
+	Count *int64
 }
 
 func (_ CountEnvelope) Label() string { return "COUNT" }
@@ -148,12 +149,28 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to decode COUNT envelope: missing filters")
 	}
 	v.SubscriptionID = arr[1].Str
+
+	if len(arr) < 3 {
+		return fmt.Errorf("COUNT array must have at least 3 items")
+	}
+
+	var countResult struct {
+		Count *int64 `json:"count"`
+	}
+	if err := json.Unmarshal([]byte(arr[2].Raw), &countResult); err == nil && countResult.Count != nil {
+		v.Count = countResult.Count
+		return nil
+	}
+
 	v.Filters = make(Filters, len(arr)-2)
 	f := 0
 	for i := 2; i < len(arr); i++ {
-		if err := easyjson.Unmarshal([]byte(arr[i].Raw), &v.Filters[f]); err != nil {
+		item := []byte(arr[i].Raw)
+
+		if err := easyjson.Unmarshal(item, &v.Filters[f]); err != nil {
 			return fmt.Errorf("%w -- on filter %d", err, f)
 		}
+
 		f++
 	}
 
@@ -164,9 +181,13 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
 	w.RawString(`["COUNT",`)
 	w.RawString(`"` + v.SubscriptionID + `"`)
-	for _, filter := range v.Filters {
-		w.RawString(`,`)
-		filter.MarshalEasyJSON(&w)
+	if v.Count != nil {
+		w.RawString(fmt.Sprintf(`{"count":%d}`, *v.Count))
+	} else {
+		for _, filter := range v.Filters {
+			w.RawString(`,`)
+			filter.MarshalEasyJSON(&w)
+		}
 	}
 	w.RawString(`]`)
 	return w.BuildBytes()

@@ -306,6 +306,10 @@ func (r *Relay) Connect(ctx context.Context) error {
 						}()
 					}
 				}
+			case *CountEnvelope:
+				if subscription, ok := r.Subscriptions.Load(string(env.SubscriptionID)); ok && env.Count != nil && subscription.countResult != nil {
+					subscription.countResult <- *env.Count
+				}
 			case *OKEnvelope:
 				if okCallback, exist := r.okCallbacks.Load(env.EventID); exist {
 					okCallback(env.OK, env.Reason)
@@ -512,7 +516,7 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter, opts ...Subscripti
 	defer sub.Unsub()
 
 	if _, ok := ctx.Deadline(); !ok {
-		// if no timeout is set, force it to 3 seconds
+		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
 		defer cancel()
@@ -531,6 +535,33 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter, opts ...Subscripti
 			return events, nil
 		case <-ctx.Done():
 			return events, nil
+		}
+	}
+}
+
+func (r *Relay) Count(ctx context.Context, filters Filters, opts ...SubscriptionOption) (int64, error) {
+	sub := r.PrepareSubscription(ctx, filters, opts...)
+	sub.countResult = make(chan int64)
+
+	if err := sub.Fire(); err != nil {
+		return 0, err
+	}
+
+	defer sub.Unsub()
+
+	if _, ok := ctx.Deadline(); !ok {
+		// if no timeout is set, force it to 7 seconds
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
+		defer cancel()
+	}
+
+	for {
+		select {
+		case count := <-sub.countResult:
+			return count, nil
+		case <-ctx.Done():
+			return 0, ctx.Err()
 		}
 	}
 }
