@@ -17,6 +17,7 @@ type Filter struct {
 	Until   *Timestamp `json:"until,omitempty"`
 	Limit   int        `json:"limit,omitempty"`
 	Search  string     `json:"search,omitempty"`
+	NIP34   string     `json:"nip34,omitempty"`
 }
 
 type TagMap map[string][]string
@@ -110,6 +111,10 @@ func FilterEqual(a Filter, b Filter) bool {
 	}
 
 	if a.Search != b.Search {
+		return false
+	}
+
+	if a.NIP34 != b.NIP34 {
 		return false
 	}
 

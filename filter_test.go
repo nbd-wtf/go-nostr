@@ -8,7 +8,7 @@ import (
 )
 
 func TestFilterUnmarshal(t *testing.T) {
-	raw := `{"ids": ["abc"],"#e":["zzz"],"#something":["nothing","bab"],"since":1644254609,"search":"test"}`
+	raw := `{"ids": ["abc"],"#e":["zzz"],"#something":["nothing","bab"],"since":1644254609,"search":"test","nip34":"asc"}`
 	var f Filter
 	if err := json.Unmarshal([]byte(raw), &f); err != nil {
 		t.Errorf("failed to parse filter json: %v", err)
@@ -17,7 +17,7 @@ func TestFilterUnmarshal(t *testing.T) {
 	if f.Since == nil || f.Since.Time().UTC().Format("2006-01-02") != "2022-02-07" ||
 		f.Until != nil ||
 		f.Tags == nil || len(f.Tags) != 2 || !slices.Contains(f.Tags["something"], "bab") ||
-		f.Search != "test" {
+		f.Search != "test" || f.NIP34 != "asc" {
 		t.Error("failed to parse filter correctly")
 	}
 }

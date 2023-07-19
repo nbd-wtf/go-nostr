@@ -131,6 +131,8 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 			out.Limit = int(in.Int())
 		case "search":
 			out.Search = string(in.String())
+		case "nip34":
+			out.NIP34 = string(in.String())
 		default:
 			if len(key) > 1 && key[0] == '#' {
 				tagValues := make([]string, 0, 40)
