@@ -169,15 +169,25 @@ func BenchmarkNSONEncoding(b *testing.B) {
 			}
 		}
 	})
+
+	b.Run("nson.Marshal to bytes", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, evt := range events {
+				MarshalBytes(evt)
+			}
+		}
+	})
 }
 
 func BenchmarkNSONDecoding(b *testing.B) {
 	events := make([]string, len(normalEvents))
+	eventsB := make([][]byte, len(normalEvents))
 	for i, jevt := range normalEvents {
 		evt := &nostr.Event{}
 		json.Unmarshal([]byte(jevt), evt)
 		nevt, _ := Marshal(evt)
 		events[i] = nevt
+		eventsB[i] = []byte(nevt)
 	}
 
 	b.Run("json.Unmarshal", func(b *testing.B) {
@@ -197,6 +207,18 @@ func BenchmarkNSONDecoding(b *testing.B) {
 			for _, nevt := range events {
 				evt := &nostr.Event{}
 				err := Unmarshal(nevt, evt)
+				if err != nil {
+					b.Fatalf("failed to unmarshal: %s", err)
+				}
+			}
+		}
+	})
+
+	b.Run("nson.Unmarshal from bytes", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, nevt := range eventsB {
+				evt := &nostr.Event{}
+				err := UnmarshalBytes(nevt, evt)
 				if err != nil {
 					b.Fatalf("failed to unmarshal: %s", err)
 				}

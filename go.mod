@@ -1,6 +1,6 @@
 module github.com/nbd-wtf/go-nostr
 
-go 1.18
+go 1.20
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0

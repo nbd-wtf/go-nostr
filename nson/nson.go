@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -43,6 +44,10 @@ const (
 )
 
 var NotNSON = fmt.Errorf("not nson")
+
+func UnmarshalBytes(data []byte, evt *nostr.Event) (err error) {
+	return Unmarshal(unsafe.String(unsafe.SliceData(data), len(data)), evt)
+}
 
 // Unmarshal turns a NSON string into a nostr.Event struct
 func Unmarshal(data string, evt *nostr.Event) (err error) {
@@ -103,6 +108,11 @@ func Unmarshal(data string, evt *nostr.Event) (err error) {
 	}
 
 	return err
+}
+
+func MarshalBytes(evt *nostr.Event) ([]byte, error) {
+	v, err := Marshal(evt)
+	return unsafe.Slice(unsafe.StringData(v), len(v)), err
 }
 
 func Marshal(evt *nostr.Event) (string, error) {
