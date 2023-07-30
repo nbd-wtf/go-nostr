@@ -121,23 +121,23 @@ func (c *Connection) WriteMessage(data []byte) error {
 	return nil
 }
 
-func (c *Connection) ReadMessage(ctx context.Context) ([]byte, error) {
+func (c *Connection) ReadMessage(ctx context.Context, buf io.Writer) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("context canceled")
+			return errors.New("context canceled")
 		default:
 		}
 
 		h, err := c.reader.NextFrame()
 		if err != nil {
 			c.conn.Close()
-			return nil, fmt.Errorf("failed to advance frame: %w", err)
+			return fmt.Errorf("failed to advance frame: %w", err)
 		}
 
 		if h.OpCode.IsControl() {
 			if err := c.controlHandler(h, c.reader); err != nil {
-				return nil, fmt.Errorf("failed to handle control frame: %w", err)
+				return fmt.Errorf("failed to handle control frame: %w", err)
 			}
 		} else if h.OpCode == ws.OpBinary ||
 			h.OpCode == ws.OpText {
@@ -145,23 +145,22 @@ func (c *Connection) ReadMessage(ctx context.Context) ([]byte, error) {
 		}
 
 		if err := c.reader.Discard(); err != nil {
-			return nil, fmt.Errorf("failed to discard: %w", err)
+			return fmt.Errorf("failed to discard: %w", err)
 		}
 	}
 
-	buf := new(bytes.Buffer)
 	if c.msgState.IsCompressed() && c.enableCompression {
 		c.flateReader.Reset(c.reader)
 		if _, err := io.Copy(buf, c.flateReader); err != nil {
-			return nil, fmt.Errorf("failed to read message: %w", err)
+			return fmt.Errorf("failed to read message: %w", err)
 		}
 	} else {
 		if _, err := io.Copy(buf, c.reader); err != nil {
-			return nil, fmt.Errorf("failed to read message: %w", err)
+			return fmt.Errorf("failed to read message: %w", err)
 		}
 	}
 
-	return buf.Bytes(), nil
+	return nil
 }
 
 func (c *Connection) Close() error {

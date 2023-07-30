@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -232,16 +233,18 @@ func (r *Relay) Connect(ctx context.Context) error {
 
 	// general message reader loop
 	go func() {
+		buf := new(bytes.Buffer)
+
 		for {
-			message, err := conn.ReadMessage(r.connectionContext)
-			if err != nil {
+			buf.Reset()
+			if err := conn.ReadMessage(r.connectionContext, buf); err != nil {
 				r.ConnectionError = err
 				r.Close()
 				break
 			}
 
+			message := buf.Bytes()
 			debugLogf("{%s} %v\n", r.URL, message)
-
 			envelope := ParseMessage(message)
 			if envelope == nil {
 				continue
