@@ -28,15 +28,6 @@ func similar[E constraints.Ordered](as, bs []E) bool {
 	return true
 }
 
-func containsPrefixOf(haystack []string, needle string) bool {
-	for _, hay := range haystack {
-		if strings.HasPrefix(needle, hay) {
-			return true
-		}
-	}
-	return false
-}
-
 // Escaping strings for JSON encoding according to RFC8259.
 // Also encloses result in quotation marks "".
 func escapeString(dst []byte, s string) []byte {

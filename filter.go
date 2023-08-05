@@ -45,7 +45,7 @@ func (ef Filter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.IDs != nil && !containsPrefixOf(ef.IDs, event.ID) {
+	if ef.IDs != nil && !slices.Contains(ef.IDs, event.ID) {
 		return false
 	}
 
@@ -53,7 +53,7 @@ func (ef Filter) Matches(event *Event) bool {
 		return false
 	}
 
-	if ef.Authors != nil && !containsPrefixOf(ef.Authors, event.PubKey) {
+	if ef.Authors != nil && !slices.Contains(ef.Authors, event.PubKey) {
 		return false
 	}
 
@@ -63,11 +63,11 @@ func (ef Filter) Matches(event *Event) bool {
 		}
 	}
 
-	if ef.Since != nil && event.CreatedAt < *ef.Since {
+	if ef.Since != nil && event.CreatedAt <= *ef.Since {
 		return false
 	}
 
-	if ef.Until != nil && event.CreatedAt > *ef.Until {
+	if ef.Until != nil && event.CreatedAt >= *ef.Until {
 		return false
 	}
 
