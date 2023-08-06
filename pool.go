@@ -13,7 +13,6 @@ type SimplePool struct {
 	Relays  map[string]*Relay
 	Context context.Context
 
-	mutex  sync.Mutex
 	cancel context.CancelFunc
 }
 
@@ -31,8 +30,7 @@ func NewSimplePool(ctx context.Context) *SimplePool {
 func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	nm := NormalizeURL(url)
 
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
+	defer namedLock(url)()
 
 	relay, ok := pool.Relays[nm]
 	if ok && relay.IsConnected() {
