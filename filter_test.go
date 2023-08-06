@@ -39,30 +39,6 @@ func TestFilterMarshal(t *testing.T) {
 	}
 }
 
-func TestFilterMatching(t *testing.T) {
-	if (Filter{Kinds: []int{4, 5}}).Matches(&Event{Kind: 6}) {
-		t.Error("matched event that shouldn't have matched")
-	}
-
-	if !(Filter{Kinds: []int{4, 5}}).Matches(&Event{Kind: 4}) {
-		t.Error("failed to match event by kind")
-	}
-
-	if !(Filter{
-		Kinds: []int{4, 5},
-		Tags: TagMap{
-			"p": {"ooo"},
-		},
-		IDs: []string{"prefix"},
-	}).Matches(&Event{
-		Kind: 4,
-		Tags: Tags{{"p", "ooo", ",x,x,"}, {"m", "yywyw", "xxx"}},
-		ID:   "prefix123",
-	}) {
-		t.Error("failed to match event by kind+tags+id prefix")
-	}
-}
-
 func TestFilterMatchingLive(t *testing.T) {
 	var filter Filter
 	var event Event

@@ -63,11 +63,11 @@ func (ef Filter) Matches(event *Event) bool {
 		}
 	}
 
-	if ef.Since != nil && event.CreatedAt <= *ef.Since {
+	if ef.Since != nil && event.CreatedAt < *ef.Since {
 		return false
 	}
 
-	if ef.Until != nil && event.CreatedAt >= *ef.Until {
+	if ef.Until != nil && event.CreatedAt > *ef.Until {
 		return false
 	}
 
