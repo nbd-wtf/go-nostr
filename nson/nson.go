@@ -43,13 +43,13 @@ const (
 	NSON_MARKER_END   = 317 // it's just the `,"nson":` (including ,": garbage to reduce false positives) part
 )
 
-var NotNSON = fmt.Errorf("not nson")
+var ErrNotNSON = fmt.Errorf("not nson")
 
 func UnmarshalBytes(data []byte, evt *nostr.Event) (err error) {
 	return Unmarshal(unsafe.String(unsafe.SliceData(data), len(data)), evt)
 }
 
-// Unmarshal turns a NSON string into a nostr.Event struct
+// Unmarshal turns a NSON string into a nostr.Event struct.
 func Unmarshal(data string, evt *nostr.Event) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -59,7 +59,7 @@ func Unmarshal(data string, evt *nostr.Event) (err error) {
 
 	// check if it's nson
 	if data[NSON_MARKER_START:NSON_MARKER_END] != ",\"nson\":" {
-		return NotNSON
+		return ErrNotNSON
 	}
 
 	// nson values
@@ -168,7 +168,8 @@ func Marshal(evt *nostr.Event) (string, error) {
 		9 + tagBuilder.Len() + // tags and its label
 		2, // the end
 	)
-	base.WriteString(`{"id":"` + evt.ID + `","pubkey":"` + evt.PubKey + `","sig":"` + evt.Sig + `","created_at":` + strconv.FormatInt(int64(evt.CreatedAt), 10) + `,"nson":"`)
+	base.WriteString(`{"id":"` + evt.ID + `","pubkey":"` + evt.PubKey + `","sig":"` + evt.Sig +
+		`","created_at":` + strconv.FormatInt(int64(evt.CreatedAt), 10) + `,"nson":"`)
 
 	nsonSizeBytes := len(nsonBuf)
 	if nsonSizeBytes > 255 {

@@ -54,8 +54,8 @@ type Envelope interface {
 }
 
 type EventEnvelope struct {
-	SubscriptionID *string
-	Event
+	SubscriptionID *string `json:"subscription_id"`
+	Event          `json:"event"`
 }
 
 var (
@@ -266,9 +266,9 @@ func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
 }
 
 type OKEnvelope struct {
-	EventID string
-	OK      bool
-	Reason  *string
+	EventID string  `json:"event_id"`
+	OK      bool    `json:"ok"`
+	Reason  *string `json:"reason"`
 }
 
 func (_ OKEnvelope) Label() string { return "OK" }
@@ -307,8 +307,8 @@ func (v OKEnvelope) MarshalJSON() ([]byte, error) {
 }
 
 type AuthEnvelope struct {
-	Challenge *string
-	Event     Event
+	Challenge *string `json:"challenge"`
+	Event     Event   `json:"event"`
 }
 
 func (_ AuthEnvelope) Label() string { return "AUTH" }

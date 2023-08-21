@@ -40,7 +40,8 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 		return nil, fmt.Errorf("hostname doesn't have a dot")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET",
+		fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a request: %w", err)
 	}
@@ -54,6 +55,7 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
+	defer res.Body.Close()
 
 	var result WellKnownResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
@@ -62,12 +64,12 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 
 	pubkey, ok := result.Names[name]
 	if !ok {
-		return nil, nil
+		return &nostr.ProfilePointer{}, nil
 	}
 
 	if len(pubkey) == 64 {
 		if _, err := hex.DecodeString(pubkey); err != nil {
-			return nil, nil
+			return &nostr.ProfilePointer{}, nil
 		}
 	}
 

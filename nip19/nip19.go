@@ -144,8 +144,8 @@ func EncodePublicKey(publicKeyHex string) (string, error) {
 	return bech32.Encode("npub", bits5)
 }
 
-func EncodeNote(eventIdHex string) (string, error) {
-	b, err := hex.DecodeString(eventIdHex)
+func EncodeNote(eventIDHex string) (string, error) {
+	b, err := hex.DecodeString(eventIDHex)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode event id hex: %w", err)
 	}
@@ -178,11 +178,11 @@ func EncodeProfile(publicKeyHex string, relays []string) (string, error) {
 	return bech32.Encode("nprofile", bits5)
 }
 
-func EncodeEvent(eventIdHex string, relays []string, author string) (string, error) {
+func EncodeEvent(eventIDHex string, relays []string, author string) (string, error) {
 	buf := &bytes.Buffer{}
-	id, err := hex.DecodeString(eventIdHex)
+	id, err := hex.DecodeString(eventIDHex)
 	if err != nil || len(id) != 32 {
-		return "", fmt.Errorf("invalid id '%s': %w", eventIdHex, err)
+		return "", fmt.Errorf("invalid id '%s': %w", eventIDHex, err)
 	}
 	writeTLVEntry(buf, TLVDefault, id)
 

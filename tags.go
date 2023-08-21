@@ -12,10 +12,15 @@ type Tag []string
 
 // StartsWith checks if a tag contains a prefix.
 // for example,
+//
 //	["p", "abcdef...", "wss://relay.com"]
+//
 // would match against
+//
 //	["p", "abcdef..."]
+//
 // or even
+//
 //	["p", "abcdef...", "wss://"]
 func (tag Tag) StartsWith(prefix []string) bool {
 	prefixLen := len(prefix)
@@ -109,9 +114,8 @@ func (tags Tags) AppendUnique(tag Tag) Tags {
 
 	if tags.GetFirst(tag[:n]) == nil {
 		return append(tags, tag)
-	} else {
-		return tags
 	}
+	return tags
 }
 
 func (t *Tags) Scan(src any) error {

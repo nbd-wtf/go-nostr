@@ -33,7 +33,7 @@ func ParseReferences(evt *nostr.Event) []*Reference {
 		}
 
 		if ref[6] == -1 {
-			// didn't find a NIP-10 #[0] reference, so it's it's a NIP-27 mention
+			// didn't find a NIP-10 #[0] reference, so it's a NIP-27 mention
 			nip19code := content[ref[2]:ref[3]]
 
 			if prefix, data, err := nip19.Decode(nip19code); err == nil {

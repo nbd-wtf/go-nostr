@@ -55,15 +55,14 @@ func CheckDelegation(ev *nostr.Event) (ok bool, err error) {
 	d := new(DelegationToken)
 	if ok, err := d.Parse(ev); ok == true && (err == nil || err == NoDelegationTag) {
 		return true, nil
-	} else {
-		return false, err
 	}
+	return false, err
 }
 
 // Import verifies that t is NIP-26 delegation token for the given delegatee.
 // The returned DelegationToken object can be used in DelegatedSign.
 // If the token signature verification fails, the error VerificationFailed will be returned.
-func Import(t nostr.Tag, delegatee_pk string) (d *DelegationToken, e error) {
+func Import(t nostr.Tag, delegateePk string) (d *DelegationToken, e error) {
 	d = new(DelegationToken)
 	if len(t) == 4 && t[0] == "delegation" {
 		copy(d.tag[:], t)
@@ -81,16 +80,16 @@ func Import(t nostr.Tag, delegatee_pk string) (d *DelegationToken, e error) {
 	}
 
 	// compute the digest
-	h := sha256.Sum256([]byte(fmt.Sprintf("nostr:delegation:%s:%s", delegatee_pk, d.tag[2])))
+	h := sha256.Sum256([]byte(fmt.Sprintf("nostr:delegation:%s:%s", delegateePk, d.tag[2])))
 
 	sig, err := schnorr.ParseSignature(d.token[:])
 	if err != nil {
-		return nil, fmt.Errorf("Error: %s", err.Error())
+		return nil, fmt.Errorf("error: %s", err.Error())
 	}
 
 	pubkey, err := schnorr.ParsePubKey(d.delegator[:])
 	if err != nil {
-		return nil, fmt.Errorf("Error: %s", err.Error())
+		return nil, fmt.Errorf("error: %s", err.Error())
 	}
 	if !sig.Verify(h[:], pubkey) {
 		return nil, VerificationFailed
@@ -131,15 +130,15 @@ jump1:
 				goto jump2
 			}
 		}
-		return false, fmt.Errorf("Event kind %d is not allowed in delegation conditions.", ev.Kind)
+		return false, fmt.Errorf("event kind %d is not allowed in delegation condition", ev.Kind)
 	}
 
 jump2:
 	if d.since != nil && ev.CreatedAt.Time().Before(*d.since) {
-		return false, fmt.Errorf("Event is created before delegation conditions allow.")
+		return false, fmt.Errorf("event is created before delegation conditions allow")
 	}
 	if d.until != nil && ev.CreatedAt.Time().After(*d.until) {
-		return false, fmt.Errorf("Event is created after delegation conditions allow.")
+		return false, fmt.Errorf("event is created after delegation conditions allow")
 	}
 
 	// compute the digest
@@ -147,12 +146,12 @@ jump2:
 
 	sig, err := schnorr.ParseSignature(d.token[:])
 	if err != nil {
-		return false, fmt.Errorf("Error: %s", err.Error())
+		return false, fmt.Errorf("error: %s", err.Error())
 	}
 
 	pubkey, err := schnorr.ParsePubKey(d.delegator[:])
 	if err != nil {
-		return false, fmt.Errorf("Error: %s", err.Error())
+		return false, fmt.Errorf("error: %s", err.Error())
 	}
 
 	return sig.Verify(h[:], pubkey), nil
@@ -160,14 +159,16 @@ jump2:
 
 // DelegatedSign performs a delegated signature on the event ev.
 // The delegation signature is not verified. If desired, the caller can ensure the delegation signature is correct by calling d.Parse(ev) or CheckDelegation(ev) afterwards.
-func DelegatedSign(ev *nostr.Event, d *DelegationToken, delegatee_sk string) error {
+func DelegatedSign(ev *nostr.Event,
+	d *DelegationToken, delegateeSk string,
+) error {
 	for _, t := range ev.Tags {
 		if t[0] == "delegation" {
 			return fmt.Errorf("event already has delegation token")
 		}
 	}
 	if d.since != nil && ev.CreatedAt.Time().Before(*d.since) || d.until != nil && ev.CreatedAt.Time().After(*d.until) {
-		return fmt.Errorf("event created_at field is not compatible with delegation token time conditions.")
+		return fmt.Errorf("event created_at field is not compatible with delegation token time conditions")
 	}
 	if len(d.kinds) > 0 {
 		for _, k := range d.kinds {
@@ -175,34 +176,36 @@ func DelegatedSign(ev *nostr.Event, d *DelegationToken, delegatee_sk string) err
 				goto jump
 			}
 		}
-		return fmt.Errorf("event kind %d is not compatible with delegation token conditions.", ev.Kind)
+		return fmt.Errorf("event kind %d is not compatible with delegation token conditions", ev.Kind)
 	}
 jump:
-	if pk, e := nostr.GetPublicKey(delegatee_sk); e != nil {
-		return fmt.Errorf("invalid delegatee secret key.")
+	if pk, e := nostr.GetPublicKey(delegateeSk); e != nil {
+		return fmt.Errorf("invalid delegatee secret key")
 	} else {
 		ev.PubKey = pk
 	}
 	ev.Tags = append(ev.Tags, d.Tag())
-	return ev.Sign(delegatee_sk)
+	return ev.Sign(delegateeSk)
 }
 
 // CreateToken creates a DelegationToken according to NIP-26.
-func CreateToken(delegator_sk string, delegatee_pk string, kinds []int, since *time.Time, until *time.Time) (d *DelegationToken, e error) {
+func CreateToken(delegator_sk string, delegatee_pk string, kinds []int,
+	since *time.Time, until *time.Time,
+) (d *DelegationToken, e error) {
 	d = new(DelegationToken)
 	s, e := hex.DecodeString(delegator_sk)
 	if e != nil {
 		return nil, fmt.Errorf("invalid delegator secret key")
 	}
 
-	tee_pk, e := hex.DecodeString(delegatee_pk)
-	if len(tee_pk) != 32 || e != nil {
+	teePk, e := hex.DecodeString(delegatee_pk)
+	if len(teePk) != 32 || e != nil {
 		return nil, fmt.Errorf("invalid delegatee pubkey")
 	}
 
 	// set delegator
-	sk, tor_pk := btcec.PrivKeyFromBytes(s)
-	copy(d.delegator[:], schnorr.SerializePubKey(tor_pk))
+	sk, torPk := btcec.PrivKeyFromBytes(s)
+	copy(d.delegator[:], schnorr.SerializePubKey(torPk))
 
 	d.kinds = kinds
 	d.since = since
@@ -213,7 +216,7 @@ func CreateToken(delegator_sk string, delegatee_pk string, kinds []int, since *t
 	d.tag[1] = fmt.Sprintf("%x", d.delegator)
 	d.tag[2] = d.Conditions()
 
-	h := sha256.Sum256([]byte(fmt.Sprintf("nostr:delegation:%x:%s", tee_pk, d.tag[2])))
+	h := sha256.Sum256([]byte(fmt.Sprintf("nostr:delegation:%x:%s", teePk, d.tag[2])))
 
 	if sig, err := schnorr.Sign(sk, h[:]); err != nil {
 		panic(err)

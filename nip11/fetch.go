@@ -4,14 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"net/http"
 	"net/url"
 	"strings"
-
 	"time"
 )
-
 
 // Fetch fetches the NIP-11 RelayInformationDocument.
 func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err error) {
@@ -47,6 +44,7 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	info = &RelayInformationDocument{}
 	dec := json.NewDecoder(resp.Body)
 	err = dec.Decode(info)

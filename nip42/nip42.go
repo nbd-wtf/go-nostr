@@ -23,8 +23,8 @@ func CreateUnsignedAuthEvent(challenge, pubkey, relayURL string) nostr.Event {
 	}
 }
 
-// helper function for ValidateAuthEvent
-func parseUrl(input string) (*url.URL, error) {
+// helper function for ValidateAuthEvent.
+func parseURL(input string) (*url.URL, error) {
 	return url.Parse(
 		strings.ToLower(
 			strings.TrimSuffix(input, "/"),
@@ -43,12 +43,12 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 		return "", false
 	}
 
-	expected, err := parseUrl(relayURL)
+	expected, err := parseURL(relayURL)
 	if err != nil {
 		return "", false
 	}
 
-	found, err := parseUrl(event.Tags.GetFirst([]string{"relay", ""}).Value())
+	found, err := parseURL(event.Tags.GetFirst([]string{"relay", ""}).Value())
 	if err != nil {
 		return "", false
 	}
