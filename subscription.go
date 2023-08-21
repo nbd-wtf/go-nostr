@@ -70,7 +70,10 @@ func (sub *Subscription) start() {
 			go func() {
 				mu.Lock()
 				if sub.live.Load() {
-					sub.Events <- event
+					select {
+					case sub.Events <- event:
+					case <-sub.Context.Done():
+					}
 				}
 				mu.Unlock()
 			}()
