@@ -2,6 +2,7 @@ package nip44
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 // ComputeSharedSecret returns a shared secret key used to encrypt messages.
 // The private and public keys should be hex encoded.
 // Uses the Diffie-Hellman key exchange (ECDH) (RFC 4753).
-func ComputeSharedSecret(pub string, sk string) (sharedSecret []byte, err error) {
+func ComputeSharedSecret(pub string, sk string) ([]byte, error) {
 	privKeyBytes, err := hex.DecodeString(sk)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding sender private key: %w", err)
@@ -30,7 +31,9 @@ func ComputeSharedSecret(pub string, sk string) (sharedSecret []byte, err error)
 		return nil, fmt.Errorf("error parsing receiver public key '%s': %w", "02"+pub, err)
 	}
 
-	return btcec.GenerateSharedSecret(privKey, pubKey), nil
+	sharedSecret := btcec.GenerateSharedSecret(privKey, pubKey)
+	hash := sha256.Sum256(sharedSecret)
+	return hash[:], nil
 }
 
 // Encrypt encrypts message with key using xchacha20.
@@ -42,6 +45,10 @@ func Encrypt(message string, key []byte) (string, error) {
 		return "", fmt.Errorf("error creating nonce: %w", err)
 	}
 
+	return encryptWithNonce(message, key, nonce)
+}
+
+func encryptWithNonce(message string, key []byte, nonce []byte) (string, error) {
 	cipher, err := chacha20.NewUnauthenticatedCipher(key, nonce)
 	if err != nil {
 		return "", fmt.Errorf("error creating cipher: %w", err)
