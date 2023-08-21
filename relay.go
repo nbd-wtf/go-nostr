@@ -23,7 +23,7 @@ const (
 	PublishStatusSucceeded Status = 1
 )
 
-var subscriptionIdCounter atomic.Int32
+var subscriptionIDCounter atomic.Int32
 
 func (s Status) String() string {
 	switch s {
@@ -204,7 +204,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 			go sub.Unsub()
 			return true
 		})
-		return
 	}()
 
 	// queue all write operations here so we don't do mutex spaghetti
@@ -479,7 +478,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		panic(fmt.Errorf("must call .Connect() first before calling .Subscribe()"))
 	}
 
-	current := subscriptionIdCounter.Add(1)
+	current := subscriptionIDCounter.Add(1)
 	ctx, cancel := context.WithCancel(ctx)
 
 	sub := &Subscription{

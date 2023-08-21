@@ -9,7 +9,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip19"
 )
 
-// InputToProfile turns any npub/nprofile/hex/nip05 input into a ProfilePointer (or nil)
+// InputToProfile turns any npub/nprofile/hex/nip05 input into a ProfilePointer (or nil).
 func InputToProfile(ctx context.Context, input string) *nostr.ProfilePointer {
 	// handle if it is a hex string
 	if len(input) == 64 {
@@ -38,7 +38,7 @@ func InputToProfile(ctx context.Context, input string) *nostr.ProfilePointer {
 	return nil
 }
 
-// InputToEventPointer turns any note/nevent/hex input into a EventPointer (or nil)
+// InputToEventPointer turns any note/nevent/hex input into a EventPointer (or nil).
 func InputToEventPointer(input string) *nostr.EventPointer {
 	// handle if it is a hex string
 	if len(input) == 64 {

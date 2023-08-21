@@ -72,7 +72,6 @@ func checkParsedCorrectly(t *testing.T, evt *nostr.Event, jevt string) (isBad bo
 	err := json.Unmarshal([]byte(jevt), &canonical)
 	if err != nil {
 		t.Fatalf("error unmarshaling normal json: %s", err)
-		return
 	}
 
 	if evt.ID != canonical.ID {

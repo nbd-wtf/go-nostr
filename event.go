@@ -58,13 +58,13 @@ const (
 	KindApplicationSpecificData  int = 30078
 )
 
-// Event Stringer interface, just returns the raw JSON as a string
+// Event Stringer interface, just returns the raw JSON as a string.
 func (evt Event) String() string {
 	j, _ := easyjson.Marshal(evt)
 	return string(j)
 }
 
-// GetID serializes and returns the event ID as a string
+// GetID serializes and returns the event ID as a string.
 func (evt *Event) GetID() string {
 	h := sha256.Sum256(evt.Serialize())
 	return hex.EncodeToString(h[:])
@@ -128,7 +128,7 @@ func (evt Event) CheckSignature() (bool, error) {
 	return sig.Verify(hash[:], pubkey), nil
 }
 
-// Sign signs an event with a given privateKey
+// Sign signs an event with a given privateKey.
 func (evt *Event) Sign(privateKey string) error {
 	s, err := hex.DecodeString(privateKey)
 	if err != nil {
