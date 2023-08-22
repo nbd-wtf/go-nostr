@@ -29,10 +29,9 @@ type Subscription struct {
 	// Context will be .Done() when the subscription ends
 	Context context.Context
 
-	live               atomic.Bool
-	eosed              atomic.Bool
-	closeEventsChannel chan struct{}
-	cancel             context.CancelFunc
+	live   atomic.Bool
+	eosed  atomic.Bool
+	cancel context.CancelFunc
 }
 
 type EventMessage struct {
@@ -78,14 +77,14 @@ func (sub *Subscription) start() {
 				mu.Unlock()
 			}()
 		case <-sub.Context.Done():
-			// the subscription ends once the context is canceled
-			sub.Unsub()
-			return
-		case <-sub.closeEventsChannel:
-			// this is called only once on .Unsub() and closes the .Events channel
+			// the subscription ends once the context is canceled (if not already)
+			sub.Unsub() // this will set sub.live to false
+
+			// do this so we don't have the possibility of closing the Events channel and then trying to send to it
 			mu.Lock()
 			close(sub.Events)
 			mu.Unlock()
+
 			return
 		}
 	}
@@ -94,17 +93,16 @@ func (sub *Subscription) start() {
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
 // Unsub() also closes the channel sub.Events and makes a new one.
 func (sub *Subscription) Unsub() {
+	// cancel the context (if it's not canceled already)
 	sub.cancel()
 
-	// naïve sync.Once implementation:
+	// mark subscription as closed and send a CLOSE to the relay (naïve sync.Once implementation)
 	if sub.live.CompareAndSwap(true, false) {
-		go sub.Close()
-		id := sub.GetID()
-		sub.Relay.Subscriptions.Delete(id)
-
-		// do this so we don't have the possibility of closing the Events channel and then trying to send to it
-		close(sub.closeEventsChannel)
+		sub.Close()
 	}
+
+	// remove subscription from our map
+	sub.Relay.Subscriptions.Delete(sub.GetID())
 }
 
 // Close just sends a CLOSE message. You probably want Unsub() instead.

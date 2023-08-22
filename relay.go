@@ -482,15 +482,14 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	ctx, cancel := context.WithCancel(ctx)
 
 	sub := &Subscription{
-		Relay:              r,
-		Context:            ctx,
-		cancel:             cancel,
-		counter:            int(current),
-		Events:             make(chan *Event),
-		events:             make(chan *Event),
-		EndOfStoredEvents:  make(chan struct{}),
-		Filters:            filters,
-		closeEventsChannel: make(chan struct{}),
+		Relay:             r,
+		Context:           ctx,
+		cancel:            cancel,
+		counter:           int(current),
+		Events:            make(chan *Event),
+		events:            make(chan *Event),
+		EndOfStoredEvents: make(chan struct{}),
+		Filters:           filters,
 	}
 
 	for _, opt := range opts {
