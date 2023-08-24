@@ -3,9 +3,11 @@ package nostr
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Subscription struct {
@@ -72,6 +74,10 @@ func (sub *Subscription) start() {
 					select {
 					case sub.Events <- event:
 					case <-sub.Context.Done():
+						log.Println("~ gndbg ~ discarding event on canceled sub: ", sub.GetID())
+					case <-time.After(60 * time.Minute):
+						log.Println("~ gndbg ~ spent 60 minutes waiting: ", sub.GetID(), " ", sub.Filters.String())
+						sub.Unsub()
 					}
 				}
 				mu.Unlock()
@@ -93,6 +99,10 @@ func (sub *Subscription) start() {
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
 // Unsub() also closes the channel sub.Events and makes a new one.
 func (sub *Subscription) Unsub() {
+	if sub.label == "hf" && sub.Context.Err() == nil {
+		log.Println("~ gndbg ~ closing sub: ", sub.GetID())
+	}
+
 	// cancel the context (if it's not canceled already)
 	sub.cancel()
 
