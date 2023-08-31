@@ -44,6 +44,9 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 
 			switch t {
 			case TLVDefault:
+				if len(v) < 32 {
+					return prefix, nil, fmt.Errorf("pubkey is less than 32 bytes (%d)", len(v))
+				}
 				result.PublicKey = hex.EncodeToString(v)
 			case TLVRelay:
 				result.Relays = append(result.Relays, string(v))
@@ -69,10 +72,16 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 
 			switch t {
 			case TLVDefault:
+				if len(v) < 32 {
+					return prefix, nil, fmt.Errorf("id is less than 32 bytes (%d)", len(v))
+				}
 				result.ID = hex.EncodeToString(v)
 			case TLVRelay:
 				result.Relays = append(result.Relays, string(v))
 			case TLVAuthor:
+				if len(v) < 32 {
+					return prefix, nil, fmt.Errorf("author is less than 32 bytes (%d)", len(v))
+				}
 				result.Author = hex.EncodeToString(v)
 			case TLVKind:
 				result.Kind = int(binary.BigEndian.Uint32(v))
@@ -102,6 +111,9 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 			case TLVRelay:
 				result.Relays = append(result.Relays, string(v))
 			case TLVAuthor:
+				if len(v) < 32 {
+					return prefix, nil, fmt.Errorf("author is less than 32 bytes (%d)", len(v))
+				}
 				result.PublicKey = hex.EncodeToString(v)
 			case TLVKind:
 				result.Kind = int(binary.BigEndian.Uint32(v))
