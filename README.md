@@ -140,3 +140,9 @@ func main() {
 ```
 go run example/example.go
 ```
+
+## Warning: risk of goroutine bloat
+
+Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
+If you don't do that they will keep creating a new goroutine for every new event that arrives and if you have stopped listening on the
+`sub.Events` channel that will cause chaos and doom in your program.
