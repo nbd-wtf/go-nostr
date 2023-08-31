@@ -462,6 +462,9 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 // Subscribe sends a "REQ" command to the relay r as in NIP-01.
 // Events are returned through the channel sub.Events.
 // The subscription is closed when context ctx is cancelled ("CLOSE" in NIP-01).
+//
+// Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
+// Failure to do that will result in a huge number of halted goroutines being created.
 func (r *Relay) Subscribe(ctx context.Context, filters Filters, opts ...SubscriptionOption) (*Subscription, error) {
 	sub := r.PrepareSubscription(ctx, filters, opts...)
 
@@ -473,6 +476,9 @@ func (r *Relay) Subscribe(ctx context.Context, filters Filters, opts ...Subscrip
 }
 
 // PrepareSubscription creates a subscription, but doesn't fire it.
+//
+// Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
+// Failure to do that will result in a huge number of halted goroutines being created.
 func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts ...SubscriptionOption) *Subscription {
 	if r.Connection == nil {
 		panic(fmt.Errorf("must call .Connect() first before calling .Subscribe()"))
