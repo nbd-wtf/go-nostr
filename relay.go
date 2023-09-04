@@ -292,10 +292,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 					}
 
 					// dispatch this to the internal .events channel of the subscription
-					select {
-					case subscription.events <- &env.Event:
-					case <-subscription.Context.Done():
-					}
+					subscription.dispatchEvent(&env.Event)
 				}
 			case *EOSEEnvelope:
 				if subscription, ok := r.Subscriptions.Load(string(*env)); ok {
@@ -486,7 +483,6 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		cancel:            cancel,
 		counter:           int(current),
 		Events:            make(chan *Event),
-		events:            make(chan *Event),
 		EndOfStoredEvents: make(chan struct{}),
 		Filters:           filters,
 	}
