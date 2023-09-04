@@ -299,14 +299,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				}
 			case *EOSEEnvelope:
 				if subscription, ok := r.Subscriptions.Load(string(*env)); ok {
-					// implementation adapted from the naïve/incorrect implementation of sync.Once
-					// (which is ok for this use case)
-					if subscription.eosed.CompareAndSwap(false, true) {
-						go func() {
-							time.Sleep(time.Millisecond) // this basically ensures the EndOfStoredEvents call happens after the last EVENT
-							close(subscription.EndOfStoredEvents)
-						}()
-					}
+					subscription.dispatchEose()
 				}
 			case *CountEnvelope:
 				if subscription, ok := r.Subscriptions.Load(string(env.SubscriptionID)); ok && env.Count != nil && subscription.countResult != nil {

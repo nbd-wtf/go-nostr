@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Subscription struct {
@@ -32,6 +33,10 @@ type Subscription struct {
 	live   atomic.Bool
 	eosed  atomic.Bool
 	cancel context.CancelFunc
+
+	// this keeps track of the events we've received before the EOSE that we must dispatch before
+	// closing the EndOfStoredEvents channel
+	storedwg sync.WaitGroup
 }
 
 type EventMessage struct {
@@ -67,14 +72,20 @@ func (sub *Subscription) start() {
 		case event := <-sub.events:
 			// this is guarded such that it will only fire until the .Events channel is closed
 			go func() {
+				if !sub.eosed.Load() {
+					sub.storedwg.Add(1)
+					defer sub.storedwg.Done()
+				}
+
 				mu.Lock()
+				defer mu.Unlock()
+
 				if sub.live.Load() {
 					select {
 					case sub.Events <- event:
 					case <-sub.Context.Done():
 					}
 				}
-				mu.Unlock()
 			}()
 		case <-sub.Context.Done():
 			// the subscription ends once the context is canceled (if not already)
@@ -87,6 +98,16 @@ func (sub *Subscription) start() {
 
 			return
 		}
+	}
+}
+
+func (sub *Subscription) dispatchEose() {
+	time.Sleep(time.Millisecond)
+	if sub.eosed.CompareAndSwap(false, true) {
+		go func() {
+			sub.storedwg.Wait()
+			close(sub.EndOfStoredEvents)
+		}()
 	}
 }
 
