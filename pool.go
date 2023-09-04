@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/puzpuzpuz/xsync"
+	"github.com/puzpuzpuz/xsync/v2"
 )
 
 type SimplePool struct {
