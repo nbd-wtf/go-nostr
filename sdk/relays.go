@@ -27,7 +27,10 @@ func FetchRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey st
 
 	ch := pool.SubManyEose(ctx, relays, nostr.Filters{
 		{
-			Kinds:   []int{10002, 3},
+			Kinds: []int{
+				nostr.KindRelayListMetadata,
+				nostr.KindContactList,
+			},
 			Authors: []string{pubkey},
 			Limit:   2,
 		},
@@ -37,9 +40,9 @@ func FetchRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey st
 	i := 0
 	for event := range ch {
 		switch event.Kind {
-		case 10002:
+		case nostr.KindRelayListMetadata:
 			result = append(result, ParseRelaysFromKind10002(event)...)
-		case 3:
+		case nostr.KindContactList:
 			result = append(result, ParseRelaysFromKind3(event)...)
 		}
 

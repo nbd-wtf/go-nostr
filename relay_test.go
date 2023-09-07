@@ -19,7 +19,7 @@ func TestPublish(t *testing.T) {
 	// test note to be sent over websocket
 	priv, pub := makeKeyPair(t)
 	textNote := Event{
-		Kind:      1,
+		Kind:      KindTextNote,
 		Content:   "hello",
 		CreatedAt: Timestamp(1672068534), // random fixed timestamp
 		Tags:      Tags{[]string{"foo", "bar"}},
@@ -67,7 +67,7 @@ func TestPublish(t *testing.T) {
 
 func TestPublishBlocked(t *testing.T) {
 	// test note to be sent over websocket
-	textNote := Event{Kind: 1, Content: "hello"}
+	textNote := Event{Kind: KindTextNote, Content: "hello"}
 	textNote.ID = textNote.GetID()
 
 	// fake relay server
@@ -93,7 +93,7 @@ func TestPublishBlocked(t *testing.T) {
 
 func TestPublishWriteFailed(t *testing.T) {
 	// test note to be sent over websocket
-	textNote := Event{Kind: 1, Content: "hello"}
+	textNote := Event{Kind: KindTextNote, Content: "hello"}
 	textNote.ID = textNote.GetID()
 
 	// fake relay server

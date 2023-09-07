@@ -93,7 +93,7 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 				for challenge := range r.challenges {
 					authEvent := Event{
 						CreatedAt: Now(),
-						Kind:      22242,
+						Kind:      KindClientAuthentication,
 						Tags: Tags{
 							Tag{"relay", url},
 							Tag{"challenge", challenge},
