@@ -33,7 +33,7 @@ func TestCheck(t *testing.T) {
 
 func TestGenerateShort(t *testing.T) {
 	event := &nostr.Event{
-		Kind:    1,
+		Kind:    nostr.KindTextNote,
 		Content: "It's just me mining my own business",
 		PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 	}
@@ -53,7 +53,7 @@ func TestGenerateLong(t *testing.T) {
 		t.Run(fmt.Sprintf("%dbits", difficulty), func(t *testing.T) {
 			t.Parallel()
 			event := &nostr.Event{
-				Kind:    1,
+				Kind:    nostr.KindTextNote,
 				Content: "It's just me mining my own business",
 				PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 			}
@@ -89,7 +89,7 @@ func testNonceTag(t *testing.T, event *nostr.Event, commitment int) {
 
 func TestGenerateTimeout(t *testing.T) {
 	event := &nostr.Event{
-		Kind:    1,
+		Kind:    nostr.KindTextNote,
 		Content: "It's just me mining my own business",
 		PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 	}
@@ -117,7 +117,7 @@ func BenchmarkCheck(b *testing.B) {
 func BenchmarkGenerateOneIteration(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		event := &nostr.Event{
-			Kind:    1,
+			Kind:    nostr.KindTextNote,
 			Content: "It's just me mining my own business",
 			PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 		}
@@ -136,7 +136,7 @@ func BenchmarkGenerate(b *testing.B) {
 		b.Run(fmt.Sprintf("%dbits", difficulty), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				event := &nostr.Event{
-					Kind:    1,
+					Kind:    nostr.KindTextNote,
 					Content: "It's just me mining my own business",
 					PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 				}

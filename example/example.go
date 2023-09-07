@@ -41,7 +41,7 @@ func main() {
 		// this filters for messages tagged with the user, mainly replies.
 		t["p"] = []string{v.(string)}
 		filters = []nostr.Filter{{
-			Kinds: []int{1},
+			Kinds: []int{nostr.KindTextNote},
 			Tags:  t,
 			// limit = 3, get the three most recent notes
 			Limit: 3,
@@ -102,7 +102,7 @@ func main() {
 	}
 
 	ev.CreatedAt = nostr.Now()
-	ev.Kind = 1
+	ev.Kind = nostr.KindTextNote
 	var content string
 	fmt.Fprintln(os.Stderr, "enter content of note, ending with an empty newline (ctrl+d):")
 	for {

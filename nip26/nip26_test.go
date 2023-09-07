@@ -19,7 +19,7 @@ func TestDelegateSign(t *testing.T) {
 	ev := &nostr.Event{}
 	ev.CreatedAt = nostr.Timestamp(1600000050)
 	ev.Content = "hello world"
-	ev.Kind = 1
+	ev.Kind = nostr.KindTextNote
 	if err != nil {
 		t.Error(err)
 	}
