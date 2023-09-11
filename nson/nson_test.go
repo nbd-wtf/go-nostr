@@ -11,7 +11,7 @@ func TestBasicNsonParse(t *testing.T) {
 	for _, jevt := range nsonTestEvents {
 		evt := &nostr.Event{}
 		if err := Unmarshal(jevt, evt); err != nil {
-			t.Fatalf("error unmarshaling nson: %s", err)
+			t.Fatalf("error unmarshalling nson: %s", err)
 		}
 		checkParsedCorrectly(t, evt, jevt)
 	}
@@ -21,7 +21,7 @@ func TestNsonPartialGet(t *testing.T) {
 	for _, jevt := range nsonTestEvents {
 		evt := &nostr.Event{}
 		if err := Unmarshal(jevt, evt); err != nil {
-			t.Fatalf("error unmarshaling nson: %s", err)
+			t.Fatalf("error unmarshalling nson: %s", err)
 		}
 
 		wrapper := New(jevt)
@@ -60,7 +60,7 @@ func TestNsonEncode(t *testing.T) {
 
 		evt := &nostr.Event{}
 		if err := Unmarshal(nevt, evt); err != nil {
-			t.Fatalf("error unmarshaling nson: %s", err)
+			t.Fatalf("error unmarshalling nson: %s", err)
 		}
 		checkParsedCorrectly(t, pevt, jevt)
 		checkParsedCorrectly(t, evt, jevt)
@@ -71,7 +71,7 @@ func checkParsedCorrectly(t *testing.T, evt *nostr.Event, jevt string) (isBad bo
 	var canonical nostr.Event
 	err := json.Unmarshal([]byte(jevt), &canonical)
 	if err != nil {
-		t.Fatalf("error unmarshaling normal json: %s", err)
+		t.Fatalf("error unmarshalling normal json: %s", err)
 	}
 
 	if evt.ID != canonical.ID {

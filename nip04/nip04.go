@@ -78,7 +78,7 @@ func Encrypt(message string, key []byte) (string, error) {
 func Decrypt(content string, key []byte) (string, error) {
 	parts := strings.Split(content, "?iv=")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("error parsing encrypted message: no initilization vector")
+		return "", fmt.Errorf("error parsing encrypted message: no initialization vector")
 	}
 
 	ciphertext, err := base64.StdEncoding.DecodeString(parts[0])

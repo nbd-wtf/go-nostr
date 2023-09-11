@@ -7,7 +7,7 @@ import (
 
 func TestEncryptionAndDecryption(t *testing.T) {
 	sharedSecret := make([]byte, 32)
-	message := "hello hellow"
+	message := "hello hello"
 
 	ciphertext, err := Encrypt(message, sharedSecret)
 	if err != nil {
