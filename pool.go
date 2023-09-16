@@ -56,7 +56,7 @@ func (pool *SimplePool) SubMany(ctx context.Context, urls []string, filters Filt
 	uniqueEvents := make(chan *Event)
 	seenAlready := xsync.NewMapOf[bool]()
 
-	pending := xsync.Counter{}
+	pending := xsync.NewCounter()
 	initial := len(urls)
 	pending.Add(int64(initial))
 	for _, url := range urls {
