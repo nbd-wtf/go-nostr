@@ -8,6 +8,14 @@ func (evt *Event) SetExtra(key string, value any) {
 	evt.extra[key] = value
 }
 
+// RemoveExtra removes an out-of-the-spec value under the given key from the event object.
+func (evt *Event) RemoveExtra(key string) {
+	if evt.extra == nil {
+		return
+	}
+	delete(evt.extra, key)
+}
+
 // GetExtra tries to get a value under the given key that may be present in the event object
 // but is hidden in the basic type since it is out of the spec.
 func (evt Event) GetExtra(key string) any {
