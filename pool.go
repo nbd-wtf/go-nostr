@@ -86,7 +86,7 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 			}
 
 			for evt := range sub.Events {
-				stop := true
+				stop := false
 				if unique {
 					_, stop = seenAlready.LoadOrStore(evt.ID, true)
 				}
@@ -160,7 +160,7 @@ func (pool *SimplePool) subManyEose(ctx context.Context, urls []string, filters 
 						return
 					}
 
-					stop := true
+					stop := false
 					if unique {
 						_, stop = seenAlready.LoadOrStore(evt.ID, true)
 					}
