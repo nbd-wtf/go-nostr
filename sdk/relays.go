@@ -38,12 +38,12 @@ func FetchRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey st
 
 	result := make([]Relay, 0, 20)
 	i := 0
-	for event := range ch {
-		switch event.Kind {
+	for ie := range ch {
+		switch ie.Event.Kind {
 		case nostr.KindRelayListMetadata:
-			result = append(result, ParseRelaysFromKind10002(event)...)
+			result = append(result, ParseRelaysFromKind10002(ie.Event)...)
 		case nostr.KindContactList:
-			result = append(result, ParseRelaysFromKind3(event)...)
+			result = append(result, ParseRelaysFromKind3(ie.Event)...)
 		}
 
 		i++
