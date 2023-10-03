@@ -86,16 +86,16 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 			}
 
 			for evt := range sub.Events {
-				stop := false
 				if unique {
-					_, stop = seenAlready.LoadOrStore(evt.ID, true)
-				}
-				if !stop {
-					select {
-					case events <- IncomingEvent{Event: evt, Relay: relay}:
-					case <-ctx.Done():
-						return
+					if _, seen := seenAlready.LoadOrStore(evt.ID, true); seen {
+						continue
 					}
+				}
+
+				select {
+				case events <- IncomingEvent{Event: evt, Relay: relay}:
+				case <-ctx.Done():
+					return
 				}
 			}
 
@@ -160,16 +160,16 @@ func (pool *SimplePool) subManyEose(ctx context.Context, urls []string, filters 
 						return
 					}
 
-					stop := false
 					if unique {
-						_, stop = seenAlready.LoadOrStore(evt.ID, true)
-					}
-					if !stop {
-						select {
-						case events <- IncomingEvent{Event: evt, Relay: relay}:
-						case <-ctx.Done():
-							return
+						if _, seen := seenAlready.LoadOrStore(evt.ID, true); seen {
+							continue
 						}
+					}
+
+					select {
+					case events <- IncomingEvent{Event: evt, Relay: relay}:
+					case <-ctx.Done():
+						return
 					}
 				}
 			}
