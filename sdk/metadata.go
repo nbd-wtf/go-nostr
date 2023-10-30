@@ -1,11 +1,17 @@
-package nostr
+package sdk
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip19"
 )
 
 type ProfileMetadata struct {
+	pubkey string
+
 	Name        string `json:"name,omitempty"`
 	DisplayName string `json:"display_name,omitempty"`
 	About       string `json:"about,omitempty"`
@@ -16,7 +22,17 @@ type ProfileMetadata struct {
 	LUD16       string `json:"lud16,omitempty"`
 }
 
-func ParseMetadata(event Event) (*ProfileMetadata, error) {
+func (p ProfileMetadata) Npub() string {
+	v, _ := nip19.EncodePublicKey(p.pubkey)
+	return v
+}
+
+func (p ProfileMetadata) Nprofile(ctx context.Context, sys *System, nrelays int) string {
+	v, _ := nip19.EncodeProfile(p.pubkey, sys.FetchOutboxRelaysForPubkey(ctx, p.pubkey))
+	return v
+}
+
+func ParseMetadata(event *nostr.Event) (*ProfileMetadata, error) {
 	if event.Kind != 0 {
 		return nil, fmt.Errorf("event %s is kind %d, not 0", event.ID, event.Kind)
 	}

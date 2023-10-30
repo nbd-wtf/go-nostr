@@ -13,17 +13,12 @@ type Relay struct {
 	Outbox bool
 }
 
-func FetchRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey string, extraRelays ...string) []Relay {
+func FetchOutboxRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey string, n int) {
+}
+
+func FetchRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey string, relays ...string) []Relay {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
-	relays := append(extraRelays,
-		"wss://nostr-pub.wellorder.net",
-		"wss://relay.damus.io",
-		"wss://nos.lol",
-		"wss://nostr.mom",
-		"wss://relay.nostr.bg",
-	)
 
 	ch := pool.SubManyEose(ctx, relays, nostr.Filters{
 		{
