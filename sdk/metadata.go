@@ -28,8 +28,30 @@ func (p ProfileMetadata) Npub() string {
 }
 
 func (p ProfileMetadata) Nprofile(ctx context.Context, sys *System, nrelays int) string {
-	v, _ := nip19.EncodeProfile(p.pubkey, sys.FetchOutboxRelaysForPubkey(ctx, p.pubkey))
+	v, _ := nip19.EncodeProfile(p.pubkey, sys.FetchOutboxRelays(ctx, p.pubkey))
 	return v
+}
+
+func FetchProfileMetadata(ctx context.Context, pool *nostr.SimplePool, pubkey string, relays ...string) ProfileMetadata {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	ch := pool.SubManyEose(ctx, relays, nostr.Filters{
+		{
+			Kinds:   []int{nostr.KindProfileMetadata},
+			Authors: []string{pubkey},
+			Limit:   1,
+		},
+	})
+
+	for ie := range ch {
+		if m, err := ParseMetadata(ie.Event); err == nil {
+			m.pubkey = pubkey
+			return *m
+		}
+	}
+
+	return ProfileMetadata{pubkey: pubkey}
 }
 
 func ParseMetadata(event *nostr.Event) (*ProfileMetadata, error) {

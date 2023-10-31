@@ -13,9 +13,6 @@ type Relay struct {
 	Outbox bool
 }
 
-func FetchOutboxRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey string, n int) {
-}
-
 func FetchRelaysForPubkey(ctx context.Context, pool *nostr.SimplePool, pubkey string, relays ...string) []Relay {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

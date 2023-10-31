@@ -24,7 +24,7 @@ type Event struct {
 }
 
 const (
-	KindSetMetadata              int = 0
+	KindProfileMetadata          int = 0
 	KindTextNote                 int = 1
 	KindRecommendServer          int = 2
 	KindContactList              int = 3

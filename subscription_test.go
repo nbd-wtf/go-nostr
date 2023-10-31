@@ -66,7 +66,7 @@ func TestNestedSubscriptions(t *testing.T) {
 		select {
 		case event := <-sub.Events:
 			// now fetch author of this
-			sub, err := rl.Subscribe(context.Background(), Filters{{Kinds: []int{KindSetMetadata}, Authors: []string{event.PubKey}, Limit: 1}})
+			sub, err := rl.Subscribe(context.Background(), Filters{{Kinds: []int{KindProfileMetadata}, Authors: []string{event.PubKey}, Limit: 1}})
 			if err != nil {
 				t.Errorf("subscription 2 failed: %v", err)
 				return
