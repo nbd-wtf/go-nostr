@@ -11,6 +11,7 @@ import (
 
 type ProfileMetadata struct {
 	pubkey string
+	event  *nostr.Event
 
 	Name        string `json:"name,omitempty"`
 	DisplayName string `json:"display_name,omitempty"`
@@ -47,6 +48,7 @@ func FetchProfileMetadata(ctx context.Context, pool *nostr.SimplePool, pubkey st
 	for ie := range ch {
 		if m, err := ParseMetadata(ie.Event); err == nil {
 			m.pubkey = pubkey
+			m.event = ie.Event
 			return *m
 		}
 	}

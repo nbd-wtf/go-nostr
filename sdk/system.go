@@ -46,9 +46,14 @@ func (sys System) FetchProfileMetadata(ctx context.Context, pubkey string) Profi
 		return v
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-	defer cancel()
-	res := FetchProfileMetadata(ctx, sys.Pool, pubkey, sys.MetadataRelays...)
+	ctxRelays, cancel := context.WithTimeout(ctx, time.Second*2)
+	relays := sys.FetchOutboxRelays(ctxRelays, pubkey)
+	cancel()
+
+	ctx, cancel = context.WithTimeout(ctx, time.Second*3)
+	res := FetchProfileMetadata(ctx, sys.Pool, pubkey, append(relays, sys.MetadataRelays...)...)
+	cancel()
+
 	sys.MetadataCache.SetWithTTL(pubkey, res, time.Hour*6)
 	return res
 }
