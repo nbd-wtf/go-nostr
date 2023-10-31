@@ -9,24 +9,24 @@ import (
 )
 
 type System struct {
-	relaysCache      cache.Cache32[[]Relay]
-	followsCache     cache.Cache32[[]Follow]
-	metadataCache    cache.Cache32[ProfileMetadata]
-	pool             *nostr.SimplePool
-	relayListRelays  []string
-	followListRelays []string
-	metadataRelays   []string
+	RelaysCache      cache.Cache32[[]Relay]
+	FollowsCache     cache.Cache32[[]Follow]
+	MetadataCache    cache.Cache32[ProfileMetadata]
+	Pool             *nostr.SimplePool
+	RelayListRelays  []string
+	FollowListRelays []string
+	MetadataRelays   []string
 }
 
 func (sys System) FetchRelays(ctx context.Context, pubkey string) []Relay {
-	if v, ok := sys.relaysCache.Get(pubkey); ok {
+	if v, ok := sys.RelaysCache.Get(pubkey); ok {
 		return v
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
-	res := FetchRelaysForPubkey(ctx, sys.pool, pubkey, sys.relayListRelays...)
-	sys.relaysCache.SetWithTTL(pubkey, res, time.Hour*6)
+	res := FetchRelaysForPubkey(ctx, sys.Pool, pubkey, sys.RelayListRelays...)
+	sys.RelaysCache.SetWithTTL(pubkey, res, time.Hour*6)
 	return res
 }
 
@@ -42,13 +42,13 @@ func (sys System) FetchOutboxRelays(ctx context.Context, pubkey string) []string
 }
 
 func (sys System) FetchProfileMetadata(ctx context.Context, pubkey string) ProfileMetadata {
-	if v, ok := sys.metadataCache.Get(pubkey); ok {
+	if v, ok := sys.MetadataCache.Get(pubkey); ok {
 		return v
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
-	res := FetchProfileMetadata(ctx, sys.pool, pubkey, sys.metadataRelays...)
-	sys.metadataCache.SetWithTTL(pubkey, res, time.Hour*6)
+	res := FetchProfileMetadata(ctx, sys.Pool, pubkey, sys.MetadataRelays...)
+	sys.MetadataCache.SetWithTTL(pubkey, res, time.Hour*6)
 	return res
 }
