@@ -11,7 +11,7 @@ import (
 func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("failed to decode leaner: %v", r)
+			err = fmt.Errorf("failed to decode binary: %v", r)
 		}
 	}()
 
