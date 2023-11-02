@@ -35,3 +35,23 @@ It's explained better in the NIP proposal linked above, but the idea is that we 
 a special JSON attribute called `"nson"`, and then the reader can just pull the strings directly from the JSON blob
 without having to parse the full JSON syntax. Also for fields of static size we don't even need that. This is only
 possible because Nostr events have a static and strict format.
+
+## Update: comparison with `easyjson`
+
+Another comparison, using the `easyjson` library that is already built in `go-nostr`, shows that the performance gains
+are only of 2x (the standard library JSON encoding is just too slow).
+
+```
+goos: linux
+goarch: amd64
+pkg: github.com/nbd-wtf/go-nostr/nson
+cpu: AMD Ryzen 3 3200G with Radeon Vega Graphics
+BenchmarkNSONEncoding/easyjson.Marshal-4                   21511             54849 ns/op
+BenchmarkNSONEncoding/nson.Marshal-4                        4810            297624 ns/op
+BenchmarkNSONDecoding/easyjson.Unmarshal-4                 25196             46652 ns/op
+BenchmarkNSONDecoding/nson.Unmarshal-4                     61117             22933 ns/op
+BenchmarkNSONDecoding/easyjson.Unmarshal+sig-4               303           4110988 ns/op
+BenchmarkNSONDecoding/nson.Unmarshal+sig-4                   296           3881435 ns/op
+PASS
+ok      github.com/nbd-wtf/go-nostr/nson
+```
