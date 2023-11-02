@@ -35,5 +35,3 @@ require (
 	golang.org/x/crypto v0.7.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 )
-
-replace github.com/dgraph-io/ristretto => github.com/aryehlev/ristretto v0.0.0-20230325112030-fd222a1ebb5e
