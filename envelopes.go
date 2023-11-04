@@ -268,7 +268,7 @@ func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
 type OKEnvelope struct {
 	EventID string
 	OK      bool
-	Reason  *string
+	Reason  string
 }
 
 func (_ OKEnvelope) Label() string { return "OK" }
@@ -276,15 +276,12 @@ func (_ OKEnvelope) Label() string { return "OK" }
 func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
 	arr := r.Array()
-	if len(arr) < 3 {
+	if len(arr) < 4 {
 		return fmt.Errorf("failed to decode OK envelope: missing fields")
 	}
 	v.EventID = arr[1].Str
 	v.OK = arr[2].Raw == "true"
-
-	if len(arr) > 3 {
-		v.Reason = &arr[3].Str
-	}
+	v.Reason = arr[3].Str
 
 	return nil
 }
@@ -298,10 +295,8 @@ func (v OKEnvelope) MarshalJSON() ([]byte, error) {
 		ok = "true"
 	}
 	w.RawString(ok)
-	if v.Reason != nil {
-		w.RawString(`,`)
-		w.Raw(json.Marshal(v.Reason))
-	}
+	w.RawString(`,`)
+	w.Raw(json.Marshal(v.Reason))
 	w.RawString(`]`)
 	return w.BuildBytes()
 }
