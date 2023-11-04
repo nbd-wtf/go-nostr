@@ -2,6 +2,7 @@
 
 Some benchmarks:
 
+```
 goos: linux
 goarch: amd64
 pkg: github.com/nbd-wtf/go-nostr/binary
@@ -16,3 +17,8 @@ BenchmarkBinaryDecoding/easyjson.Unmarshal+sig-4             307           39719
 BenchmarkBinaryDecoding/binary.Unmarshal+sig-4               310           3924042 ns/op          111277 B/op        421 allocs/op
 PASS
 ok      github.com/nbd-wtf/go-nostr/binary      11.444s
+```
+
+This is 2~5x faster than [NSON](../nson) decoding, which means 8x faster than default easyjson decoding,
+but, just like NSON, the performance gains from this encoding is negligible when you add the cost of
+signature verification. Which means this encoding must only be used in internal processes.
