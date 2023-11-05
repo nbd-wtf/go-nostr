@@ -39,6 +39,8 @@ func (s Status) String() string {
 }
 
 type Relay struct {
+	mu sync.Mutex
+
 	URL           string
 	RequestHeader http.Header // e.g. for origin header
 
@@ -553,6 +555,9 @@ func (r *Relay) Count(ctx context.Context, filters Filters, opts ...Subscription
 }
 
 func (r *Relay) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if r.connectionContextCancel == nil {
 		return fmt.Errorf("relay not connected")
 	}
