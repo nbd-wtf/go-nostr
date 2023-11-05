@@ -276,12 +276,14 @@ func (_ OKEnvelope) Label() string { return "OK" }
 func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
 	arr := r.Array()
-	if len(arr) < 4 {
+	if len(arr) < 3 {
 		return fmt.Errorf("failed to decode OK envelope: missing fields")
 	}
 	v.EventID = arr[1].Str
 	v.OK = arr[2].Raw == "true"
-	v.Reason = arr[3].Str
+	if len(arr) == 4 {
+		v.Reason = arr[3].Str
+	}
 
 	return nil
 }
@@ -295,8 +297,10 @@ func (v OKEnvelope) MarshalJSON() ([]byte, error) {
 		ok = "true"
 	}
 	w.RawString(ok)
-	w.RawString(`,`)
-	w.Raw(json.Marshal(v.Reason))
+	if v.Reason != "" {
+		w.RawString(`,`)
+		w.Raw(json.Marshal(v.Reason))
+	}
 	w.RawString(`]`)
 	return w.BuildBytes()
 }
