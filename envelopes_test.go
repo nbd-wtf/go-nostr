@@ -67,7 +67,7 @@ func TestEoseEnvelopeEncodingAndDecoding(t *testing.T) {
 func TestOKEnvelopeEncodingAndDecoding(t *testing.T) {
 	okEnvelopes := []string{
 		`["OK","3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefaaaaa",false,"error: could not connect to the database"]`,
-		`["OK","3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefaaaaa",true]`,
+		`["OK","3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefaaaaa",true,""]`,
 	}
 
 	for _, raw := range okEnvelopes {
