@@ -91,3 +91,41 @@ func TestFilterEquality(t *testing.T) {
 		t.Error("kinds filters shouldn't be equal")
 	}
 }
+
+func TestFilterClone(t *testing.T) {
+	ts := Now() - 60*60
+	flt := Filter{
+		Kinds: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
+		Since: &ts,
+		IDs:   []string{"9894b4b5cb5166d23ee8899a4151cf0c66aec00bde101982a13b8e8ceb972df9"},
+	}
+	clone := flt.Clone()
+	if !FilterEqual(flt, clone) {
+		t.Errorf("clone is not equal:\n %v !=\n %v", flt, clone)
+	}
+
+	clone1 := flt.Clone()
+	clone1.IDs = append(clone1.IDs, "88f0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d")
+	if FilterEqual(flt, clone1) {
+		t.Error("modifying the clone ids should cause it to not be equal anymore")
+	}
+
+	clone2 := flt.Clone()
+	clone2.Tags["letter"] = append(clone2.Tags["letter"], "c")
+	if FilterEqual(flt, clone2) {
+		t.Error("modifying the clone tag items should cause it to not be equal anymore")
+	}
+
+	clone3 := flt.Clone()
+	clone3.Tags["g"] = []string{"drt"}
+	if FilterEqual(flt, clone3) {
+		t.Error("modifying the clone tag map should cause it to not be equal anymore")
+	}
+
+	clone4 := flt.Clone()
+	*clone4.Since++
+	if FilterEqual(flt, clone4) {
+		t.Error("modifying the clone since should cause it to not be equal anymore")
+	}
+}

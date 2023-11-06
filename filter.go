@@ -101,11 +101,11 @@ func FilterEqual(a Filter, b Filter) bool {
 		}
 	}
 
-	if a.Since != b.Since {
+	if !arePointerValuesEqual(a.Since, b.Since) {
 		return false
 	}
 
-	if a.Until != b.Until {
+	if !arePointerValuesEqual(a.Until, b.Until) {
 		return false
 	}
 
@@ -114,4 +114,33 @@ func FilterEqual(a Filter, b Filter) bool {
 	}
 
 	return true
+}
+
+func (ef Filter) Clone() Filter {
+	clone := Filter{
+		IDs:     slices.Clone(ef.IDs),
+		Authors: slices.Clone(ef.Authors),
+		Kinds:   slices.Clone(ef.Kinds),
+		Limit:   ef.Limit,
+		Search:  ef.Search,
+	}
+
+	if ef.Tags != nil {
+		clone.Tags = make(TagMap, len(ef.Tags))
+		for k, v := range ef.Tags {
+			clone.Tags[k] = slices.Clone(v)
+		}
+	}
+
+	if ef.Since != nil {
+		since := *ef.Since
+		clone.Since = &since
+	}
+
+	if ef.Until != nil {
+		until := *ef.Until
+		clone.Until = &until
+	}
+
+	return clone
 }

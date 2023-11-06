@@ -93,3 +93,13 @@ func IsValidRelayURL(u string) bool {
 	}
 	return true
 }
+
+func arePointerValuesEqual[V comparable](a *V, b *V) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a != nil && b != nil {
+		return *a == *b
+	}
+	return false
+}
