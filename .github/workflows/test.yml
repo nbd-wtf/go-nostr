@@ -11,7 +11,5 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.19.x
-      - run: go test -v -race
-      - run: go test -v -race ./nip04
-      - run: go test -v -race ./nip13
-      - run: go test -v -race ./nip19
+      - uses: extractions/setup-just@v1
+      - run: just test-all
