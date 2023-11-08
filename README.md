@@ -1,3 +1,7 @@
+[![Run Tests](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml/badge.svg)](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/nbd-wtf/go-nostr.svg)](https://pkg.go.dev/github.com/nbd-wtf/go-nostr)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nbd-wtf/go-nostr)](https://goreportcard.com/report/github.com/nbd-wtf/go-nostr)
+
 <a href="https://nbd.wtf"><img align="right" height="196" src="https://user-images.githubusercontent.com/1653275/194609043-0add674b-dd40-41ed-986c-ab4a2e053092.png" /></a>
 
 go-nostr
