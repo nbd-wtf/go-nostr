@@ -288,7 +288,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 							if err != nil {
 								errmsg = err.Error()
 							}
-							InfoLogger.Printf("{%s} bad signature: %s\n", r.URL, errmsg)
+							InfoLogger.Printf("{%s} bad signature on %s; %s\n", r.URL, env.Event.ID, errmsg)
 							continue
 						}
 					}
