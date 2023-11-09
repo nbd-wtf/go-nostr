@@ -307,6 +307,8 @@ func (r *Relay) Connect(ctx context.Context) error {
 			case *OKEnvelope:
 				if okCallback, exist := r.okCallbacks.Load(env.EventID); exist {
 					okCallback(env.OK, env.Reason)
+				} else {
+					InfoLogger.Printf("{%s} got an unexpected OK message for event %s", r.URL, env.EventID)
 				}
 			}
 		}
