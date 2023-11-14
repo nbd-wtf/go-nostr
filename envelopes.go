@@ -200,13 +200,11 @@ func (_ NoticeEnvelope) Label() string { return "NOTICE" }
 func (v *NoticeEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
 	arr := r.Array()
-	switch len(arr) {
-	case 2:
-		*v = NoticeEnvelope(arr[1].Str)
-		return nil
-	default:
+	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode NOTICE envelope")
 	}
+	*v = NoticeEnvelope(arr[1].Str)
+	return nil
 }
 
 func (v NoticeEnvelope) MarshalJSON() ([]byte, error) {
@@ -224,13 +222,11 @@ func (_ EOSEEnvelope) Label() string { return "EOSE" }
 func (v *EOSEEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
 	arr := r.Array()
-	switch len(arr) {
-	case 2:
-		*v = EOSEEnvelope(arr[1].Str)
-		return nil
-	default:
+	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode EOSE envelope")
 	}
+	*v = EOSEEnvelope(arr[1].Str)
+	return nil
 }
 
 func (v EOSEEnvelope) MarshalJSON() ([]byte, error) {
