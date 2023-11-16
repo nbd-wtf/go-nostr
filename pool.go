@@ -10,7 +10,7 @@ import (
 )
 
 type SimplePool struct {
-	Relays  map[string]*Relay
+	Relays  *xsync.MapOf[string, *Relay]
 	Context context.Context
 
 	cancel context.CancelFunc
@@ -25,7 +25,7 @@ func NewSimplePool(ctx context.Context) *SimplePool {
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &SimplePool{
-		Relays: make(map[string]*Relay),
+		Relays: xsync.NewMapOf[*Relay](),
 
 		Context: ctx,
 		cancel:  cancel,
@@ -37,7 +37,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 
 	defer namedLock(url)()
 
-	relay, ok := pool.Relays[nm]
+	relay, ok := pool.Relays.Load(nm)
 	if ok && relay.IsConnected() {
 		// already connected, unlock and return
 		return relay, nil
@@ -50,7 +50,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 			return nil, fmt.Errorf("failed to connect: %w", err)
 		}
 
-		pool.Relays[nm] = relay
+		pool.Relays.Store(nm, relay)
 		return relay, nil
 	}
 }
