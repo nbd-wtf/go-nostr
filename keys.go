@@ -3,6 +3,7 @@ package nostr
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"math/big"
 	"strings"
@@ -25,7 +26,7 @@ func GeneratePrivateKey() string {
 	k.Mod(k, n)
 	k.Add(k, one)
 
-	return hex.EncodeToString(k.Bytes())
+	return fmt.Sprintf("%064x", k.Bytes())
 }
 
 func GetPublicKey(sk string) (string, error) {
