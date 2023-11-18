@@ -1,5 +1,7 @@
 package nip11
 
+import "golang.org/x/exp/slices"
+
 type RelayInformationDocument struct {
 	Name          string `json:"name"`
 	Description   string `json:"description"`
@@ -17,6 +19,17 @@ type RelayInformationDocument struct {
 	PaymentsURL    string                   `json:"payments_url,omitempty"`
 	Fees           *RelayFeesDocument       `json:"fees,omitempty"`
 	Icon           string                   `json:"icon"`
+}
+
+func (info *RelayInformationDocument) AddSupportedNIP(number int) {
+	idx, exists := slices.BinarySearch(info.SupportedNIPs, number)
+	if exists {
+		return
+	}
+
+	info.SupportedNIPs = append(info.SupportedNIPs, -1)
+	copy(info.SupportedNIPs[idx+1:], info.SupportedNIPs[idx:])
+	info.SupportedNIPs[idx] = number
 }
 
 type RelayLimitationDocument struct {
