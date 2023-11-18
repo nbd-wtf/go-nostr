@@ -38,7 +38,6 @@ type RelayLimitationDocument struct {
 	MaxFilters       int  `json:"max_filters,omitempty"`
 	MaxLimit         int  `json:"max_limit,omitempty"`
 	MaxSubidLength   int  `json:"max_subid_length,omitempty"`
-	MinPrefix        int  `json:"min_prefix,omitempty"`
 	MaxEventTags     int  `json:"max_event_tags,omitempty"`
 	MaxContentLength int  `json:"max_content_length,omitempty"`
 	MinPowDifficulty int  `json:"min_pow_difficulty,omitempty"`
