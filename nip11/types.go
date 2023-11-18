@@ -31,6 +31,7 @@ type RelayLimitationDocument struct {
 	MinPowDifficulty int  `json:"min_pow_difficulty,omitempty"`
 	AuthRequired     bool `json:"auth_required"`
 	PaymentRequired  bool `json:"payment_required"`
+	RestrictedWrites bool `json:"restricted_writes"`
 }
 
 type RelayFeesDocument struct {
