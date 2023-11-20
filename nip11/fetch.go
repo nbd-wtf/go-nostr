@@ -25,7 +25,7 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 	}
 	p, err := url.Parse(u)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot parse url: %s", u)
+		return nil, fmt.Errorf("cannot parse url: %s", u)
 	}
 	if p.Scheme == "ws" {
 		p.Scheme = "http"
@@ -42,11 +42,14 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 	// send the request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
+
 	info = &RelayInformationDocument{}
-	dec := json.NewDecoder(resp.Body)
-	err = dec.Decode(info)
-	return info, err
+	if err := json.NewDecoder(resp.Body).Decode(info); err != nil {
+		return nil, fmt.Errorf("invalid json: %w", err)
+	}
+
+	return info, nil
 }
