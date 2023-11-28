@@ -3,6 +3,7 @@ package nostr
 import (
 	"encoding/json"
 
+	"github.com/mailru/easyjson"
 	"golang.org/x/exp/slices"
 )
 
@@ -36,7 +37,7 @@ func (eff Filters) Match(event *Event) bool {
 }
 
 func (ef Filter) String() string {
-	j, _ := json.Marshal(ef)
+	j, _ := easyjson.Marshal(ef)
 	return string(j)
 }
 
