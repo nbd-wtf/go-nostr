@@ -26,11 +26,15 @@ type Subscription struct {
 	// the EndOfStoredEvents channel gets closed when an EOSE comes for that subscription
 	EndOfStoredEvents chan struct{}
 
+	// the ClosedReason channel emits the reason when a CLOSED message is received
+	ClosedReason chan string
+
 	// Context will be .Done() when the subscription ends
 	Context context.Context
 
 	live   atomic.Bool
 	eosed  atomic.Bool
+	closed atomic.Bool
 	cancel context.CancelFunc
 
 	// this keeps track of the events we've received before the EOSE that we must dispatch before
@@ -104,6 +108,13 @@ func (sub *Subscription) dispatchEose() {
 			sub.storedwg.Wait()
 			close(sub.EndOfStoredEvents)
 		}()
+	}
+}
+
+func (sub *Subscription) dispatchClosed(reason string) {
+	if sub.closed.CompareAndSwap(false, true) {
+		sub.ClosedReason <- reason
+		close(sub.ClosedReason)
 	}
 }
 

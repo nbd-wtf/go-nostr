@@ -300,6 +300,10 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if subscription, ok := r.Subscriptions.Load(string(*env)); ok {
 					subscription.dispatchEose()
 				}
+			case *ClosedEnvelope:
+				if subscription, ok := r.Subscriptions.Load(string(env.SubscriptionID)); ok {
+					subscription.dispatchClosed(env.Reason)
+				}
 			case *CountEnvelope:
 				if subscription, ok := r.Subscriptions.Load(string(env.SubscriptionID)); ok && env.Count != nil && subscription.countResult != nil {
 					subscription.countResult <- *env.Count
@@ -478,6 +482,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		counter:           int(current),
 		Events:            make(chan *Event),
 		EndOfStoredEvents: make(chan struct{}),
+		ClosedReason:      make(chan string, 1),
 		Filters:           filters,
 	}
 
