@@ -88,6 +88,19 @@ func TestOKEnvelopeEncodingAndDecoding(t *testing.T) {
 	}
 }
 
+func TestClosedEnvelopeEncodingAndDecoding(t *testing.T) {
+	src := `["CLOSED","_","error: something went wrong"]`
+	var env ClosedEnvelope
+	json.Unmarshal([]byte(src), &env)
+	if env.SubscriptionID != "_" {
+		t.Error("failed to decode CLOSED")
+	}
+
+	if res, _ := json.Marshal(env); string(res) != src {
+		t.Errorf("failed to encode CLOSED: expected '%s', got '%s'", src, string(res))
+	}
+}
+
 func TestAuthEnvelopeEncodingAndDecoding(t *testing.T) {
 	authEnvelopes := []string{
 		`["AUTH","kjsabdlasb aslkd kasndkad \"as.kdnbskadb"]`,

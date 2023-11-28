@@ -37,6 +37,8 @@ func ParseMessage(message []byte) Envelope {
 	case bytes.Contains(label, []byte("CLOSE")):
 		x := CloseEnvelope("")
 		v = &x
+	case bytes.Contains(label, []byte("CLOSED")):
+		v = &ClosedEnvelope{}
 	default:
 		return nil
 	}
@@ -255,8 +257,37 @@ func (v *CloseEnvelope) UnmarshalJSON(data []byte) error {
 
 func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	w.RawString(`["CLOSE",`)
+	w.RawString(`["CLOSED",`)
 	w.Raw(json.Marshal(string(v)))
+	w.RawString(`]`)
+	return w.BuildBytes()
+}
+
+type ClosedEnvelope struct {
+	SubscriptionID string
+	Reason         string
+}
+
+func (_ ClosedEnvelope) Label() string { return "CLOSED" }
+
+func (v *ClosedEnvelope) UnmarshalJSON(data []byte) error {
+	r := gjson.ParseBytes(data)
+	arr := r.Array()
+	switch len(arr) {
+	case 3:
+		*v = ClosedEnvelope{arr[1].Str, arr[2].Str}
+		return nil
+	default:
+		return fmt.Errorf("failed to decode CLOSED envelope")
+	}
+}
+
+func (v ClosedEnvelope) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	w.RawString(`["CLOSED",`)
+	w.Raw(json.Marshal(string(v.SubscriptionID)))
+	w.RawString(`,`)
+	w.Raw(json.Marshal(v.Reason))
 	w.RawString(`]`)
 	return w.BuildBytes()
 }
