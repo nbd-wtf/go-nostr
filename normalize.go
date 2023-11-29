@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-// NormalizeURL normalizes the url and replaces http://, https:// schemes by ws://, wss://.
+// NormalizeURL normalizes the url and replaces http://, https:// schemes with ws://, wss://
+// and normalizes the path.
 func NormalizeURL(u string) string {
 	if u == "" {
 		return ""
@@ -31,4 +32,13 @@ func NormalizeURL(u string) string {
 	p.Path = strings.TrimRight(p.Path, "/")
 
 	return p.String()
+}
+
+// NormalizeOKMessage takes a string message that is to be sent in an `OK` or `CLOSED` command
+// and prefixes it with "<prefix>: " if it doesn't already have an acceptable prefix.
+func NormalizeOKMessage(reason string, prefix string) string {
+	if idx := strings.Index(reason, ": "); idx == -1 || strings.IndexByte(reason[0:idx], ' ') != -1 {
+		return prefix + ": " + reason
+	}
+	return reason
 }
