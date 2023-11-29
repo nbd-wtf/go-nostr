@@ -51,7 +51,7 @@ type Relay struct {
 	connectionContext       context.Context // will be canceled when the connection closes
 	connectionContextCancel context.CancelFunc
 
-	challenges                    chan string // NIP-42 challenges
+	challenge                     string      // NIP-42 challenge, we only keep the last
 	notices                       chan string // NIP-01 NOTICEs
 	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
 	writeQueue                    chan writeRequest
@@ -89,24 +89,6 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 					o(notice)
 				}
 			}()
-		case WithAuthHandler:
-			r.challenges = make(chan string)
-			go func() {
-				for challenge := range r.challenges {
-					authEvent := Event{
-						CreatedAt: Now(),
-						Kind:      KindClientAuthentication,
-						Tags: Tags{
-							Tag{"relay", url},
-							Tag{"challenge", challenge},
-						},
-						Content: "",
-					}
-					if ok := o(r.connectionContext, &authEvent); ok {
-						r.Auth(r.connectionContext, authEvent)
-					}
-				}
-			}()
 		}
 	}
 
@@ -136,14 +118,6 @@ type WithNoticeHandler func(notice string)
 func (_ WithNoticeHandler) IsRelayOption() {}
 
 var _ RelayOption = (WithNoticeHandler)(nil)
-
-// WithAuthHandler takes an auth event and expects it to be signed.
-// when not given, AUTH messages from relays are ignored.
-type WithAuthHandler func(ctx context.Context, authEvent *Event) (ok bool)
-
-func (_ WithAuthHandler) IsRelayOption() {}
-
-var _ RelayOption = (WithAuthHandler)(nil)
 
 // String just returns the relay URL.
 func (r *Relay) String() string {
@@ -193,9 +167,6 @@ func (r *Relay) Connect(ctx context.Context) error {
 	go func() {
 		<-r.connectionContext.Done()
 		// close these things when the connection is closed
-		if r.challenges != nil {
-			close(r.challenges)
-		}
 		if r.notices != nil {
 			close(r.notices)
 		}
@@ -263,10 +234,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 				if env.Challenge == nil {
 					continue
 				}
-				// see WithAuthHandler
-				if r.challenges != nil {
-					r.challenges <- *env.Challenge
-				}
+				r.challenge = *env.Challenge
 			case *EventEnvelope:
 				if env.SubscriptionID == nil {
 					continue
@@ -393,8 +361,22 @@ func (r *Relay) Publish(ctx context.Context, event Event) (Status, error) {
 
 // Auth sends an "AUTH" command client -> relay as in NIP-42.
 // Status can be: success, failed, or sent (no response from relay before ctx times out).
-func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
+func (r *Relay) Auth(ctx context.Context, sign func(event *Event) error) (Status, error) {
 	status := PublishStatusFailed
+
+	authEvent := Event{
+		CreatedAt: Now(),
+		Kind:      KindClientAuthentication,
+		Tags: Tags{
+			Tag{"relay", r.URL},
+			Tag{"challenge", r.challenge},
+		},
+		Content: "",
+	}
+	if err := sign(&authEvent); err != nil {
+		return status, fmt.Errorf("error signing auth event: %w", err)
+	}
+
 	var err error
 
 	// data races on status variable without this mutex
@@ -413,7 +395,7 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 	defer cancel()
 
 	// listen for an OK callback
-	r.okCallbacks.Store(event.ID, func(ok bool, reason string) {
+	r.okCallbacks.Store(authEvent.ID, func(ok bool, reason string) {
 		mu.Lock()
 		if ok {
 			status = PublishStatusSucceeded
@@ -424,10 +406,10 @@ func (r *Relay) Auth(ctx context.Context, event Event) (Status, error) {
 		mu.Unlock()
 		cancel()
 	})
-	defer r.okCallbacks.Delete(event.ID)
+	defer r.okCallbacks.Delete(authEvent.ID)
 
 	// send AUTH
-	authResponse, _ := AuthEnvelope{Event: event}.MarshalJSON()
+	authResponse, _ := AuthEnvelope{Event: authEvent}.MarshalJSON()
 	debugLogf("{%s} sending %v\n", r.URL, authResponse)
 	if err := <-r.Write(authResponse); err != nil {
 		// status will be "failed"
