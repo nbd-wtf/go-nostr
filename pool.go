@@ -3,6 +3,7 @@ package nostr
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -116,6 +117,9 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 						}
 					}
 				case events <- IncomingEvent{Event: evt, Relay: relay}:
+				case reason := <-sub.ClosedReason:
+					log.Printf("CLOSED from %s: '%s'\n", nm, reason)
+					return
 				case <-ctx.Done():
 					return
 				}
@@ -176,6 +180,9 @@ func (pool *SimplePool) subManyEose(ctx context.Context, urls []string, filters 
 				case <-ctx.Done():
 					return
 				case <-sub.EndOfStoredEvents:
+					return
+				case reason := <-sub.ClosedReason:
+					log.Printf("CLOSED from %s: '%s'\n", nm, reason)
 					return
 				case evt, more := <-sub.Events:
 					if !more {
