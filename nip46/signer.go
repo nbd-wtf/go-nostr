@@ -75,7 +75,7 @@ func (s Session) MakeResponse(
 	return resp, evt, nil
 }
 
-type Pool struct {
+type Signer struct {
 	secretKey string
 
 	sessionKeys []string
@@ -89,15 +89,15 @@ type relayReadWrite struct {
 	Write bool `json:"write"`
 }
 
-func NewPool(secretKey string) Pool {
-	return Pool{secretKey: secretKey}
+func NewSigner(secretKey string) Signer {
+	return Signer{secretKey: secretKey}
 }
 
-func (p *Pool) AddRelay(url string, read bool, write bool) {
+func (p *Signer) AddRelay(url string, read bool, write bool) {
 	p.RelaysToAdvertise[url] = relayReadWrite{read, write}
 }
 
-func (p *Pool) GetSession(clientPubkey string) (Session, error) {
+func (p *Signer) GetSession(clientPubkey string) (Session, error) {
 	idx, exists := slices.BinarySearch(p.sessionKeys, clientPubkey)
 	if exists {
 		return p.sessions[idx], nil
@@ -123,7 +123,7 @@ func (p *Pool) GetSession(clientPubkey string) (Session, error) {
 	return session, nil
 }
 
-func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, harmless bool, err error) {
+func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, harmless bool, err error) {
 	if event.Kind != nostr.KindNostrConnect {
 		return req, resp, eventResponse, false,
 			fmt.Errorf("event kind is %d, but we expected %d", event.Kind, nostr.KindNostrConnect)
