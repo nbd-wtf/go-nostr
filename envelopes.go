@@ -257,7 +257,7 @@ func (v *CloseEnvelope) UnmarshalJSON(data []byte) error {
 
 func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	w.RawString(`["CLOSED",`)
+	w.RawString(`["CLOSE",`)
 	w.Raw(json.Marshal(string(v)))
 	w.RawString(`]`)
 	return w.BuildBytes()
