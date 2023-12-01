@@ -39,53 +39,40 @@ func (s Session) ParseRequest(event *nostr.Event) (Request, error) {
 	return req, err
 }
 
-func (s Session) MakeResultResponse(id string, result any) (nostr.Event, error) {
-	evt := nostr.Event{
-		CreatedAt: nostr.Now(),
-		Kind:      nostr.KindNostrConnect,
-		Tags:      nostr.Tags{},
+func (s Session) MakeResponse(
+	id string,
+	requester string,
+	result any,
+	err error,
+) (resp Response, evt nostr.Event, error error) {
+	if err != nil {
+		resp = Response{
+			ID:    id,
+			Error: err.Error(),
+		}
+	} else if result != nil {
+		resp = Response{
+			ID:     id,
+			Result: result,
+		}
 	}
 
-	data, err := json.Marshal(result)
+	jresp, _ := json.Marshal(resp)
+	ciphertext, err := nip04.Encrypt(string(jresp), s.SharedKey)
 	if err != nil {
-		return evt, fmt.Errorf("failed to encode result to json: %w", err)
-	}
-	ciphertext, err := nip04.Encrypt(string(data), s.SharedKey)
-	if err != nil {
-		return evt, fmt.Errorf("failed to encrypt result: %w", err)
+		return resp, evt, fmt.Errorf("failed to encrypt result: %w", err)
 	}
 	evt.Content = ciphertext
 
-	err = evt.Sign(hex.EncodeToString(s.SharedKey))
-	if err != nil {
-		return evt, err
-	}
-	return evt, nil
-}
-
-func (s Session) MakeErrorResponse(id string, err error) (nostr.Event, error) {
-	evt := nostr.Event{
-		CreatedAt: nostr.Now(),
-		Kind:      nostr.KindNostrConnect,
-		Tags:      nostr.Tags{},
-	}
-
-	resp, _ := json.Marshal(Response{
-		ID:    id,
-		Error: err.Error(),
-	})
-
-	ciphertext, err := nip04.Encrypt(string(resp), s.SharedKey)
-	if err != nil {
-		return evt, fmt.Errorf("failed to encrypt result: %w", err)
-	}
-	evt.Content = ciphertext
+	evt.CreatedAt = nostr.Now()
+	evt.Kind = nostr.KindNostrConnect
+	evt.Tags = nostr.Tags{nostr.Tag{"p", requester}}
 
 	err = evt.Sign(hex.EncodeToString(s.SharedKey))
 	if err != nil {
-		return evt, err
+		return resp, evt, err
 	}
-	return evt, nil
+	return resp, evt, nil
 }
 
 type Pool struct {
@@ -136,20 +123,20 @@ func (p *Pool) GetSession(clientPubkey string) (Session, error) {
 	return session, nil
 }
 
-func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp nostr.Event, err error) {
+func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, harmless bool, err error) {
 	if event.Kind != nostr.KindNostrConnect {
-		return req, resp, fmt.Errorf("event kind is %d, but we expected %d",
-			event.Kind, nostr.KindNostrConnect)
+		return req, resp, eventResponse, false,
+			fmt.Errorf("event kind is %d, but we expected %d", event.Kind, nostr.KindNostrConnect)
 	}
 
 	session, err := p.GetSession(event.PubKey)
 	if err != nil {
-		return req, resp, err
+		return req, resp, eventResponse, false, err
 	}
 
 	req, err = session.ParseRequest(event)
 	if err != nil {
-		return req, resp, fmt.Errorf("error parsing request: %w", err)
+		return req, resp, eventResponse, false, fmt.Errorf("error parsing request: %w", err)
 	}
 
 	var result any
@@ -158,102 +145,98 @@ func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp nostr.Event,
 	switch req.Method {
 	case "connect":
 		result = map[string]any{}
+		harmless = true
 	case "get_public_key":
 		pubkey, err := nostr.GetPublicKey(p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to derive public key: %w", err)
-			goto end
+			break
 		} else {
 			result = pubkey
+			harmless = true
 		}
 	case "sign_event":
 		if len(req.Params) != 1 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'sign_event'")
-			goto end
+			break
 		}
 		jevt, err := json.Marshal(req.Params[0])
 		if err != nil {
 			resultErr = fmt.Errorf("failed to decode event/1: %w", err)
-			goto end
+			break
 		}
 		evt := nostr.Event{}
 		err = easyjson.Unmarshal(jevt, &evt)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
-			goto end
+			break
 		}
 		err = evt.Sign(p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to sign event: %w", err)
-			goto end
+			break
 		}
 		result = evt
 	case "get_relays":
 		result = p.RelaysToAdvertise
+		harmless = true
 	case "nip04_encrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
-			goto end
+			break
 		}
 		thirdPartyPubkey, ok := req.Params[0].(string)
 		if !ok || !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
-			goto end
+			break
 		}
 		plaintext, ok := req.Params[1].(string)
 		if !ok {
 			resultErr = fmt.Errorf("second argument to 'nip04_encrypt' is not a string")
-			goto end
+			break
 		}
 		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
-			goto end
+			break
 		}
 		ciphertext, err := nip04.Encrypt(plaintext, sharedSecret)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to encrypt: %w", err)
-			goto end
+			break
 		}
 		result = ciphertext
 	case "nip04_decrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
-			goto end
+			break
 		}
 		thirdPartyPubkey, ok := req.Params[0].(string)
 		if !ok || !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
-			goto end
+			break
 		}
 		ciphertext, ok := req.Params[1].(string)
 		if !ok {
 			resultErr = fmt.Errorf("second argument to 'nip04_decrypt' is not a string")
-			goto end
+			break
 		}
 		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
-			goto end
+			break
 		}
 		plaintext, err := nip04.Decrypt(ciphertext, sharedSecret)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to encrypt: %w", err)
-			goto end
+			break
 		}
 		result = plaintext
 	default:
-		return req, resp, fmt.Errorf("unknown method '%s'", req.Method)
+		return req, resp, eventResponse, false,
+			fmt.Errorf("unknown method '%s'", req.Method)
 	}
 
-end:
-	if resultErr != nil {
-		resp, err = session.MakeErrorResponse(req.ID, resultErr)
-	} else if result != nil {
-		resp, err = session.MakeResultResponse(req.ID, map[string]any{})
-	}
-	if err != nil {
-		return req, resp, fmt.Errorf("failed to encrypt '%s' result", req.Method)
-	}
-	return req, resp, nil
+	resp, eventResponse, err = session.MakeResponse(req.ID, event.PubKey, result, resultErr)
+	return req, resp, eventResponse, harmless, err
 }
