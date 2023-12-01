@@ -12,15 +12,15 @@ import (
 )
 
 type Request struct {
-	ID     string `json:"id"`
-	Method string `json:"method"`
-	Params []any  `json:"params"`
+	ID     string   `json:"id"`
+	Method string   `json:"method"`
+	Params []string `json:"params"`
 }
 
 type Response struct {
 	ID     string `json:"id"`
 	Error  string `json:"error,omitempty"`
-	Result any    `json:"result,omitempty"`
+	Result string `json:"result,omitempty"`
 }
 
 type Session struct {
@@ -42,7 +42,7 @@ func (s Session) ParseRequest(event *nostr.Event) (Request, error) {
 func (s Session) MakeResponse(
 	id string,
 	requester string,
-	result any,
+	result string,
 	err error,
 ) (resp Response, evt nostr.Event, error error) {
 	if err != nil {
@@ -50,7 +50,7 @@ func (s Session) MakeResponse(
 			ID:    id,
 			Error: err.Error(),
 		}
-	} else if result != nil {
+	} else if result != "" {
 		resp = Response{
 			ID:     id,
 			Result: result,
@@ -139,12 +139,12 @@ func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp Response, ev
 		return req, resp, eventResponse, false, fmt.Errorf("error parsing request: %w", err)
 	}
 
-	var result any
+	var result string
 	var resultErr error
 
 	switch req.Method {
 	case "connect":
-		result = map[string]any{}
+		result = "ack"
 		harmless = true
 	case "get_public_key":
 		pubkey, err := nostr.GetPublicKey(p.secretKey)
@@ -160,13 +160,8 @@ func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp Response, ev
 			resultErr = fmt.Errorf("wrong number of arguments to 'sign_event'")
 			break
 		}
-		jevt, err := json.Marshal(req.Params[0])
-		if err != nil {
-			resultErr = fmt.Errorf("failed to decode event/1: %w", err)
-			break
-		}
 		evt := nostr.Event{}
-		err = easyjson.Unmarshal(jevt, &evt)
+		err = easyjson.Unmarshal([]byte(req.Params[0]), &evt)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
@@ -176,25 +171,23 @@ func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp Response, ev
 			resultErr = fmt.Errorf("failed to sign event: %w", err)
 			break
 		}
-		result = evt
+		jrevt, _ := easyjson.Marshal(evt)
+		result = string(jrevt)
 	case "get_relays":
-		result = p.RelaysToAdvertise
+		jrelays, _ := json.Marshal(p.RelaysToAdvertise)
+		result = string(jrelays)
 		harmless = true
 	case "nip04_encrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
 			break
 		}
-		thirdPartyPubkey, ok := req.Params[0].(string)
-		if !ok || !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
+		thirdPartyPubkey := req.Params[0]
+		if !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
 			break
 		}
-		plaintext, ok := req.Params[1].(string)
-		if !ok {
-			resultErr = fmt.Errorf("second argument to 'nip04_encrypt' is not a string")
-			break
-		}
+		plaintext := req.Params[1]
 		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
@@ -211,16 +204,12 @@ func (p *Pool) HandleRequest(event *nostr.Event) (req Request, resp Response, ev
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
 			break
 		}
-		thirdPartyPubkey, ok := req.Params[0].(string)
-		if !ok || !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
+		thirdPartyPubkey := req.Params[0]
+		if !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
 			break
 		}
-		ciphertext, ok := req.Params[1].(string)
-		if !ok {
-			resultErr = fmt.Errorf("second argument to 'nip04_decrypt' is not a string")
-			break
-		}
+		ciphertext := req.Params[1]
 		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
