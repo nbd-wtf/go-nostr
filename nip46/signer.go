@@ -93,7 +93,7 @@ func NewSigner(secretKey string) Signer {
 	return Signer{secretKey: secretKey}
 }
 
-func (p *Signer) AddRelay(url string, read bool, write bool) {
+func (p *Signer) AddRelayToAdvertise(url string, read bool, write bool) {
 	p.RelaysToAdvertise[url] = relayReadWrite{read, write}
 }
 

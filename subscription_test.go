@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const RELAY = "wss://relay.nostr.bg"
+const RELAY = "wss://nos.lol"
 
 // test if we can fetch a couple of random events
 func TestSubscribe(t *testing.T) {
