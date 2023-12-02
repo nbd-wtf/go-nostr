@@ -1,7 +1,6 @@
 package nip46
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -68,10 +67,6 @@ func (s Session) MakeResponse(
 	evt.Kind = nostr.KindNostrConnect
 	evt.Tags = nostr.Tags{nostr.Tag{"p", requester}}
 
-	err = evt.Sign(hex.EncodeToString(s.SharedKey))
-	if err != nil {
-		return resp, evt, err
-	}
 	return resp, evt, nil
 }
 
@@ -227,5 +222,14 @@ func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, 
 	}
 
 	resp, eventResponse, err = session.MakeResponse(req.ID, event.PubKey, result, resultErr)
+	if err != nil {
+		return req, resp, eventResponse, harmless, err
+	}
+
+	err = eventResponse.Sign(p.secretKey)
+	if err != nil {
+		return req, resp, eventResponse, harmless, err
+	}
+
 	return req, resp, eventResponse, harmless, err
 }
