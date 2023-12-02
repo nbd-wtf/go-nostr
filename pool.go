@@ -91,6 +91,7 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 				cancel()
 			}()
 
+			interval := 3 * time.Second
 			for {
 				select {
 				case <-ctx.Done():
@@ -102,20 +103,28 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 
 				relay, err := pool.EnsureRelay(nm)
 				if err != nil {
-					time.Sleep(3 * time.Second)
 					goto reconnect
 				}
 
 				sub, err = relay.Subscribe(ctx, filters)
 				if err != nil {
-					time.Sleep(3 * time.Second)
 					goto reconnect
 				}
+
+				// reset interval when we get a good subscription
+				interval = 3 * time.Second
 
 				for {
 					select {
 					case evt, more := <-sub.Events:
 						if !more {
+							// this means the connection was closed for weird reasons, like the server shut down
+							// so we will update the filters here to include only events seem from now on
+							// and try to reconnect until we succeed
+							now := Now()
+							for i := range filters {
+								filters[i].Since = &now
+							}
 							goto reconnect
 						}
 						if unique {
@@ -148,11 +157,10 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 				}
 
 			reconnect:
-				// when attempting to reconnect update the `since` in filters so old events are not retrieved
-				now := Now()
-				for i := range filters {
-					filters[i].Since = &now
-				}
+				// we will go back to the beginning of the loop and try to connect again and again
+				// until the context is canceled
+				time.Sleep(interval)
+				interval = interval * 17 / 10 // the next time we try we will wait longer
 			}
 		}(NormalizeURL(url))
 	}
