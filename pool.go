@@ -141,17 +141,13 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 						eose = true
 					case <-ticker.C:
 						if eose {
-							del := map[string]struct{}{}
 							old := Timestamp(time.Now().Add(-seenAlreadyDropTick).Unix())
 							seenAlready.Range(func(id string, value Timestamp) bool {
 								if value < old {
-									del[id] = struct{}{}
+									seenAlready.Delete(id)
 								}
 								return true
 							})
-							for k := range del {
-								seenAlready.Delete(k)
-							}
 						}
 					case reason := <-sub.ClosedReason:
 						log.Printf("CLOSED from %s: '%s'\n", nm, reason)
