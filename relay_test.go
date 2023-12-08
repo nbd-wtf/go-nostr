@@ -55,11 +55,10 @@ func TestPublish(t *testing.T) {
 
 	// connect a client and send the text note
 	rl := mustRelayConnect(ws.URL)
-	status, _ := rl.Publish(context.Background(), textNote)
-	if status != PublishStatusSucceeded {
-		t.Errorf("published status is %d, not %d", status, PublishStatusSucceeded)
+	err := rl.Publish(context.Background(), textNote)
+	if err == nil {
+		t.Errorf("should have failed to publish")
 	}
-
 	if !published {
 		t.Errorf("fake relay server saw no event")
 	}
@@ -85,9 +84,9 @@ func TestPublishBlocked(t *testing.T) {
 
 	// connect a client and send a text note
 	rl := mustRelayConnect(ws.URL)
-	status, _ := rl.Publish(context.Background(), textNote)
-	if status != PublishStatusFailed {
-		t.Errorf("published status is %d, not %d", status, PublishStatusFailed)
+	err := rl.Publish(context.Background(), textNote)
+	if err == nil {
+		t.Errorf("should have failed to publish")
 	}
 }
 
@@ -107,9 +106,9 @@ func TestPublishWriteFailed(t *testing.T) {
 	rl := mustRelayConnect(ws.URL)
 	// Force brief period of time so that publish always fails on closed socket.
 	time.Sleep(1 * time.Millisecond)
-	status, err := rl.Publish(context.Background(), textNote)
-	if status != PublishStatusFailed {
-		t.Errorf("published status is %d, not %d, err: %v", status, PublishStatusFailed, err)
+	err := rl.Publish(context.Background(), textNote)
+	if err == nil {
+		t.Errorf("should have failed to publish")
 	}
 }
 
