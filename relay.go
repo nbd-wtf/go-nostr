@@ -319,7 +319,9 @@ func (r *Relay) publish(ctx context.Context, id string, env Envelope) error {
 	}
 
 	// listen for an OK callback
+	gotOk := false
 	r.okCallbacks.Store(id, func(ok bool, reason string) {
+		gotOk = true
 		if !ok {
 			err = fmt.Errorf("msg: %s", reason)
 		}
@@ -338,6 +340,9 @@ func (r *Relay) publish(ctx context.Context, id string, env Envelope) error {
 		select {
 		case <-ctx.Done():
 			// this will be called when we get an OK or when the context has been canceled
+			if gotOk {
+				return err
+			}
 			return ctx.Err()
 		case <-r.connectionContext.Done():
 			// this is caused when we lose connectivity

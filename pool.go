@@ -256,13 +256,13 @@ func (pool *SimplePool) subManyEose(ctx context.Context, urls []string, filters 
 				case reason := <-sub.ClosedReason:
 					if strings.HasPrefix(reason, "auth-required:") && pool.authHandler != nil && !hasAuthed {
 						// relay is requesting auth. if we can we will perform auth and try again
-						if err := relay.Auth(ctx, pool.authHandler); err == nil {
+						err := relay.Auth(ctx, pool.authHandler)
+						if err == nil {
 							hasAuthed = true // so we don't keep doing AUTH again and again
 							goto subscribe
 						}
-					} else {
-						log.Printf("CLOSED from %s: '%s'\n", nm, reason)
 					}
+					log.Printf("CLOSED from %s: '%s'\n", nm, reason)
 					return
 				case evt, more := <-sub.Events:
 					if !more {
