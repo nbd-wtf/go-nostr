@@ -16,6 +16,7 @@ func ParseMessage(message []byte) Envelope {
 		return nil
 	}
 	label := message[0:firstComma]
+
 	var v Envelope
 	switch {
 	case bytes.Contains(label, []byte("EVENT")):
@@ -34,11 +35,11 @@ func ParseMessage(message []byte) Envelope {
 		v = &OKEnvelope{}
 	case bytes.Contains(label, []byte("AUTH")):
 		v = &AuthEnvelope{}
+	case bytes.Contains(label, []byte("CLOSED")):
+		v = &ClosedEnvelope{}
 	case bytes.Contains(label, []byte("CLOSE")):
 		x := CloseEnvelope("")
 		v = &x
-	case bytes.Contains(label, []byte("CLOSED")):
-		v = &ClosedEnvelope{}
 	default:
 		return nil
 	}
@@ -53,6 +54,7 @@ type Envelope interface {
 	Label() string
 	UnmarshalJSON([]byte) error
 	MarshalJSON() ([]byte, error)
+	String() string
 }
 
 type EventEnvelope struct {
@@ -143,6 +145,10 @@ type CountEnvelope struct {
 }
 
 func (_ CountEnvelope) Label() string { return "COUNT" }
+func (c CountEnvelope) String() string {
+	v, _ := json.Marshal(c)
+	return string(v)
+}
 
 func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -198,6 +204,10 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 type NoticeEnvelope string
 
 func (_ NoticeEnvelope) Label() string { return "NOTICE" }
+func (n NoticeEnvelope) String() string {
+	v, _ := json.Marshal(n)
+	return string(v)
+}
 
 func (v *NoticeEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -220,6 +230,10 @@ func (v NoticeEnvelope) MarshalJSON() ([]byte, error) {
 type EOSEEnvelope string
 
 func (_ EOSEEnvelope) Label() string { return "EOSE" }
+func (e EOSEEnvelope) String() string {
+	v, _ := json.Marshal(e)
+	return string(v)
+}
 
 func (v *EOSEEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -242,6 +256,10 @@ func (v EOSEEnvelope) MarshalJSON() ([]byte, error) {
 type CloseEnvelope string
 
 func (_ CloseEnvelope) Label() string { return "CLOSE" }
+func (c CloseEnvelope) String() string {
+	v, _ := json.Marshal(c)
+	return string(v)
+}
 
 func (v *CloseEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -269,6 +287,10 @@ type ClosedEnvelope struct {
 }
 
 func (_ ClosedEnvelope) Label() string { return "CLOSED" }
+func (c ClosedEnvelope) String() string {
+	v, _ := json.Marshal(c)
+	return string(v)
+}
 
 func (v *ClosedEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -299,6 +321,10 @@ type OKEnvelope struct {
 }
 
 func (_ OKEnvelope) Label() string { return "OK" }
+func (o OKEnvelope) String() string {
+	v, _ := json.Marshal(o)
+	return string(v)
+}
 
 func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)
@@ -334,6 +360,10 @@ type AuthEnvelope struct {
 }
 
 func (_ AuthEnvelope) Label() string { return "AUTH" }
+func (a AuthEnvelope) String() string {
+	v, _ := json.Marshal(a)
+	return string(v)
+}
 
 func (v *AuthEnvelope) UnmarshalJSON(data []byte) error {
 	r := gjson.ParseBytes(data)

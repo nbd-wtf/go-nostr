@@ -2,7 +2,6 @@ package nostr
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 )
 
@@ -89,15 +88,18 @@ func TestOKEnvelopeEncodingAndDecoding(t *testing.T) {
 }
 
 func TestClosedEnvelopeEncodingAndDecoding(t *testing.T) {
-	src := `["CLOSED","_","error: something went wrong"]`
-	var env ClosedEnvelope
-	json.Unmarshal([]byte(src), &env)
-	if env.SubscriptionID != "_" {
-		t.Error("failed to decode CLOSED")
-	}
-
-	if res, _ := json.Marshal(env); string(res) != src {
-		t.Errorf("failed to encode CLOSED: expected '%s', got '%s'", src, string(res))
+	for _, src := range []string{
+		`["CLOSED","_","error: something went wrong"]`,
+		`["CLOSED",":1","auth-required: take a selfie and send it to the CIA"]`,
+	} {
+		var env ClosedEnvelope
+		json.Unmarshal([]byte(src), &env)
+		if env.SubscriptionID != "_" && env.SubscriptionID != ":1" {
+			t.Error("failed to decode CLOSED")
+		}
+		if res, _ := json.Marshal(env); string(res) != src {
+			t.Errorf("failed to encode CLOSED: expected '%s', got '%s'", src, string(res))
+		}
 	}
 }
 
@@ -129,7 +131,7 @@ func TestParseMessage(t *testing.T) {
 	testCases := []struct {
 		Name             string
 		Message          []byte
-		ExpectedEnvelope interface{}
+		ExpectedEnvelope Envelope
 	}{
 		{
 			Name:             "nil",
@@ -146,14 +148,37 @@ func TestParseMessage(t *testing.T) {
 			Message:          []byte("invalid, input"),
 			ExpectedEnvelope: nil,
 		},
+		{
+			Name:             "CLOSED envelope",
+			Message:          []byte(`["CLOSED",":1","error: we are broken"]`),
+			ExpectedEnvelope: &ClosedEnvelope{SubscriptionID: ":1", Reason: "error: we are broken"},
+		},
+		{
+			Name:             "AUTH envelope",
+			Message:          []byte(`["AUTH","bisteka"]`),
+			ExpectedEnvelope: &AuthEnvelope{Challenge: ptr("bisteka")},
+		},
+		{
+			Name:             "REQ envelope",
+			Message:          []byte(`["REQ","million", {"kinds": [1]}, {"kinds": [30023 ], "#d": ["buteko",    "batuke"]}]`),
+			ExpectedEnvelope: &ReqEnvelope{SubscriptionID: "million", Filters: Filters{{Kinds: []int{1}}, {Kinds: []int{30023}, Tags: TagMap{"d": []string{"buteko", "batuke"}}}}},
+		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			envelope := ParseMessage(testCase.Message)
-			if !reflect.DeepEqual(testCase.ExpectedEnvelope, envelope) {
-				t.Fatal("unexpected output")
+			if testCase.ExpectedEnvelope == nil && envelope == nil {
+				return
+			}
+			if testCase.ExpectedEnvelope == nil && envelope != nil {
+				t.Fatalf("expected nil but got %v\n", envelope)
+			}
+			if testCase.ExpectedEnvelope.String() != envelope.String() {
+				t.Fatalf("unexpected output:\n     %s\n  != %s", testCase.ExpectedEnvelope, envelope)
 			}
 		})
 	}
 }
+
+func ptr[S any](s S) *S { return &s }
