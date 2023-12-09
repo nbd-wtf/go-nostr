@@ -101,35 +101,12 @@ for _, url := range []string{"wss://nostr.zebedee.cloud", "wss://nostr-pub.wello
 		fmt.Println(err)
 		continue
 	}
-	_, err = relay.Publish(ctx, ev)
-	if err != nil {
+	if err := relay.Publish(ctx, ev); err != nil {
 		fmt.Println(err)
 		continue
 	}
 
 	fmt.Printf("published to %s\n", url)
-}
-```
-
-### Authenticating with NIP-42
-
-For this section, the user needs access to a relay implementing NIP-42.
-E.g., https://github.com/fiatjaf/relayer with a relay implementing the relayer.Auther interface.
-
-``` go
-func main() {
-	url := "ws://localhost:7447"
-
-	sk := nostr.GeneratePrivateKey()
-
-	relay, err := nostr.RelayConnect(context.Background(), url,
-        nostr.WithAuthHandler(func(ctx context.Context, authEvent *Event) (ok bool) {
-            authEvent.Sign(sk)
-        }),
-    )
-	if err != nil {
-		panic(err)
-	}
 }
 ```
 
