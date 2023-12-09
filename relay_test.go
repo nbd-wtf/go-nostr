@@ -56,8 +56,8 @@ func TestPublish(t *testing.T) {
 	// connect a client and send the text note
 	rl := mustRelayConnect(ws.URL)
 	err := rl.Publish(context.Background(), textNote)
-	if err == nil {
-		t.Errorf("should have failed to publish")
+	if err != nil {
+		t.Errorf("publish should have succeeded")
 	}
 	if !published {
 		t.Errorf("fake relay server saw no event")
