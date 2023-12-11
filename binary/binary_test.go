@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -46,13 +45,12 @@ func TestBinaryEncode(t *testing.T) {
 		if err := json.Unmarshal([]byte(jevt), pevt); err != nil {
 			t.Fatalf("failed to decode normal json: %s", err)
 		}
-		nevt, err := Marshal(pevt)
+		bevt, err := Marshal(pevt)
 		if err != nil {
 			t.Fatalf("failed to encode binary: %s", err)
 		}
-
 		evt := &nostr.Event{}
-		if err := Unmarshal(nevt, evt); err != nil {
+		if err := Unmarshal(bevt, evt); err != nil {
 			t.Fatalf("error unmarshalling binary: %s", err)
 		}
 		checkParsedCorrectly(t, pevt, jevt)
@@ -129,111 +127,4 @@ var normalEvents = []string{
 	`{"id":"ebd8dd36f274ddf91959bf1225bb4c0353d187b373d91e92e1f971365d556420","pubkey":"634bd19e5c87db216555c814bf88e66ace175805291a6be90b15ac3b2247da9b","created_at":1688554184,"kind":1,"tags":[],"content":"あーーーーーーー、 relay.nostr.wirednet.jp ののぞき窓。\nログインボタンを非表示にしてるんだけど、キーボードショートカットだけ生きてることに気付いた。(※作者です)","sig":"21fc8e74b995bd185031fac03b85e3a1b431f79de26658f00c50e404769ac431ca53f151c3dc9a90435b2e70f4a2ac199c84fcb7ca2858c45665d99f9f9bae0a"}`,
 	`{"id":"e2aec1b7e297329203f67b61f214c2b745a3bc1590f299ca250a1633714c829c","pubkey":"b6ac413652c8431478cb6177722f822f0f7af774a274fc5574872407834c3253","created_at":1688553478,"kind":1,"tags":[],"content":"やー今日も疲れたなー！\n大将！お勧めでイソシアネートとポリオールね！\nあ、6:4でよろしく！","sig":"12ba5dc9ff18f4ce995941f6de3bfaf8e3636afde37a06a4d3478c930ae22e2f79690e6f0682d532541222746aeb5f6dda29251cd7c31e71d7e206199b04bab4"}`,
 	`{"id":"e4e86256ed64514bcb3350cf8b631ef84b4aeafcdb164cea5096c893ead6a0a1","pubkey":"79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798","created_at":1688574304,"kind":1,"tags":[],"content":"\b\f\ueeee","sig":"c61a4971facc4899109e1a28b73cbd27f8807fedcff87cfa1d8f5e9b709feab75e3a62a96fc75b5d2a2f42443d5ca35daa6c3d724cd6e6133b9c4a1ef072c1e9"}`,
-}
-
-func BenchmarkBinaryEncoding(b *testing.B) {
-	events := make([]*nostr.Event, len(normalEvents))
-	binaryEvents := make([]*Event, len(normalEvents))
-	for i, jevt := range normalEvents {
-		evt := &nostr.Event{}
-		json.Unmarshal([]byte(jevt), evt)
-		events[i] = evt
-		binaryEvents[i] = BinaryEvent(evt)
-	}
-
-	b.Run("easyjson.Marshal", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, evt := range events {
-				easyjson.Marshal(evt)
-			}
-		}
-	})
-
-	b.Run("binary.Marshal", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, evt := range events {
-				Marshal(evt)
-			}
-		}
-	})
-
-	b.Run("binary.MarshalBinary", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, bevt := range binaryEvents {
-				MarshalBinary(bevt)
-			}
-		}
-	})
-}
-
-func BenchmarkBinaryDecoding(b *testing.B) {
-	events := make([][]byte, len(normalEvents))
-	for i, jevt := range normalEvents {
-		evt := &nostr.Event{}
-		json.Unmarshal([]byte(jevt), evt)
-		bevt, _ := Marshal(evt)
-		events[i] = bevt
-	}
-
-	b.Run("easyjson.Unmarshal", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, jevt := range normalEvents {
-				evt := &nostr.Event{}
-				err := easyjson.Unmarshal([]byte(jevt), evt)
-				if err != nil {
-					b.Fatalf("failed to unmarshal: %s", err)
-				}
-			}
-		}
-	})
-
-	b.Run("binary.Unmarshal", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, bevt := range events {
-				evt := &nostr.Event{}
-				err := Unmarshal(bevt, evt)
-				if err != nil {
-					b.Fatalf("failed to unmarshal: %s", err)
-				}
-			}
-		}
-	})
-
-	b.Run("binary.UnmarshalBinary", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, bevt := range events {
-				evt := &Event{}
-				err := UnmarshalBinary(bevt, evt)
-				if err != nil {
-					b.Fatalf("failed to unmarshal: %s", err)
-				}
-			}
-		}
-	})
-
-	b.Run("easyjson.Unmarshal+sig", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, nevt := range normalEvents {
-				evt := &nostr.Event{}
-				err := easyjson.Unmarshal([]byte(nevt), evt)
-				if err != nil {
-					b.Fatalf("failed to unmarshal: %s", err)
-				}
-				evt.CheckSignature()
-			}
-		}
-	})
-
-	b.Run("binary.Unmarshal+sig", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, bevt := range events {
-				evt := &nostr.Event{}
-				err := Unmarshal(bevt, evt)
-				if err != nil {
-					b.Fatalf("failed to unmarshal: %s", err)
-				}
-				evt.CheckSignature()
-			}
-		}
-	})
 }
