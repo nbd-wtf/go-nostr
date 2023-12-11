@@ -24,11 +24,13 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 	evt.Content = string(data[136 : 136+contentLength])
 
 	curr := 136 + contentLength
-	ntags := int(data[curr])
-	evt.Tags = make(nostr.Tags, ntags)
+
+	nTags := binary.BigEndian.Uint16(data[curr : curr+2])
+	curr++
+	evt.Tags = make(nostr.Tags, nTags)
 
 	for t := range evt.Tags {
-		curr = curr + 1
+		curr++
 		nItems := int(data[curr])
 		tag := make(nostr.Tag, nItems)
 		for i := range tag {
@@ -60,7 +62,10 @@ func Marshal(evt *nostr.Event) ([]byte, error) {
 	copy(buf[136:], content)
 
 	curr := 136 + len(content)
-	buf[curr] = uint8(len(evt.Tags))
+
+	binary.BigEndian.PutUint16(buf[curr:curr+2], uint16(len(evt.Tags)))
+	curr++
+
 	for _, tag := range evt.Tags {
 		curr++
 		buf[curr] = uint8(len(tag))
