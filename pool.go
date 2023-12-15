@@ -103,7 +103,6 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 	seenAlready := xsync.NewMapOf[Timestamp]()
 	ticker := time.NewTicker(seenAlreadyDropTick)
 
-	var mu sync.Mutex
 	eose := false
 
 	pending := xsync.NewCounter()
@@ -143,9 +142,7 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 
 				go func() {
 					<-sub.EndOfStoredEvents
-					mu.Lock()
 					eose = true
-					mu.Unlock()
 				}()
 
 				// reset interval when we get a good subscription
@@ -174,7 +171,6 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 						case <-ctx.Done():
 						}
 					case <-ticker.C:
-						mu.Lock()
 						if eose {
 							old := Timestamp(time.Now().Add(-seenAlreadyDropTick).Unix())
 							seenAlready.Range(func(id string, value Timestamp) bool {
@@ -184,7 +180,6 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 								return true
 							})
 						}
-						mu.Unlock()
 					case reason := <-sub.ClosedReason:
 						if strings.HasPrefix(reason, "auth-required:") && pool.authHandler != nil && !hasAuthed {
 							// relay is requesting auth. if we can we will perform auth and try again
