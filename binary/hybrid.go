@@ -56,23 +56,46 @@ func Marshal(evt *nostr.Event) ([]byte, error) {
 	hex.Decode(buf[32:64], []byte(evt.PubKey))
 	hex.Decode(buf[64:128], []byte(evt.Sig))
 
+	if evt.CreatedAt > MaxCreatedAt {
+		return nil, fmt.Errorf("created_at is too big: %d, max is %d", evt.CreatedAt, MaxCreatedAt)
+	}
 	binary.BigEndian.PutUint32(buf[128:132], uint32(evt.CreatedAt))
+
+	if evt.Kind > MaxKind {
+		return nil, fmt.Errorf("kind is too big: %d, max is %d", evt.Kind, MaxKind)
+	}
 	binary.BigEndian.PutUint16(buf[132:134], uint16(evt.Kind))
-	binary.BigEndian.PutUint16(buf[134:136], uint16(len(content)))
+
+	if contentLength := len(content); contentLength > MaxContentSize {
+		return nil, fmt.Errorf("content is too large: %d, max is %d", contentLength, MaxContentSize)
+	} else {
+		binary.BigEndian.PutUint16(buf[134:136], uint16(contentLength))
+	}
 	copy(buf[136:], content)
 
 	curr := 136 + len(content)
 
-	binary.BigEndian.PutUint16(buf[curr:curr+2], uint16(len(evt.Tags)))
+	if tagCount := len(evt.Tags); tagCount > MaxTagCount {
+		return nil, fmt.Errorf("can't encode too many tags: %d, max is %d", tagCount, MaxTagCount)
+	} else {
+		binary.BigEndian.PutUint16(buf[curr:curr+2], uint16(tagCount))
+	}
 	curr++
 
 	for _, tag := range evt.Tags {
 		curr++
-		buf[curr] = uint8(len(tag))
+		if itemCount := len(tag); itemCount > MaxTagItemCount {
+			return nil, fmt.Errorf("can't encode a tag with so many items: %d, max is %d", itemCount, MaxTagItemCount)
+		} else {
+			buf[curr] = uint8(itemCount)
+		}
 		for _, item := range tag {
 			curr++
 			itemb := []byte(item)
 			itemSize := len(itemb)
+			if itemSize > MaxTagItemSize {
+				return nil, fmt.Errorf("tag item is too large: %d, max is %d", itemSize, MaxTagItemSize)
+			}
 			binary.BigEndian.PutUint16(buf[curr:curr+2], uint16(itemSize))
 			itemEnd := curr + 2 + itemSize
 			copy(buf[curr+2:itemEnd], itemb)
