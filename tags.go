@@ -61,6 +61,16 @@ func (tag Tag) Relay() string {
 
 type Tags []Tag
 
+// GetD gets the first "d" tag (for parameterized replaceable events) value or ""
+func (tags Tags) GetD() string {
+	for _, v := range tags {
+		if v.StartsWith([]string{"d", ""}) {
+			return v[1]
+		}
+	}
+	return ""
+}
+
 // GetFirst gets the first tag in tags that matches the prefix, see [Tag.StartsWith]
 func (tags Tags) GetFirst(tagPrefix []string) *Tag {
 	for _, v := range tags {
