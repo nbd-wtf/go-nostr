@@ -1,9 +1,10 @@
 package nostr
 
 import (
+	"reflect"
 	"sync"
+	"unsafe"
 
-	"github.com/dgraph-io/ristretto/z"
 	"golang.org/x/exp/constraints"
 )
 
@@ -11,8 +12,13 @@ const MAX_LOCKS = 50
 
 var namedMutexPool = make([]sync.Mutex, MAX_LOCKS)
 
+//go:noescape
+//go:linkname memhash runtime.memhash
+func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+
 func namedLock(name string) (unlock func()) {
-	idx := z.MemHashString(name) % MAX_LOCKS
+	ss := (*reflect.StringHeader)(unsafe.Pointer(&name))
+	idx := uint64(memhash(unsafe.Pointer(ss.Data), 0, uintptr(ss.Len))) % MAX_LOCKS
 	namedMutexPool[idx].Lock()
 	return namedMutexPool[idx].Unlock
 }
