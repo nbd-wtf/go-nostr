@@ -10,7 +10,7 @@ type Event struct {
 	PubKey    [32]byte
 	Sig       [64]byte
 	ID        [32]byte
-	Kind      uint16
+	Kind      nostr.Kind
 	CreatedAt nostr.Timestamp
 	Content   string
 	Tags      nostr.Tags
@@ -20,7 +20,7 @@ func BinaryEvent(evt *nostr.Event) *Event {
 	bevt := Event{
 		Tags:      evt.Tags,
 		Content:   evt.Content,
-		Kind:      uint16(evt.Kind),
+		Kind:      evt.Kind,
 		CreatedAt: evt.CreatedAt,
 	}
 
@@ -35,7 +35,7 @@ func (bevt *Event) ToNormalEvent() *nostr.Event {
 	return &nostr.Event{
 		Tags:      bevt.Tags,
 		Content:   bevt.Content,
-		Kind:      int(bevt.Kind),
+		Kind:      bevt.Kind,
 		CreatedAt: bevt.CreatedAt,
 		ID:        hex.EncodeToString(bevt.ID[:]),
 		PubKey:    hex.EncodeToString(bevt.PubKey[:]),

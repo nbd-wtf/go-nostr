@@ -76,7 +76,8 @@ func Unmarshal(data string, evt *nostr.Event) (err error) {
 	// kind
 	kindChars := int(nsonDescriptors[0])
 	kindStart := NSON_VALUES_START + nsonSize + 9 // len(`","kind":`)
-	evt.Kind, _ = strconv.Atoi(data[kindStart : kindStart+kindChars])
+	kind, _ := strconv.ParseUint(data[kindStart:kindStart+kindChars], 10, 16)
+	evt.Kind = nostr.Kind(kind)
 
 	// content
 	contentChars := int(binary.BigEndian.Uint16(nsonDescriptors[1:3]))
@@ -151,7 +152,7 @@ func Marshal(evt *nostr.Event) (string, error) {
 	tagBuilder.WriteString(`]}`)
 	nsonBuf = nsonBuf[0 : nsonIndex+1]
 
-	kind := strconv.Itoa(evt.Kind)
+	kind := strconv.FormatUint(uint64(evt.Kind), 10)
 	kindChars := len(kind)
 	nsonBuf[0] = uint8(kindChars)
 
