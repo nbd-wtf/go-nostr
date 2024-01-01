@@ -11,13 +11,13 @@ import (
 const RELAY = "wss://nos.lol"
 
 // test if we can fetch a couple of random events
-func TestSubscribe(t *testing.T) {
+func TestSubscribeBasic(t *testing.T) {
 	rl := mustRelayConnect(RELAY)
 	defer rl.Close()
 
 	sub, err := rl.Subscribe(context.Background(), Filters{{Kinds: []int{KindTextNote}, Limit: 2}})
 	if err != nil {
-		t.Errorf("subscription failed: %v", err)
+		t.Fatalf("subscription failed: %v", err)
 		return
 	}
 
@@ -28,23 +28,23 @@ func TestSubscribe(t *testing.T) {
 		select {
 		case event := <-sub.Events:
 			if event == nil {
-				t.Errorf("event is nil: %v", event)
+				t.Fatalf("event is nil: %v", event)
 			}
 			n++
 		case <-sub.EndOfStoredEvents:
 			goto end
 		case <-rl.Context().Done():
-			t.Errorf("connection closed: %v", rl.Context().Err())
+			t.Fatalf("connection closed: %v", rl.Context().Err())
 			goto end
 		case <-timeout:
-			t.Errorf("timeout")
+			t.Fatalf("timeout")
 			goto end
 		}
 	}
 
 end:
 	if n != 2 {
-		t.Errorf("expected 2 events, got %d", n)
+		t.Fatalf("expected 2 events, got %d", n)
 	}
 }
 
@@ -58,7 +58,7 @@ func TestNestedSubscriptions(t *testing.T) {
 	// fetch 2 replies to a note
 	sub, err := rl.Subscribe(context.Background(), Filters{{Kinds: []int{KindTextNote}, Tags: TagMap{"e": []string{"0e34a74f8547e3b95d52a2543719b109fd0312aba144e2ef95cba043f42fe8c5"}}, Limit: 3}})
 	if err != nil {
-		t.Errorf("subscription 1 failed: %v", err)
+		t.Fatalf("subscription 1 failed: %v", err)
 		return
 	}
 
@@ -68,7 +68,7 @@ func TestNestedSubscriptions(t *testing.T) {
 			// now fetch author of this
 			sub, err := rl.Subscribe(context.Background(), Filters{{Kinds: []int{KindProfileMetadata}, Authors: []string{event.PubKey}, Limit: 1}})
 			if err != nil {
-				t.Errorf("subscription 2 failed: %v", err)
+				t.Fatalf("subscription 2 failed: %v", err)
 				return
 			}
 
@@ -95,7 +95,7 @@ func TestNestedSubscriptions(t *testing.T) {
 			sub.Unsub()
 			return
 		case <-sub.Context.Done():
-			t.Errorf("connection closed: %v", rl.Context().Err())
+			t.Fatalf("connection closed: %v", rl.Context().Err())
 			return
 		}
 	}

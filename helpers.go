@@ -1,7 +1,6 @@
 package nostr
 
 import (
-	"reflect"
 	"sync"
 	"unsafe"
 
@@ -17,8 +16,8 @@ var namedMutexPool = make([]sync.Mutex, MAX_LOCKS)
 func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 
 func namedLock(name string) (unlock func()) {
-	ss := (*reflect.StringHeader)(unsafe.Pointer(&name))
-	idx := uint64(memhash(unsafe.Pointer(ss.Data), 0, uintptr(ss.Len))) % MAX_LOCKS
+	sptr := unsafe.StringData(name)
+	idx := uint64(memhash(unsafe.Pointer(sptr), 0, uintptr(len(name)))) % MAX_LOCKS
 	namedMutexPool[idx].Lock()
 	return namedMutexPool[idx].Unlock
 }
