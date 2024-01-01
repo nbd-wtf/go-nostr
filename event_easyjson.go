@@ -45,7 +45,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
-			out.Kind = in.Int()
+			out.Kind = Kind(in.Uint16())
 		case "tags":
 			if in.IsNull() {
 				in.Skip()
@@ -127,7 +127,7 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 	{
 		const prefix string = ",\"kind\":"
 		out.RawString(prefix)
-		out.Int(in.Kind)
+		out.Uint16(uint16(in.Kind))
 	}
 	{
 		const prefix string = ",\"tags\":"

@@ -19,7 +19,7 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 	evt.PubKey = hex.EncodeToString(data[32:64])
 	evt.Sig = hex.EncodeToString(data[64:128])
 	evt.CreatedAt = nostr.Timestamp(binary.BigEndian.Uint32(data[128:132]))
-	evt.Kind = int(binary.BigEndian.Uint16(data[132:134]))
+	evt.Kind = nostr.Kind(binary.BigEndian.Uint16(data[132:134]))
 	contentLength := int(binary.BigEndian.Uint16(data[134:136]))
 	evt.Content = string(data[136 : 136+contentLength])
 

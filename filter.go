@@ -11,7 +11,7 @@ type Filters []Filter
 
 type Filter struct {
 	IDs     []string   `json:"ids,omitempty"`
-	Kinds   []int      `json:"kinds,omitempty"`
+	Kinds   []Kind     `json:"kinds,omitempty"`
 	Authors []string   `json:"authors,omitempty"`
 	Tags    TagMap     `json:"-,omitempty"`
 	Since   *Timestamp `json:"since,omitempty"`

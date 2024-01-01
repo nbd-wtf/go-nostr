@@ -18,7 +18,7 @@ func UnmarshalBinary(data []byte, evt *Event) (err error) {
 	copy(evt.PubKey[:], data[32:64])
 	copy(evt.Sig[:], data[64:128])
 	evt.CreatedAt = nostr.Timestamp(binary.BigEndian.Uint32(data[128:132]))
-	evt.Kind = binary.BigEndian.Uint16(data[132:134])
+	evt.Kind = nostr.Kind(binary.BigEndian.Uint16(data[132:134]))
 	contentLength := int(binary.BigEndian.Uint16(data[134:136]))
 	evt.Content = string(data[136 : 136+contentLength])
 
@@ -54,7 +54,7 @@ func MarshalBinary(evt *Event) []byte {
 	copy(buf[32:64], evt.PubKey[:])
 	copy(buf[64:128], evt.Sig[:])
 	binary.BigEndian.PutUint32(buf[128:132], uint32(evt.CreatedAt))
-	binary.BigEndian.PutUint16(buf[132:134], evt.Kind)
+	binary.BigEndian.PutUint16(buf[132:134], uint16(evt.Kind))
 	binary.BigEndian.PutUint16(buf[134:136], uint16(len(content)))
 	copy(buf[136:], content)
 
