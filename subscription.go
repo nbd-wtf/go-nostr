@@ -106,15 +106,16 @@ func (sub *Subscription) dispatchEose() {
 	if sub.eosed.CompareAndSwap(false, true) {
 		go func() {
 			sub.storedwg.Wait()
-			close(sub.EndOfStoredEvents)
+			sub.EndOfStoredEvents <- struct{}{}
 		}()
 	}
 }
 
 func (sub *Subscription) dispatchClosed(reason string) {
 	if sub.closed.CompareAndSwap(false, true) {
-		sub.ClosedReason <- reason
-		close(sub.ClosedReason)
+		go func() {
+			sub.ClosedReason <- reason
+		}()
 	}
 }
 
