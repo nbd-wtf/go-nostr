@@ -20,6 +20,18 @@ type Group struct {
 	LastMembersUpdate  nostr.Timestamp
 }
 
+func NewGroup(id string) *Group {
+	now := nostr.Now()
+	return &Group{
+		ID:                 id,
+		Name:               id,
+		Members:            make(map[string]*Role),
+		LastMetadataUpdate: now,
+		LastAdminsUpdate:   now,
+		LastMembersUpdate:  now,
+	}
+}
+
 func (group Group) ToMetadataEvent() *nostr.Event {
 	evt := &nostr.Event{
 		Kind:      nostr.KindSimpleGroupMetadata,
@@ -65,7 +77,7 @@ func (group Group) ToAdminsEvent() *nostr.Event {
 	for member, role := range group.Members {
 		if role != nil {
 			// is an admin
-			tag := make([]string, 0, 3+len(role.Permissions))
+			tag := make([]string, 3, 3+len(role.Permissions))
 			tag[0] = "p"
 			tag[1] = member
 			tag[2] = role.Name
@@ -99,13 +111,11 @@ func (group *Group) MergeInMetadataEvent(evt *nostr.Event) error {
 	if evt.Kind != nostr.KindSimpleGroupMetadata {
 		return fmt.Errorf("expected kind %d, got %d", nostr.KindSimpleGroupMetadata, evt.Kind)
 	}
-
-	if evt.CreatedAt <= group.LastMetadataUpdate {
+	if evt.CreatedAt < group.LastMetadataUpdate {
 		return fmt.Errorf("event is older than our last update (%d vs %d)", evt.CreatedAt, group.LastMetadataUpdate)
 	}
 
 	group.LastMetadataUpdate = evt.CreatedAt
-	group.ID = evt.Tags.GetD()
 	group.Name = group.ID
 
 	if tag := evt.Tags.GetFirst([]string{"name", ""}); tag != nil {
@@ -132,8 +142,7 @@ func (group *Group) MergeInAdminsEvent(evt *nostr.Event) error {
 	if evt.Kind != nostr.KindSimpleGroupAdmins {
 		return fmt.Errorf("expected kind %d, got %d", nostr.KindSimpleGroupAdmins, evt.Kind)
 	}
-
-	if evt.CreatedAt <= group.LastAdminsUpdate {
+	if evt.CreatedAt < group.LastAdminsUpdate {
 		return fmt.Errorf("event is older than our last update (%d vs %d)", evt.CreatedAt, group.LastAdminsUpdate)
 	}
 
@@ -148,6 +157,18 @@ func (group *Group) MergeInAdminsEvent(evt *nostr.Event) error {
 		if !nostr.IsValidPublicKeyHex(tag[1]) {
 			continue
 		}
+
+		role := group.Members[tag[1]]
+		if role == nil {
+			role = &Role{Name: tag[2]}
+			group.Members[tag[1]] = role
+		}
+		if role.Permissions == nil {
+			role.Permissions = make(map[Permission]struct{}, len(tag)-3)
+		}
+		for _, perm := range tag[2:] {
+			role.Permissions[Permission(perm)] = struct{}{}
+		}
 	}
 
 	return nil
@@ -157,8 +178,7 @@ func (group *Group) MergeInMembersEvent(evt *nostr.Event) error {
 	if evt.Kind != nostr.KindSimpleGroupMembers {
 		return fmt.Errorf("expected kind %d, got %d", nostr.KindSimpleGroupMembers, evt.Kind)
 	}
-
-	if evt.CreatedAt <= group.LastMembersUpdate {
+	if evt.CreatedAt < group.LastMembersUpdate {
 		return fmt.Errorf("event is older than our last update (%d vs %d)", evt.CreatedAt, group.LastMembersUpdate)
 	}
 
@@ -172,6 +192,11 @@ func (group *Group) MergeInMembersEvent(evt *nostr.Event) error {
 		}
 		if !nostr.IsValidPublicKeyHex(tag[1]) {
 			continue
+		}
+
+		_, exists := group.Members[tag[1]]
+		if !exists {
+			group.Members[tag[1]] = EmptyRole
 		}
 	}
 
