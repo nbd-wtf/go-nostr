@@ -1,43 +1,44 @@
-package nip29
+package relay
 
 import (
 	"fmt"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 var (
 	// used for the default role, the actual relay, hidden otherwise
-	MasterRole *Role = &Role{
+	MasterRole *nip29.Role = &nip29.Role{
 		Name: "master",
-		Permissions: map[Permission]struct{}{
-			PermAddUser:          {},
-			PermEditMetadata:     {},
-			PermDeleteEvent:      {},
-			PermRemoveUser:       {},
-			PermAddPermission:    {},
-			PermRemovePermission: {},
-			PermEditGroupStatus:  {},
+		Permissions: map[nip29.Permission]struct{}{
+			nip29.PermAddUser:          {},
+			nip29.PermEditMetadata:     {},
+			nip29.PermDeleteEvent:      {},
+			nip29.PermRemoveUser:       {},
+			nip29.PermAddPermission:    {},
+			nip29.PermRemovePermission: {},
+			nip29.PermEditGroupStatus:  {},
 		},
 	}
 
 	// used for normal members without admin powers, not displayed
-	EmptyRole *Role = nil
+	EmptyRole *nip29.Role = nil
 
-	PermissionsMap = map[Permission]struct{}{
-		PermAddUser:          {},
-		PermEditMetadata:     {},
-		PermDeleteEvent:      {},
-		PermRemoveUser:       {},
-		PermAddPermission:    {},
-		PermRemovePermission: {},
-		PermEditGroupStatus:  {},
+	PermissionsMap = map[nip29.Permission]struct{}{
+		nip29.PermAddUser:          {},
+		nip29.PermEditMetadata:     {},
+		nip29.PermDeleteEvent:      {},
+		nip29.PermRemoveUser:       {},
+		nip29.PermAddPermission:    {},
+		nip29.PermRemovePermission: {},
+		nip29.PermEditGroupStatus:  {},
 	}
 )
 
 type Action interface {
-	Apply(group *Group)
-	PermissionName() Permission
+	Apply(group *nip29.Group)
+	PermissionName() nip29.Permission
 }
 
 func GetModerationAction(evt *nostr.Event) (Action, error) {
@@ -98,9 +99,9 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 	nostr.KindSimpleGroupAddPermission: func(evt *nostr.Event) (Action, error) {
 		nTags := len(evt.Tags)
 
-		permissions := make([]Permission, 0, nTags-1)
+		permissions := make([]nip29.Permission, 0, nTags-1)
 		for _, tag := range evt.Tags.GetAll([]string{"permission", ""}) {
-			perm := Permission(tag[1])
+			perm := nip29.Permission(tag[1])
 			if _, ok := PermissionsMap[perm]; !ok {
 				return nil, fmt.Errorf("unknown permission '%s'", tag[1])
 			}
@@ -124,9 +125,9 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 	nostr.KindSimpleGroupRemovePermission: func(evt *nostr.Event) (Action, error) {
 		nTags := len(evt.Tags)
 
-		permissions := make([]Permission, 0, nTags-1)
+		permissions := make([]nip29.Permission, 0, nTags-1)
 		for _, tag := range evt.Tags.GetAll([]string{"permission", ""}) {
-			perm := Permission(tag[1])
+			perm := nip29.Permission(tag[1])
 			if _, ok := PermissionsMap[perm]; !ok {
 				return nil, fmt.Errorf("unknown permission '%s'", tag[1])
 			}
@@ -193,15 +194,15 @@ type DeleteEvent struct {
 	Targets []string
 }
 
-func (DeleteEvent) PermissionName() Permission { return PermDeleteEvent }
-func (a DeleteEvent) Apply(group *Group)       {}
+func (DeleteEvent) PermissionName() nip29.Permission { return nip29.PermDeleteEvent }
+func (a DeleteEvent) Apply(group *nip29.Group)       {}
 
 type AddUser struct {
 	Targets []string
 }
 
-func (AddUser) PermissionName() Permission { return PermAddUser }
-func (a AddUser) Apply(group *Group) {
+func (AddUser) PermissionName() nip29.Permission { return nip29.PermAddUser }
+func (a AddUser) Apply(group *nip29.Group) {
 	for _, target := range a.Targets {
 		group.Members[target] = EmptyRole
 	}
@@ -211,8 +212,8 @@ type RemoveUser struct {
 	Targets []string
 }
 
-func (RemoveUser) PermissionName() Permission { return PermRemoveUser }
-func (a RemoveUser) Apply(group *Group) {
+func (RemoveUser) PermissionName() nip29.Permission { return nip29.PermRemoveUser }
+func (a RemoveUser) Apply(group *nip29.Group) {
 	for _, target := range a.Targets {
 		delete(group.Members, target)
 	}
@@ -225,8 +226,8 @@ type EditMetadata struct {
 	When         nostr.Timestamp
 }
 
-func (EditMetadata) PermissionName() Permission { return PermEditMetadata }
-func (a EditMetadata) Apply(group *Group) {
+func (EditMetadata) PermissionName() nip29.Permission { return nip29.PermEditMetadata }
+func (a EditMetadata) Apply(group *nip29.Group) {
 	group.Name = a.NameValue
 	group.Picture = a.PictureValue
 	group.About = a.AboutValue
@@ -235,18 +236,18 @@ func (a EditMetadata) Apply(group *Group) {
 
 type AddPermission struct {
 	Targets     []string
-	Permissions []Permission
+	Permissions []nip29.Permission
 }
 
-func (AddPermission) PermissionName() Permission { return PermAddPermission }
-func (a AddPermission) Apply(group *Group) {
+func (AddPermission) PermissionName() nip29.Permission { return nip29.PermAddPermission }
+func (a AddPermission) Apply(group *nip29.Group) {
 	for _, target := range a.Targets {
 		role, ok := group.Members[target]
 
 		// if it's a normal user, create a new permissions object thing for this user
 		// instead of modifying the global EmptyRole
 		if !ok || role == EmptyRole {
-			role = &Role{Permissions: make(map[Permission]struct{})}
+			role = &nip29.Role{Permissions: make(map[nip29.Permission]struct{})}
 			group.Members[target] = role
 		}
 
@@ -259,11 +260,11 @@ func (a AddPermission) Apply(group *Group) {
 
 type RemovePermission struct {
 	Targets     []string
-	Permissions []Permission
+	Permissions []nip29.Permission
 }
 
-func (RemovePermission) PermissionName() Permission { return PermRemovePermission }
-func (a RemovePermission) Apply(group *Group) {
+func (RemovePermission) PermissionName() nip29.Permission { return nip29.PermRemovePermission }
+func (a RemovePermission) Apply(group *nip29.Group) {
 	for _, target := range a.Targets {
 		role, ok := group.Members[target]
 		if !ok || role == EmptyRole {
@@ -290,8 +291,8 @@ type EditGroupStatus struct {
 	When    nostr.Timestamp
 }
 
-func (EditGroupStatus) PermissionName() Permission { return PermEditGroupStatus }
-func (a EditGroupStatus) Apply(group *Group) {
+func (EditGroupStatus) PermissionName() nip29.Permission { return nip29.PermEditGroupStatus }
+func (a EditGroupStatus) Apply(group *nip29.Group) {
 	if a.Public {
 		group.Private = false
 	} else if a.Private {

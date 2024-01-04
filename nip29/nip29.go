@@ -2,7 +2,6 @@ package nip29
 
 import (
 	"github.com/nbd-wtf/go-nostr"
-	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -25,7 +24,15 @@ const (
 
 type KindRange []int
 
-var ModerationEventKinds = KindRange(maps.Keys(moderationActionFactories))
+var ModerationEventKinds = KindRange{
+	nostr.KindSimpleGroupAddUser,
+	nostr.KindSimpleGroupRemoveUser,
+	nostr.KindSimpleGroupEditMetadata,
+	nostr.KindSimpleGroupAddPermission,
+	nostr.KindSimpleGroupRemovePermission,
+	nostr.KindSimpleGroupDeleteEvent,
+	nostr.KindSimpleGroupEditGroupStatus,
+}
 
 var MetadataEventKinds = KindRange{
 	nostr.KindSimpleGroupMetadata,
