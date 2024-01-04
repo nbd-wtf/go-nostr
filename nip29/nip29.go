@@ -44,3 +44,18 @@ func (kr KindRange) Includes(kind int) bool {
 	_, ok := slices.BinarySearch(kr, kind)
 	return ok
 }
+
+var (
+	// used for normal members without admin powers
+	EmptyRole *Role = nil
+
+	PermissionsMap = map[Permission]struct{}{
+		PermAddUser:          {},
+		PermEditMetadata:     {},
+		PermDeleteEvent:      {},
+		PermRemoveUser:       {},
+		PermAddPermission:    {},
+		PermRemovePermission: {},
+		PermEditGroupStatus:  {},
+	}
+)
