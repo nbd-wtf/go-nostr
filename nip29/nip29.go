@@ -2,6 +2,7 @@ package nip29
 
 import (
 	"github.com/nbd-wtf/go-nostr"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -10,7 +11,7 @@ type Role struct {
 	Permissions map[Permission]struct{}
 }
 
-type Permission = string
+type Permission string
 
 const (
 	PermAddUser          Permission = "add-user"
@@ -24,15 +25,7 @@ const (
 
 type KindRange []int
 
-var ModerationEventKinds = KindRange{
-	nostr.KindSimpleGroupAddUser,
-	nostr.KindSimpleGroupRemoveUser,
-	nostr.KindSimpleGroupEditMetadata,
-	nostr.KindSimpleGroupAddPermission,
-	nostr.KindSimpleGroupRemovePermission,
-	nostr.KindSimpleGroupDeleteEvent,
-	nostr.KindSimpleGroupEditGroupStatus,
-}
+var ModerationEventKinds = KindRange(maps.Keys(moderationActionFactories))
 
 var MetadataEventKinds = KindRange{
 	nostr.KindSimpleGroupMetadata,
