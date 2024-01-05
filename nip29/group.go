@@ -20,15 +20,11 @@ type Group struct {
 	LastMembersUpdate  nostr.Timestamp
 }
 
-func NewGroup(id string) *Group {
-	now := nostr.Now()
-	return &Group{
-		ID:                 id,
-		Name:               id,
-		Members:            make(map[string]*Role),
-		LastMetadataUpdate: now,
-		LastAdminsUpdate:   now,
-		LastMembersUpdate:  now,
+func NewGroup(id string) Group {
+	return Group{
+		ID:      id,
+		Name:    id,
+		Members: make(map[string]*Role),
 	}
 }
 
