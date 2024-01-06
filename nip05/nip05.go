@@ -11,14 +11,10 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-type (
-	name2KeyMap   map[string]string
-	key2RelaysMap map[string][]string
-)
-
 type WellKnownResponse struct {
-	Names  name2KeyMap   `json:"names"`  // NIP-05
-	Relays key2RelaysMap `json:"relays"` // NIP-35
+	Names  map[string]string   `json:"names"`
+	Relays map[string][]string `json:"relays"`
+	NIP46  map[string][]string `json:"nip46"`
 }
 
 func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointer, error) {
