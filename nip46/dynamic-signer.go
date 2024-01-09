@@ -3,6 +3,7 @@ package nip46
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
@@ -10,101 +11,52 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type Request struct {
-	ID     string   `json:"id"`
-	Method string   `json:"method"`
-	Params []string `json:"params"`
-}
+var _ Signer = (*DynamicSigner)(nil)
 
-type Response struct {
-	ID     string `json:"id"`
-	Error  string `json:"error,omitempty"`
-	Result string `json:"result,omitempty"`
-}
-
-type Session struct {
-	SharedKey []byte
-}
-
-func (s Session) ParseRequest(event *nostr.Event) (Request, error) {
-	var req Request
-
-	plain, err := nip04.Decrypt(event.Content, s.SharedKey)
-	if err != nil {
-		return req, fmt.Errorf("failed to decrypt event from %s: %w", event.PubKey, err)
-	}
-
-	err = json.Unmarshal([]byte(plain), &req)
-	return req, err
-}
-
-func (s Session) MakeResponse(
-	id string,
-	requester string,
-	result string,
-	err error,
-) (resp Response, evt nostr.Event, error error) {
-	if err != nil {
-		resp = Response{
-			ID:    id,
-			Error: err.Error(),
-		}
-	} else if result != "" {
-		resp = Response{
-			ID:     id,
-			Result: result,
-		}
-	}
-
-	jresp, _ := json.Marshal(resp)
-	ciphertext, err := nip04.Encrypt(string(jresp), s.SharedKey)
-	if err != nil {
-		return resp, evt, fmt.Errorf("failed to encrypt result: %w", err)
-	}
-	evt.Content = ciphertext
-
-	evt.CreatedAt = nostr.Now()
-	evt.Kind = nostr.KindNostrConnect
-	evt.Tags = nostr.Tags{nostr.Tag{"p", requester}}
-
-	return resp, evt, nil
-}
-
-type Signer struct {
-	secretKey string
-
+type DynamicSigner struct {
 	sessionKeys []string
 	sessions    []Session
 
-	RelaysToAdvertise map[string]relayReadWrite
+	sync.Mutex
+
+	RelaysToAdvertise map[string]RelayReadWrite
+
+	getPrivateKey    func(pubkey string) (string, error)
+	authorizeSigning func(event nostr.Event) bool
+	onEventSigned    func(event nostr.Event)
+	authorizeNIP04   func() bool
 }
 
-type relayReadWrite struct {
-	Read  bool `json:"read"`
-	Write bool `json:"write"`
+func NewDynamicSigner(
+	getPrivateKey func(pubkey string) (string, error),
+	authorizeSigning func(event nostr.Event) bool,
+	onEventSigned func(event nostr.Event),
+	authorizeNIP04 func() bool,
+) DynamicSigner {
+	return DynamicSigner{
+		getPrivateKey:     getPrivateKey,
+		authorizeSigning:  authorizeSigning,
+		onEventSigned:     onEventSigned,
+		authorizeNIP04:    authorizeNIP04,
+		RelaysToAdvertise: make(map[string]RelayReadWrite),
+	}
 }
 
-func NewSigner(secretKey string) Signer {
-	return Signer{secretKey: secretKey}
-}
-
-func (p *Signer) AddRelayToAdvertise(url string, read bool, write bool) {
-	p.RelaysToAdvertise[url] = relayReadWrite{read, write}
-}
-
-func (p *Signer) GetSession(clientPubkey string) (Session, error) {
+func (p *DynamicSigner) GetSession(clientPubkey string) (Session, bool) {
 	idx, exists := slices.BinarySearch(p.sessionKeys, clientPubkey)
 	if exists {
-		return p.sessions[idx], nil
+		return p.sessions[idx], true
 	}
+	return Session{}, false
+}
 
-	shared, err := nip04.ComputeSharedSecret(clientPubkey, p.secretKey)
-	if err != nil {
-		return Session{}, fmt.Errorf("failed to compute shared secret: %w", err)
-	}
+func (p *DynamicSigner) setSession(clientPubkey string, session Session) {
+	p.Lock()
+	defer p.Unlock()
 
-	session := Session{
-		SharedKey: shared,
+	idx, exists := slices.BinarySearch(p.sessionKeys, clientPubkey)
+	if exists {
+		return
 	}
 
 	// add to pool
@@ -114,24 +66,49 @@ func (p *Signer) GetSession(clientPubkey string) (Session, error) {
 	copy(p.sessions[idx+1:], p.sessions[idx:])
 	p.sessionKeys[idx] = clientPubkey
 	p.sessions[idx] = session
-
-	return session, nil
 }
 
-func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, harmless bool, err error) {
+func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
+	req Request,
+	resp Response,
+	eventResponse nostr.Event,
+	harmless bool,
+	err error,
+) {
 	if event.Kind != nostr.KindNostrConnect {
 		return req, resp, eventResponse, false,
 			fmt.Errorf("event kind is %d, but we expected %d", event.Kind, nostr.KindNostrConnect)
 	}
 
-	session, err := p.GetSession(event.PubKey)
-	if err != nil {
-		return req, resp, eventResponse, false, err
+	targetUser := event.Tags.GetFirst([]string{"p", ""})
+	if targetUser == nil || !nostr.IsValidPublicKeyHex((*targetUser)[1]) {
+		return req, resp, eventResponse, false, fmt.Errorf("invalid \"p\" tag")
 	}
 
-	req, err = session.ParseRequest(event)
+	targetPubkey := (*targetUser)[1]
+
+	privateKey, err := p.getPrivateKey(targetPubkey)
 	if err != nil {
-		return req, resp, eventResponse, false, fmt.Errorf("error parsing request: %w", err)
+		return req, resp, eventResponse, false, fmt.Errorf("no private key for %s: %w", targetPubkey, err)
+	}
+
+	var session Session
+	idx, exists := slices.BinarySearch(p.sessionKeys, event.PubKey)
+	if exists {
+		session = p.sessions[idx]
+	} else {
+		session = Session{}
+
+		session.SharedKey, err = nip04.ComputeSharedSecret(event.PubKey, privateKey)
+		if err != nil {
+			return req, resp, eventResponse, false, fmt.Errorf("failed to compute shared secret: %w", err)
+		}
+		p.setSession(event.PubKey, session)
+
+		req, err = session.ParseRequest(event)
+		if err != nil {
+			return req, resp, eventResponse, false, fmt.Errorf("error parsing request: %w", err)
+		}
 	}
 
 	var result string
@@ -142,14 +119,8 @@ func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, 
 		result = "ack"
 		harmless = true
 	case "get_public_key":
-		pubkey, err := nostr.GetPublicKey(p.secretKey)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to derive public key: %w", err)
-			break
-		} else {
-			result = pubkey
-			harmless = true
-		}
+		result = targetPubkey
+		harmless = true
 	case "sign_event":
 		if len(req.Params) != 1 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'sign_event'")
@@ -161,7 +132,11 @@ func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, 
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
 		}
-		err = evt.Sign(p.secretKey)
+		if !p.authorizeSigning(evt) {
+			resultErr = fmt.Errorf("refusing to sign this event")
+			break
+		}
+		err = evt.Sign(privateKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to sign event: %w", err)
 			break
@@ -182,8 +157,12 @@ func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, 
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
 			break
 		}
+		if !p.authorizeNIP04() {
+			resultErr = fmt.Errorf("refusing to encrypt")
+			break
+		}
 		plaintext := req.Params[1]
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
+		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, privateKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
 			break
@@ -204,8 +183,12 @@ func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, 
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
 			break
 		}
+		if !p.authorizeNIP04() {
+			resultErr = fmt.Errorf("refusing to decrypt")
+			break
+		}
 		ciphertext := req.Params[1]
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
+		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, privateKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
 			break
@@ -226,7 +209,7 @@ func (p *Signer) HandleRequest(event *nostr.Event) (req Request, resp Response, 
 		return req, resp, eventResponse, harmless, err
 	}
 
-	err = eventResponse.Sign(p.secretKey)
+	err = eventResponse.Sign(privateKey)
 	if err != nil {
 		return req, resp, eventResponse, harmless, err
 	}
