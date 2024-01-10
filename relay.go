@@ -12,7 +12,7 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	"github.com/puzpuzpuz/xsync/v2"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
 type Status int
@@ -55,8 +55,8 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		URL:                           NormalizeURL(url),
 		connectionContext:             ctx,
 		connectionContextCancel:       cancel,
-		Subscriptions:                 xsync.NewMapOf[*Subscription](),
-		okCallbacks:                   xsync.NewMapOf[func(bool, string)](),
+		Subscriptions:                 xsync.NewMapOf[string, *Subscription](),
+		okCallbacks:                   xsync.NewMapOf[string, func(bool, string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
 	}

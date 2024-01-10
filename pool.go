@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/puzpuzpuz/xsync/v2"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
 const (
@@ -37,7 +37,7 @@ func NewSimplePool(ctx context.Context, opts ...PoolOption) *SimplePool {
 	ctx, cancel := context.WithCancel(ctx)
 
 	pool := &SimplePool{
-		Relays: xsync.NewMapOf[*Relay](),
+		Relays: xsync.NewMapOf[string, *Relay](),
 
 		Context: ctx,
 		cancel:  cancel,
@@ -100,7 +100,7 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // do this so `go vet` will stop complaining
 	events := make(chan IncomingEvent)
-	seenAlready := xsync.NewMapOf[Timestamp]()
+	seenAlready := xsync.NewMapOf[string, Timestamp]()
 	ticker := time.NewTicker(seenAlreadyDropTick)
 
 	eose := false
@@ -222,7 +222,7 @@ func (pool *SimplePool) subManyEose(ctx context.Context, urls []string, filters 
 	ctx, cancel := context.WithCancel(ctx)
 
 	events := make(chan IncomingEvent)
-	seenAlready := xsync.NewMapOf[bool]()
+	seenAlready := xsync.NewMapOf[string, bool]()
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))
 

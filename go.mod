@@ -8,7 +8,7 @@ require (
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.2.0
 	github.com/mailru/easyjson v0.7.7
-	github.com/puzpuzpuz/xsync/v2 v2.5.1
+	github.com/puzpuzpuz/xsync/v3 v3.0.2
 	github.com/tidwall/gjson v1.14.4
 	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/tyler-smith/go-bip39 v1.1.0
