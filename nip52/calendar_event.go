@@ -18,6 +18,7 @@ type CalendarEvent struct {
 	CalendarEventKind
 	Identifier   string
 	Title        string
+	Image        string
 	Start, End   time.Time
 	Locations    []string
 	Geohashes    []string
@@ -45,6 +46,8 @@ func ParseCalendarEvent(event nostr.Event) CalendarEvent {
 			calev.Identifier = tag[1]
 		case "title":
 			calev.Title = tag[1]
+		case "image":
+			calev.Image = tag[1]
 		case "start", "end":
 			var v time.Time
 			switch calev.CalendarEventKind {
@@ -94,9 +97,12 @@ func ParseCalendarEvent(event nostr.Event) CalendarEvent {
 }
 
 func (calev CalendarEvent) ToHashtags() nostr.Tags {
-	tags := make(nostr.Tags, 0, 12)
+	tags := make(nostr.Tags, 0, 26)
 	tags = append(tags, nostr.Tag{"d", calev.Identifier})
 	tags = append(tags, nostr.Tag{"title", calev.Title})
+	if calev.Image != "" {
+		tags = append(tags, nostr.Tag{"image", calev.Title})
+	}
 
 	if calev.CalendarEventKind == TimeBased {
 		tags = append(tags, nostr.Tag{"start", strconv.FormatInt(calev.Start.Unix(), 10)})
