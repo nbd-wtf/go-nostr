@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -20,21 +19,12 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 	}
 
 	// normalize URL to start with http:// or https://
-	if !strings.HasPrefix(u, "http") && !strings.HasPrefix(u, "ws") {
-		u = "wss://" + u
+	if strings.HasPrefix(u, "ws") {
+		u = "http" + u[2:]
 	}
-	p, err := url.Parse(u)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse url: %s", u)
-	}
-	if p.Scheme == "ws" {
-		p.Scheme = "http"
-	} else if p.Scheme == "wss" {
-		p.Scheme = "https"
-	}
-	p.Path = strings.TrimRight(p.Path, "/")
+	u = strings.TrimRight(u, "/")
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 
 	// add the NIP-11 header
 	req.Header.Add("Accept", "application/nostr+json")

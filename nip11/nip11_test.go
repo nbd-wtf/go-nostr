@@ -1,6 +1,9 @@
 package nip11
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestAddSupportedNIP(t *testing.T) {
 	info := RelayInformationDocument{}
@@ -26,5 +29,16 @@ func TestAddSupportedNIP(t *testing.T) {
 				i, v, info.SupportedNIPs)
 			return
 		}
+	}
+}
+
+func TestFetch(t *testing.T) {
+	res, err := Fetch(context.Background(), "wss://relay.nostr.bg")
+	if err != nil || res.Name == "" {
+		t.Errorf("failed to fetch from wss")
+	}
+	res, err = Fetch(context.Background(), "https://relay.nostr.bg")
+	if err != nil || res.Name == "" {
+		t.Errorf("failed to fetch from https")
 	}
 }
