@@ -40,6 +40,8 @@ var MetadataEventKinds = KindRange{
 	nostr.KindSimpleGroupMembers,
 }
 
+const JoinRequestKind = nostr.KindSimpleGroupJoinRequest
+
 func (kr KindRange) Includes(kind int) bool {
 	_, ok := slices.BinarySearch(kr, kind)
 	return ok
