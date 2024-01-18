@@ -50,6 +50,6 @@ func IsValidPublicKeyHex(pk string) bool {
 
 func IsValidPublicKey(pk string) bool {
 	v, _ := hex.DecodeString(pk)
-	_, err := btcec.ParsePubKey(v)
-	return len(v) == 32 && err == nil
+	_, err := schnorr.ParsePubKey(v)
+	return err == nil
 }
