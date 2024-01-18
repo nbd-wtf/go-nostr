@@ -150,7 +150,7 @@ func (group *Group) MergeInAdminsEvent(evt *nostr.Event) error {
 		if tag[0] != "p" {
 			continue
 		}
-		if !nostr.IsValidPublicKeyHex(tag[1]) {
+		if !nostr.IsValid32ByteHex(tag[1]) {
 			continue
 		}
 
@@ -186,7 +186,7 @@ func (group *Group) MergeInMembersEvent(evt *nostr.Event) error {
 		if tag[0] != "p" {
 			continue
 		}
-		if !nostr.IsValidPublicKeyHex(tag[1]) {
+		if !nostr.IsValid32ByteHex(tag[1]) {
 			continue
 		}
 

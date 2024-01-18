@@ -64,7 +64,7 @@ func ParseLiveEvent(event nostr.Event) LiveEvent {
 		case "recording":
 			liev.Recording = append(liev.Recording, tag[1])
 		case "p":
-			if nostr.IsValidPublicKeyHex(tag[1]) {
+			if nostr.IsValid32ByteHex(tag[1]) {
 				part := Participant{
 					PubKey: tag[1],
 				}

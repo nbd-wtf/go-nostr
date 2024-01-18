@@ -81,7 +81,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 	}
 
 	targetUser := event.Tags.GetFirst([]string{"p", ""})
-	if targetUser == nil || !nostr.IsValidPublicKeyHex((*targetUser)[1]) {
+	if targetUser == nil || !nostr.IsValid32ByteHex((*targetUser)[1]) {
 		return req, resp, eventResponse, false, fmt.Errorf("invalid \"p\" tag")
 	}
 
@@ -153,7 +153,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
+		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
 			break
 		}
@@ -179,7 +179,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
+		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
 			break
 		}

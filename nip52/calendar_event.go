@@ -75,7 +75,7 @@ func ParseCalendarEvent(event nostr.Event) CalendarEvent {
 		case "g":
 			calev.Geohashes = append(calev.Geohashes, tag[1])
 		case "p":
-			if nostr.IsValidPublicKeyHex(tag[1]) {
+			if nostr.IsValid32ByteHex(tag[1]) {
 				part := Participant{
 					PubKey: tag[1],
 				}

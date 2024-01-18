@@ -24,7 +24,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 	nostr.KindSimpleGroupAddUser: func(evt *nostr.Event) (Action, error) {
 		targets := make([]string, 0, len(evt.Tags))
 		for _, tag := range evt.Tags.GetAll([]string{"p", ""}) {
-			if !nostr.IsValidPublicKeyHex(tag[1]) {
+			if !nostr.IsValid32ByteHex(tag[1]) {
 				return nil, fmt.Errorf("")
 			}
 			targets = append(targets, tag[1])
@@ -37,7 +37,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 	nostr.KindSimpleGroupRemoveUser: func(evt *nostr.Event) (Action, error) {
 		targets := make([]string, 0, len(evt.Tags))
 		for _, tag := range evt.Tags.GetAll([]string{"p", ""}) {
-			if !nostr.IsValidPublicKeyHex(tag[1]) {
+			if !nostr.IsValid32ByteHex(tag[1]) {
 				return nil, fmt.Errorf("invalid public key hex")
 			}
 			targets = append(targets, tag[1])
@@ -81,7 +81,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 
 		targets := make([]string, 0, nTags-1)
 		for _, tag := range evt.Tags.GetAll([]string{"p", ""}) {
-			if !nostr.IsValidPublicKeyHex(tag[1]) {
+			if !nostr.IsValid32ByteHex(tag[1]) {
 				return nil, fmt.Errorf("invalid public key hex")
 			}
 			targets = append(targets, tag[1])
@@ -107,7 +107,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 
 		targets := make([]string, 0, nTags-1)
 		for _, tag := range evt.Tags.GetAll([]string{"p", ""}) {
-			if !nostr.IsValidPublicKeyHex(tag[1]) {
+			if !nostr.IsValid32ByteHex(tag[1]) {
 				return nil, fmt.Errorf("invalid public key hex")
 			}
 			targets = append(targets, tag[1])
@@ -127,7 +127,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 
 		targets := make([]string, len(tags))
 		for i, tag := range tags {
-			if nostr.IsValidPublicKeyHex(tag[1]) {
+			if nostr.IsValid32ByteHex(tag[1]) {
 				targets[i] = tag[1]
 			} else {
 				return nil, fmt.Errorf("invalid event id hex")

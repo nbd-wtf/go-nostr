@@ -134,7 +134,7 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
+		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
 			break
 		}
@@ -156,7 +156,7 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKeyHex(thirdPartyPubkey) {
+		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
 			break
 		}
