@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/puzpuzpuz/xsync/v3"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -107,7 +108,14 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 
 	pending := xsync.NewCounter()
 	pending.Add(int64(len(urls)))
-	for _, url := range urls {
+	for i, url := range urls {
+		url = NormalizeURL(url)
+		urls[i] = url
+		if idx := slices.Index(urls, url); idx != i {
+			// skip duplicate relays in the list
+			continue
+		}
+
 		go func(nm string) {
 			defer func() {
 				pending.Dec()
@@ -202,7 +210,7 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 				time.Sleep(interval)
 				interval = interval * 17 / 10 // the next time we try we will wait longer
 			}
-		}(NormalizeURL(url))
+		}(url)
 	}
 
 	return events
