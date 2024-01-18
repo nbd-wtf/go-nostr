@@ -39,10 +39,17 @@ func GetPublicKey(sk string) (string, error) {
 	return hex.EncodeToString(schnorr.SerializePubKey(pk)), nil
 }
 
+// Deprecated: use IsValid32ByteHex instead -- functionality unchanged.
 func IsValidPublicKeyHex(pk string) bool {
 	if strings.ToLower(pk) != pk {
 		return false
 	}
 	dec, _ := hex.DecodeString(pk)
 	return len(dec) == 32
+}
+
+func IsValidPublicKey(pk string) bool {
+	v, _ := hex.DecodeString(pk)
+	_, err := btcec.ParsePubKey(v)
+	return len(v) == 32 && err == nil
 }
