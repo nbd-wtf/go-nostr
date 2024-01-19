@@ -88,7 +88,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 		}
 
 		if len(permissions) > 0 && len(targets) > 0 {
-			return &AddPermission{Targets: targets, Permissions: permissions}, nil
+			return &AddPermission{Initiator: evt.PubKey, Targets: targets, Permissions: permissions}, nil
 		}
 
 		return nil, fmt.Errorf("")
@@ -185,8 +185,16 @@ type RemoveUser struct {
 
 func (RemoveUser) PermissionName() nip29.Permission { return nip29.PermRemoveUser }
 func (a RemoveUser) Apply(group *nip29.Group) {
-	for _, target := range a.Targets {
-		delete(group.Members, target)
+	for _, tpk := range a.Targets {
+		if target, ok := group.Members[tpk]; ok {
+			if target != nip29.EmptyRole {
+				_, hasSuperiorOrEqualPermission := target.Permissions[nip29.PermRemoveUser]
+				if hasSuperiorOrEqualPermission {
+					continue
+				}
+			}
+			delete(group.Members, tpk)
+		}
 	}
 }
 
@@ -206,25 +214,31 @@ func (a EditMetadata) Apply(group *nip29.Group) {
 }
 
 type AddPermission struct {
+	Initiator   string // the user who is adding the permissions
 	Targets     []string
 	Permissions []nip29.Permission
 }
 
 func (AddPermission) PermissionName() nip29.Permission { return nip29.PermAddPermission }
 func (a AddPermission) Apply(group *nip29.Group) {
-	for _, target := range a.Targets {
-		role, ok := group.Members[target]
+	for _, tpk := range a.Targets {
+		target, ok := group.Members[tpk]
 
 		// if it's a normal user, create a new permissions object thing for this user
 		// instead of modifying the global EmptyRole
-		if !ok || role == nip29.EmptyRole {
-			role = &nip29.Role{Permissions: make(map[nip29.Permission]struct{})}
-			group.Members[target] = role
+		if !ok || target == nip29.EmptyRole {
+			target = &nip29.Role{Permissions: make(map[nip29.Permission]struct{})}
+			group.Members[tpk] = target
 		}
 
-		// add all permissions listed
-		for _, perm := range a.Permissions {
-			role.Permissions[perm] = struct{}{}
+		// only add permissions that the user performing this already have
+		initiator, ok := group.Members[a.Initiator]
+		if ok {
+			for _, perm := range a.Permissions {
+				if _, has := initiator.Permissions[perm]; has {
+					target.Permissions[perm] = struct{}{}
+				}
+			}
 		}
 	}
 }
@@ -236,20 +250,25 @@ type RemovePermission struct {
 
 func (RemovePermission) PermissionName() nip29.Permission { return nip29.PermRemovePermission }
 func (a RemovePermission) Apply(group *nip29.Group) {
-	for _, target := range a.Targets {
-		role, ok := group.Members[target]
-		if !ok || role == nip29.EmptyRole {
+	for _, tpk := range a.Targets {
+		target, ok := group.Members[tpk]
+		if !ok || target == nip29.EmptyRole {
+			continue
+		}
+
+		_, hasSuperiorOrEqualPermission := target.Permissions[nip29.PermRemovePermission]
+		if hasSuperiorOrEqualPermission {
 			continue
 		}
 
 		// remove all permissions listed
 		for _, perm := range a.Permissions {
-			delete(role.Permissions, perm)
+			delete(target.Permissions, perm)
 		}
 
 		// if no more permissions are available, change this guy to be a normal user
-		if role.Name == "" && len(role.Permissions) == 0 {
-			group.Members[target] = nip29.EmptyRole
+		if target.Name == "" && len(target.Permissions) == 0 {
+			group.Members[tpk] = nip29.EmptyRole
 		}
 	}
 }
