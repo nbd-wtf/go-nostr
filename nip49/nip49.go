@@ -101,8 +101,6 @@ func EncryptBytes(secretKey []byte, password string, logn uint8, ksb KeySecurity
 	}
 	copy(concat[2+16+24+1:], ciphertext)
 
-	fmt.Println(hex.EncodeToString(ciphertext), len(ciphertext), len(concat), len(concat)-(2+16+24+1))
-
 	bits5, err := bech32.ConvertBits(concat, 8, 5, true)
 	if err != nil {
 		return "", err
