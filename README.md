@@ -121,3 +121,7 @@ go run example/example.go
 Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
 If you don't do that they will keep creating a new goroutine for every new event that arrives and if you have stopped listening on the
 `sub.Events` channel that will cause chaos and doom in your program.
+
+## Contributing to this repository
+
+Use NIP-34 to send your patches to `naddr1qqyxwmeddehhxarjqy28wumn8ghj7un9d3shjtnyv9kh2uewd9hsz9nhwden5te0wfjkccte9ehx7um5wghxyctwvsq3vamnwvaz7tmjv4kxz7fwwpexjmtpdshxuet5qgsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8grqsqqqaueuwmljc`.
