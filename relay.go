@@ -385,7 +385,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		cancel:            cancel,
 		counter:           int(current),
 		Events:            make(chan *Event),
-		EndOfStoredEvents: make(chan struct{}),
+		EndOfStoredEvents: make(chan struct{}, 1),
 		ClosedReason:      make(chan string, 1),
 		Filters:           filters,
 	}
