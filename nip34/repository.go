@@ -35,11 +35,11 @@ func ParseRepository(event nostr.Event) Repository {
 		case "description":
 			repo.Description = tag[1]
 		case "web":
-			repo.Web = append(repo.Web, tag[1])
+			repo.Web = append(repo.Web, tag[1:]...)
 		case "clone":
-			repo.Clone = append(repo.Clone, tag[1])
+			repo.Clone = append(repo.Clone, tag[1:]...)
 		case "relays":
-			repo.Relays = append(repo.Relays, tag[1])
+			repo.Relays = append(repo.Relays, tag[1:]...)
 		}
 	}
 
