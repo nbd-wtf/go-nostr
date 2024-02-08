@@ -1,6 +1,11 @@
 package nip34
 
-import "github.com/nbd-wtf/go-nostr"
+import (
+	"context"
+	"fmt"
+
+	"github.com/nbd-wtf/go-nostr"
+)
 
 type Repository struct {
 	nostr.Event
@@ -39,4 +44,18 @@ func ParseRepository(event nostr.Event) Repository {
 	}
 
 	return repo
+}
+
+func (repo Repository) GetPatchesSync(ctx context.Context, s nostr.RelayStore) []Patch {
+	res, _ := s.QuerySync(ctx, nostr.Filter{
+		Kinds: []int{nostr.KindPatch},
+		Tags: nostr.TagMap{
+			"a": []string{fmt.Sprintf("%d:%s:%s", nostr.KindRepositoryAnnouncement, repo.Event.PubKey, repo.ID)},
+		},
+	})
+	patches := make([]Patch, len(res))
+	for i, evt := range res {
+		patches[i] = ParsePatch(*evt)
+	}
+	return patches
 }
