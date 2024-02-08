@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 type Tag []string

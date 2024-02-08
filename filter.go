@@ -3,8 +3,9 @@ package nostr
 import (
 	"encoding/json"
 
+	"slices"
+
 	"github.com/mailru/easyjson"
-	"golang.org/x/exp/slices"
 )
 
 type Filters []Filter

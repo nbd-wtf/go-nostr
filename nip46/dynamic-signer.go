@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"sync"
 
+	"slices"
+
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
-	"golang.org/x/exp/slices"
 )
 
 var _ Signer = (*DynamicSigner)(nil)

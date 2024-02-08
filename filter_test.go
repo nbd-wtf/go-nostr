@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 func TestFilterUnmarshal(t *testing.T) {

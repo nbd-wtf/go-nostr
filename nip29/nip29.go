@@ -1,8 +1,9 @@
 package nip29
 
 import (
+	"slices"
+
 	"github.com/nbd-wtf/go-nostr"
-	"golang.org/x/exp/slices"
 )
 
 type Role struct {

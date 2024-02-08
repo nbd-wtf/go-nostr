@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"slices"
+
 	"github.com/puzpuzpuz/xsync/v3"
-	"golang.org/x/exp/slices"
 )
 
 const (

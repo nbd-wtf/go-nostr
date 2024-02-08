@@ -1,6 +1,6 @@
 package nip11
 
-import "golang.org/x/exp/slices"
+import "slices"
 
 type RelayInformationDocument struct {
 	Name          string `json:"name"`
