@@ -1,6 +1,8 @@
 package binary
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"testing"
 
@@ -26,6 +28,16 @@ func BenchmarkBinaryEncoding(b *testing.B) {
 		}
 	})
 
+	b.Run("gob.Encode", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, evt := range events {
+				var buf bytes.Buffer
+				gob.NewEncoder(&buf).Encode(evt)
+				_ = buf.Bytes()
+			}
+		}
+	})
+
 	b.Run("binary.Marshal", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, evt := range events {
@@ -45,11 +57,16 @@ func BenchmarkBinaryEncoding(b *testing.B) {
 
 func BenchmarkBinaryDecoding(b *testing.B) {
 	events := make([][]byte, len(normalEvents))
+	gevents := make([][]byte, len(normalEvents))
 	for i, jevt := range normalEvents {
 		evt := &nostr.Event{}
 		json.Unmarshal([]byte(jevt), evt)
 		bevt, _ := Marshal(evt)
 		events[i] = bevt
+
+		var buf bytes.Buffer
+		gob.NewEncoder(&buf).Encode(evt)
+		gevents[i] = buf.Bytes()
 	}
 
 	b.Run("easyjson.Unmarshal", func(b *testing.B) {
@@ -60,6 +77,17 @@ func BenchmarkBinaryDecoding(b *testing.B) {
 				if err != nil {
 					b.Fatalf("failed to unmarshal: %s", err)
 				}
+			}
+		}
+	})
+
+	b.Run("gob.Decode", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, gevt := range gevents {
+				evt := &nostr.Event{}
+				buf := bytes.NewBuffer(gevt)
+				evt = &nostr.Event{}
+				gob.NewDecoder(buf).Decode(evt)
 			}
 		}
 	})
