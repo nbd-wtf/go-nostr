@@ -40,6 +40,7 @@ const (
 	KindChannelMessage              int = 42
 	KindChannelHideMessage          int = 43
 	KindChannelMuteUser             int = 44
+	KindPatch                       int = 1617
 	KindFileMetadata                int = 1063
 	KindSimpleGroupAddUser          int = 9000
 	KindSimpleGroupRemoveUser       int = 9001
@@ -67,6 +68,7 @@ const (
 	KindProductDefinition           int = 30018
 	KindArticle                     int = 30023
 	KindApplicationSpecificData     int = 30078
+	KindRepositoryAnnouncement      int = 30617
 	KindSimpleGroupMetadata         int = 39000
 	KindSimpleGroupAdmins           int = 39001
 	KindSimpleGroupMembers          int = 39002
