@@ -11,7 +11,6 @@ type Patch struct {
 	nostr.Event
 
 	Repository nostr.EntityPointer
-	Subject    string
 
 	Files  []*gitdiff.File
 	Header *gitdiff.PatchHeader
