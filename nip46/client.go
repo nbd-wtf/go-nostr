@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"strconv"
 	"sync/atomic"
@@ -22,6 +23,7 @@ type BunkerClient struct {
 	relays          []string
 	sharedSecret    []byte
 	listeners       *xsync.MapOf[string, chan Response]
+	idPrefix        string
 
 	// memoized
 	getPublicKeyResponse string
@@ -69,6 +71,7 @@ func ConnectBunker(
 		relays:          relays,
 		sharedSecret:    shared,
 		listeners:       xsync.NewMapOf[string, chan Response](),
+		idPrefix:        "gn-" + strconv.Itoa(rand.Intn(65536)),
 	}
 
 	go func() {
@@ -131,7 +134,7 @@ func (bunker *BunkerClient) SignEvent(ctx context.Context, evt *nostr.Event) err
 }
 
 func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []string) (string, error) {
-	id := strconv.FormatUint(bunker.serial.Add(1), 10)
+	id := bunker.idPrefix + "-" + strconv.FormatUint(bunker.serial.Add(1), 10)
 	req, err := json.Marshal(Request{
 		ID:     id,
 		Method: method,
