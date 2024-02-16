@@ -57,10 +57,10 @@ func TestEncryptAndDecrypt(t *testing.T) {
 func TestNormalization(t *testing.T) {
 	nonce := []byte{1, 2, 3, 4}
 	n := 8
-	key1, err1 := getKey(string([]byte{0xE2, 0x84, 0xAB, 0xE2, 0x84, 0xA6}), nonce, n)
-	key2, err2 := getKey(string([]byte{0xC3, 0x85, 0xCE, 0xA9}), nonce, n)
-	key3, err3 := getKey("ÅΩ", nonce, n)
-	key4, err4 := getKey("ÅΩ", nonce, n)
+	key1, err1 := getKey(string([]byte{0xE2, 0x84, 0xAB, 0xE2, 0x84, 0xA6, 0xE1, 0xBA, 0x9B, 0xCC, 0xA3}), nonce, n)
+	key2, err2 := getKey(string([]byte{0xC3, 0x85, 0xCE, 0xA9, 0xE1, 0xB9, 0xA9}), nonce, n)
+	key3, err3 := getKey("ÅΩẛ̣", nonce, n)
+	key4, err4 := getKey("ÅΩẛ̣", nonce, n)
 	if merr := errors.Join(err1, err2, err3, err4); merr != nil {
 		t.Fatalf("getKey errored: %s", merr)
 		return
