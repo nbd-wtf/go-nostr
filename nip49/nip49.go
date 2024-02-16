@@ -9,6 +9,8 @@ import (
 	"github.com/btcsuite/btcd/btcutil/bech32"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/scrypt"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 type KeySecurityByte byte
@@ -33,9 +35,10 @@ func EncryptBytes(secretKey []byte, password string, logn uint8, ksb KeySecurity
 		return "", fmt.Errorf("failed to read salt: %w", err)
 	}
 	n := int(math.Pow(2, float64(int(logn))))
-	key, err := scrypt.Key([]byte(password), salt, n, 8, 1, 32)
+
+	key, err := getKey(password, salt, n)
 	if err != nil {
-		return "", fmt.Errorf("failed to compute key with scrypt: %w", err)
+		return "", err
 	}
 
 	concat := make([]byte, 91)
@@ -95,9 +98,9 @@ func DecryptToBytes(bech32string string, password string) (secretKey []byte, err
 	// keySecurityByte := ad[0]
 	encryptedKey := data[2+16+24+1:]
 
-	key, err := scrypt.Key([]byte(password), salt, n, 8, 1, 32)
+	key, err := getKey(password, salt, n)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute key with scrypt: %w", err)
+		return nil, err
 	}
 
 	c2p1, err := chacha20poly1305.NewX(key)
@@ -106,4 +109,17 @@ func DecryptToBytes(bech32string string, password string) (secretKey []byte, err
 	}
 
 	return c2p1.Open(nil, nonce, encryptedKey, ad)
+}
+
+func getKey(password string, salt []byte, n int) ([]byte, error) {
+	normalizedPassword, _, err := transform.Bytes(norm.NFKC, []byte(password))
+	if err != nil {
+		return nil, fmt.Errorf("failed to normalize password: %w", err)
+	}
+
+	key, err := scrypt.Key(normalizedPassword, salt, n, 8, 1, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute key with scrypt: %w", err)
+	}
+	return key, nil
 }
