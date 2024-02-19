@@ -34,7 +34,8 @@ func TestEncryptAndDecrypt(t *testing.T) {
 		{"", "f7f2f77f98890885462764afb15b68eb5f69979c8046ecb08cad7c4ae6b221ab", 4, 0x00},
 		{"", "11b25a101667dd9208db93c0827c6bdad66729a5b521156a7e9d3b22b3ae8944", 5, 0x01},
 		{"", "f7f2f77f98890885462764afb15b68eb5f69979c8046ecb08cad7c4ae6b221ab", 1, 0x00},
-		{"", "11b25a101667dd9208db93c0827c6bdad66729a5b521156a7e9d3b22b3ae8944", 9, 0x01},
+		{"ÅΩẛ̣", "11b25a101667dd9208db93c0827c6bdad66729a5b521156a7e9d3b22b3ae8944", 9, 0x01},
+		{"ÅΩṩ", "11b25a101667dd9208db93c0827c6bdad66729a5b521156a7e9d3b22b3ae8944", 9, 0x01},
 	} {
 		bech32code, err := Encrypt(f.secretkey, f.password, f.logn, f.ksb)
 		if err != nil {
