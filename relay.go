@@ -223,6 +223,12 @@ func (r *Relay) Connect(ctx context.Context) error {
 					// InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
 					continue
 				} else {
+
+					if env.Event.GetID() != env.Event.ID {
+						// InfoLogger.Printf("bad event ID %s != %s\n", env.Event.ID, env.Event.GetID())
+						continue
+					}
+
 					// check if the event matches the desired filter, ignore otherwise
 					if !subscription.Filters.Match(&env.Event) {
 						InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, subscription.Filters, env.Event)

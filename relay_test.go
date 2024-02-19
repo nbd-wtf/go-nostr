@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -171,6 +172,140 @@ func TestConnectWithOrigin(t *testing.T) {
 	}
 }
 
+func TestEventIDIntegrity(t *testing.T) {
+
+	priv, pub := makeKeyPair(t)
+
+	makeEvent := func(timestamp int) Event {
+		textNote := Event{
+			Kind:      KindTextNote,
+			Content:   "hello",
+			CreatedAt: Timestamp(timestamp),
+			Tags:      Tags{[]string{"foo", "bar"}},
+			PubKey:    pub,
+		}
+		if err := textNote.Sign(priv); err != nil {
+			t.Fatalf("textNote.Sign: %v", err)
+		}
+
+		return textNote
+	}
+
+	tests := []struct {
+		name        string
+		event       Event
+		shouldFail  bool
+		modifyEvent func(event *Event)
+	}{
+		{
+			name:        "Original event ID",
+			event:       makeEvent(1672068534),
+			shouldFail:  false,
+			modifyEvent: nil, // No modification needed for the original event
+		},
+		{
+			name:        "Altered event ID",
+			event:       makeEvent(1672068535),
+			shouldFail:  true,
+			modifyEvent: func(event *Event) { event.ID = "fake_id" }, // Alter the ID to simulate failure
+		},
+	}
+
+	for _, tc := range tests {
+
+		t.Run(tc.name, func(t *testing.T) {
+
+			if tc.modifyEvent != nil {
+				tc.modifyEvent(&tc.event)
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+
+			// fake relay server
+			ws := newWebsocketServer(func(conn *websocket.Conn) {
+
+				var raw []json.RawMessage
+				// handling publich event
+				if err := websocket.JSON.Receive(conn, &raw); err != nil {
+					t.Errorf("websocket.JSON.Receive: %v", err)
+				}
+
+				// send back an ok nip-20 command result
+				res := []any{"OK", tc.event.ID, true, ""}
+				if err := websocket.JSON.Send(conn, res); err != nil {
+					t.Errorf("websocket.JSON.Send: %v", err)
+				}
+
+				// handling subscription event
+				if err := websocket.JSON.Receive(conn, &raw); err != nil {
+					t.Errorf("websocket.JSON.Receive: %v", err)
+				}
+
+				subID, _, err := parseSubscriptionMessage(t, raw)
+				if err == nil {
+					res := EventEnvelope{
+						SubscriptionID: &subID,
+						Event:          tc.event,
+					}
+					// senc back the EVENT packet
+					if err := websocket.JSON.Send(conn, res); err != nil {
+						t.Errorf("websocket.JSON.Send: %v", err)
+					}
+				}
+
+				wg.Wait()
+			})
+
+			rl := mustRelayConnect(ws.URL)
+
+			go func() {
+
+				defer cancel()
+
+				sub, err := rl.Subscribe(context.Background(), Filters{{Kinds: []int{KindTextNote}, Limit: 1}})
+
+				if err != nil {
+					t.Logf("subscription.err = %v", err)
+					return
+				}
+
+				select {
+				case event := <-sub.Events:
+
+					if tc.shouldFail && event != nil {
+						t.Errorf("event should not been received ID=%v", event.ID)
+					}
+
+					if !tc.shouldFail && event == nil {
+						t.Error("must receive an event")
+					}
+
+				case <-time.After(time.Second * 2):
+					if !tc.shouldFail {
+						t.Error("subscription.timeout")
+					}
+				}
+
+				wg.Done()
+
+			}()
+
+			// connect a client and send the text note
+			err := rl.Publish(context.Background(), tc.event)
+			if err != nil {
+				t.Errorf("publish should have succeeded. err=%v", err)
+			}
+
+			<-ctx.Done()
+			ws.Close()
+		})
+
+	}
+
+}
+
 func discardingHandler(conn *websocket.Conn) {
 	io.ReadAll(conn) // discard all input
 }
@@ -224,27 +359,27 @@ func parseEventMessage(t *testing.T, raw []json.RawMessage) Event {
 	return event
 }
 
-func parseSubscriptionMessage(t *testing.T, raw []json.RawMessage) (subid string, filters []Filter) {
+func parseSubscriptionMessage(t *testing.T, raw []json.RawMessage) (string, []Filter, error) {
 	t.Helper()
 	if len(raw) < 3 {
-		t.Fatalf("len(raw) = %d; want at least 3", len(raw))
+		return "", nil, fmt.Errorf("len(raw) = %d; want at least 3", len(raw))
 	}
 	var typ string
 	json.Unmarshal(raw[0], &typ)
 	if typ != "REQ" {
-		t.Errorf("typ = %q; want REQ", typ)
+		return "", nil, fmt.Errorf("typ = %q; want REQ", typ)
 	}
 	var id string
 	if err := json.Unmarshal(raw[1], &id); err != nil {
-		t.Errorf("json.Unmarshal sub id: %v", err)
+		return "", nil, fmt.Errorf("json.Unmarshal sub id: %v", err)
 	}
 	var ff []Filter
 	for i, b := range raw[2:] {
 		var f Filter
 		if err := json.Unmarshal(b, &f); err != nil {
-			t.Errorf("json.Unmarshal filter %d: %v", i, err)
+			return "", nil, fmt.Errorf("json.Unmarshal filter %d: %v", i, err)
 		}
 		ff = append(ff, f)
 	}
-	return id, ff
+	return id, ff, nil
 }
