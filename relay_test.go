@@ -273,18 +273,15 @@ func TestEventIDIntegrity(t *testing.T) {
 
 				select {
 				case event := <-sub.Events:
-
 					if tc.shouldFail && event != nil {
-						t.Errorf("event should not been received ID=%v", event.ID)
+						t.Errorf("Unexpected event received: ID=%v", event.ID)
 					}
-
 					if !tc.shouldFail && event == nil {
-						t.Error("must receive an event")
+						t.Error("Expected event not received")
 					}
-
 				case <-time.After(time.Second * 2):
 					if !tc.shouldFail {
-						t.Error("subscription.timeout")
+						t.Error("Event timeout")
 					}
 				}
 
