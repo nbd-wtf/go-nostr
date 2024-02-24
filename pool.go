@@ -24,8 +24,8 @@ type SimplePool struct {
 	cancel      context.CancelFunc
 }
 
-type DirectedFilter struct {
-	Filter
+type DirectedFilters struct {
+	Filters
 	Relay string
 }
 
@@ -317,23 +317,25 @@ func (pool *SimplePool) QuerySingle(ctx context.Context, urls []string, filter F
 
 func (pool *SimplePool) batchedSubMany(
 	ctx context.Context,
-	dfs []DirectedFilter,
+	dfs []DirectedFilters,
 	subFn func(context.Context, []string, Filters, bool) chan IncomingEvent,
 ) chan IncomingEvent {
 	type batch struct {
-		filter Filter
-		relays []string
+		filters Filters
+		relays  []string
 	}
 
 	batches := make([]batch, 0, len(dfs))
 	for _, df := range dfs {
-		idx := slices.IndexFunc(batches, func(b batch) bool { return FilterEqual(b.filter, df.Filter) })
+		idx := slices.IndexFunc(batches, func(b batch) bool {
+			return slices.EqualFunc(b.filters, df.Filters, FilterEqual)
+		})
 		if idx != -1 {
 			batches[idx].relays = append(batches[idx].relays, df.Relay)
 		} else {
 			relays := make([]string, 0, 10)
 			relays = append(relays, df.Relay)
-			batches = append(batches, batch{filter: df.Filter, relays: relays})
+			batches = append(batches, batch{filters: df.Filters, relays: relays})
 		}
 	}
 
@@ -341,7 +343,7 @@ func (pool *SimplePool) batchedSubMany(
 
 	for _, b := range batches {
 		go func(b batch) {
-			for ie := range subFn(ctx, b.relays, Filters{b.filter}, true) {
+			for ie := range subFn(ctx, b.relays, b.filters, true) {
 				res <- ie
 			}
 		}(b)
@@ -351,11 +353,11 @@ func (pool *SimplePool) batchedSubMany(
 }
 
 // BatchedSubMany fires subscriptions only to specific relays, but batches them when they are the same.
-func (pool *SimplePool) BatchedSubMany(ctx context.Context, dfs []DirectedFilter) chan IncomingEvent {
+func (pool *SimplePool) BatchedSubMany(ctx context.Context, dfs []DirectedFilters) chan IncomingEvent {
 	return pool.batchedSubMany(ctx, dfs, pool.subMany)
 }
 
 // BatchedSubManyEose is like BatchedSubMany, but ends upon receiving EOSE from all relays.
-func (pool *SimplePool) BatchedSubManyEose(ctx context.Context, dfs []DirectedFilter) chan IncomingEvent {
+func (pool *SimplePool) BatchedSubManyEose(ctx context.Context, dfs []DirectedFilters) chan IncomingEvent {
 	return pool.batchedSubMany(ctx, dfs, pool.subManyEose)
 }
