@@ -320,33 +320,14 @@ func (pool *SimplePool) batchedSubMany(
 	dfs []DirectedFilters,
 	subFn func(context.Context, []string, Filters, bool) chan IncomingEvent,
 ) chan IncomingEvent {
-	type batch struct {
-		filters Filters
-		relays  []string
-	}
-
-	batches := make([]batch, 0, len(dfs))
-	for _, df := range dfs {
-		idx := slices.IndexFunc(batches, func(b batch) bool {
-			return slices.EqualFunc(b.filters, df.Filters, FilterEqual)
-		})
-		if idx != -1 {
-			batches[idx].relays = append(batches[idx].relays, df.Relay)
-		} else {
-			relays := make([]string, 0, 10)
-			relays = append(relays, df.Relay)
-			batches = append(batches, batch{filters: df.Filters, relays: relays})
-		}
-	}
-
 	res := make(chan IncomingEvent)
 
-	for _, b := range batches {
-		go func(b batch) {
-			for ie := range subFn(ctx, b.relays, b.filters, true) {
+	for _, df := range dfs {
+		go func(df DirectedFilters) {
+			for ie := range subFn(ctx, []string{df.Relay}, df.Filters, true) {
 				res <- ie
 			}
-		}(b)
+		}(df)
 	}
 
 	return res
