@@ -13,8 +13,8 @@ import (
 
 type WellKnownResponse struct {
 	Names  map[string]string   `json:"names"`
-	Relays map[string][]string `json:"relays"`
-	NIP46  map[string][]string `json:"nip46"`
+	Relays map[string][]string `json:"relays,omitempty"`
+	NIP46  map[string][]string `json:"nip46,omitempty"`
 }
 
 func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointer, error) {
