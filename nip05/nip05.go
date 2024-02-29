@@ -2,7 +2,6 @@ package nip05
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,9 +17,31 @@ type WellKnownResponse struct {
 }
 
 func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointer, error) {
+	result, name, err := Fetch(ctx, fullname)
+	if err != nil {
+		return nil, err
+	}
+
+	pubkey, ok := result.Names[name]
+	if !ok {
+		return nil, fmt.Errorf("no entry for name '%s'", name)
+	}
+
+	if !nostr.IsValidPublicKey(pubkey) {
+		return nil, fmt.Errorf("got an invalid public key '%s'", pubkey)
+	}
+
+	relays, _ := result.Relays[pubkey]
+	return &nostr.ProfilePointer{
+		PublicKey: pubkey,
+		Relays:    relays,
+	}, nil
+}
+
+func Fetch(ctx context.Context, fullname string) (resp WellKnownResponse, name string, err error) {
 	spl := strings.Split(fullname, "@")
 
-	var name, domain string
+	var domain string
 	switch len(spl) {
 	case 1:
 		name = "_"
@@ -29,17 +50,13 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 		name = spl[0]
 		domain = spl[1]
 	default:
-		return nil, fmt.Errorf("not a valid nip-05 identifier")
-	}
-
-	if strings.Index(domain, ".") == -1 {
-		return nil, fmt.Errorf("hostname doesn't have a dot")
+		return resp, name, fmt.Errorf("not a valid nip-05 identifier")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET",
 		fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", domain, name), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create a request: %w", err)
+		return resp, name, fmt.Errorf("failed to create a request: %w", err)
 	}
 
 	client := &http.Client{
@@ -49,32 +66,16 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return resp, name, fmt.Errorf("request failed: %w", err)
 	}
 	defer res.Body.Close()
 
 	var result WellKnownResponse
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode json response: %w", err)
+		return resp, name, fmt.Errorf("failed to decode json response: %w", err)
 	}
 
-	pubkey, ok := result.Names[name]
-	if !ok {
-		return &nostr.ProfilePointer{}, nil
-	}
-
-	if len(pubkey) == 64 {
-		if _, err := hex.DecodeString(pubkey); err != nil {
-			return &nostr.ProfilePointer{}, nil
-		}
-	}
-
-	relays, _ := result.Relays[pubkey]
-
-	return &nostr.ProfilePointer{
-		PublicKey: pubkey,
-		Relays:    relays,
-	}, nil
+	return resp, name, nil
 }
 
 func NormalizeIdentifier(fullname string) string {

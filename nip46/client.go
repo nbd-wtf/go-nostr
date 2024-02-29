@@ -34,25 +34,36 @@ type BunkerClient struct {
 func ConnectBunker(
 	ctx context.Context,
 	clientSecretKey string,
-	bunkerURL string,
+	bunkerURLOrNIP05 string,
 	pool *nostr.SimplePool,
 ) (*BunkerClient, error) {
-	parsed, err := url.Parse(bunkerURL)
+	parsed, err := url.Parse(bunkerURLOrNIP05)
 	if err != nil {
 		return nil, fmt.Errorf("invalid url: %w", err)
 	}
 
-	if parsed.Scheme != "bunker" {
+	// assume it's a bunker url (will fail later if not)
+	secret := parsed.Query().Get("secret")
+	relays := parsed.Query()["relay"]
+	target := parsed.Host
+
+	if parsed.Scheme == "" {
+		// could be a NIP-05
+		pubkey, relays_, err := queryWellKnownNostrJson(ctx, bunkerURLOrNIP05)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query nip05: %w", err)
+		}
+		target = pubkey
+		relays = relays_
+	} else if parsed.Scheme == "bunker" {
+		// this is what we were expecting, so just move on
+	} else {
+		// otherwise fail here
 		return nil, fmt.Errorf("wrong scheme '%s', must be bunker://", parsed.Scheme)
 	}
-
-	target := parsed.Host
 	if !nostr.IsValidPublicKey(target) {
 		return nil, fmt.Errorf("'%s' is not a valid public key hex", target)
 	}
-
-	secret := parsed.Query().Get("secret")
-	relays := parsed.Query()["relay"]
 
 	if pool == nil {
 		pool = nostr.NewSimplePool(ctx)
