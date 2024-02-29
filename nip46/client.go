@@ -45,7 +45,7 @@ func ConnectBunker(
 	// assume it's a bunker url (will fail later if not)
 	secret := parsed.Query().Get("secret")
 	relays := parsed.Query()["relay"]
-	target := parsed.Host
+	targetPublicKey := parsed.Host
 
 	if parsed.Scheme == "" {
 		// could be a NIP-05
@@ -53,7 +53,7 @@ func ConnectBunker(
 		if err != nil {
 			return nil, fmt.Errorf("failed to query nip05: %w", err)
 		}
-		target = pubkey
+		targetPublicKey = pubkey
 		relays = relays_
 	} else if parsed.Scheme == "bunker" {
 		// this is what we were expecting, so just move on
@@ -61,34 +61,50 @@ func ConnectBunker(
 		// otherwise fail here
 		return nil, fmt.Errorf("wrong scheme '%s', must be bunker://", parsed.Scheme)
 	}
-	if !nostr.IsValidPublicKey(target) {
-		return nil, fmt.Errorf("'%s' is not a valid public key hex", target)
+	if !nostr.IsValidPublicKey(targetPublicKey) {
+		return nil, fmt.Errorf("'%s' is not a valid public key hex", targetPublicKey)
 	}
 
+	bunker := NewBunker(
+		ctx,
+		clientSecretKey,
+		targetPublicKey,
+		relays,
+		pool,
+	)
+
+	clientPubKey, _ := nostr.GetPublicKey(clientSecretKey)
+	_, err = bunker.RPC(ctx, "connect", []string{clientPubKey, secret})
+	return bunker, err
+}
+
+func NewBunker(
+	ctx context.Context,
+	clientSecretKey string,
+	targetPublicKey string,
+	relays []string,
+	pool *nostr.SimplePool,
+) *BunkerClient {
 	if pool == nil {
 		pool = nostr.NewSimplePool(ctx)
 	}
 
-	shared, err := nip04.ComputeSharedSecret(target, clientSecretKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compute shared secret: %w", err)
-	}
+	clientPublicKey, _ := nostr.GetPublicKey(clientSecretKey)
+	sharedSecret, _ := nip04.ComputeSharedSecret(targetPublicKey, clientSecretKey)
 
-	clientPubKey, _ := nostr.GetPublicKey(clientSecretKey)
 	bunker := &BunkerClient{
-		clientSecretKey: clientSecretKey,
-		pool:            pool,
-		target:          target,
-		relays:          relays,
-		sharedSecret:    shared,
-		listeners:       xsync.NewMapOf[string, chan Response](),
-		idPrefix:        "gn-" + strconv.Itoa(rand.Intn(65536)),
+		pool:         pool,
+		target:       targetPublicKey,
+		relays:       relays,
+		sharedSecret: sharedSecret,
+		listeners:    xsync.NewMapOf[string, chan Response](),
+		idPrefix:     "gn-" + strconv.Itoa(rand.Intn(65536)),
 	}
 
 	go func() {
 		events := pool.SubMany(ctx, relays, nostr.Filters{
 			{
-				Tags:  nostr.TagMap{"p": []string{clientPubKey}},
+				Tags:  nostr.TagMap{"p": []string{clientPublicKey}},
 				Kinds: []int{nostr.KindNostrConnect},
 			},
 		})
@@ -98,7 +114,7 @@ func ConnectBunker(
 			}
 
 			var resp Response
-			plain, err := nip04.Decrypt(ie.Content, shared)
+			plain, err := nip04.Decrypt(ie.Content, sharedSecret)
 			if err != nil {
 				continue
 			}
@@ -114,9 +130,7 @@ func ConnectBunker(
 		}
 	}()
 
-	ourPubkey, _ := nostr.GetPublicKey(clientSecretKey)
-	_, err = bunker.RPC(ctx, "connect", []string{ourPubkey, secret})
-	return bunker, err
+	return bunker
 }
 
 func (bunker *BunkerClient) Ping(ctx context.Context) error {
