@@ -29,6 +29,7 @@ func CreateAccount(
 	domain string,
 	pool *nostr.SimplePool,
 	extraOpts *CreateAccountOptions,
+	onAuth func(string),
 ) (*BunkerClient, error) {
 	if pool == nil {
 		pool = nostr.NewSimplePool(ctx)
@@ -46,6 +47,7 @@ func CreateAccount(
 		providerPubkey,
 		relays,
 		pool,
+		onAuth,
 	)
 
 	clientPubKey, _ := nostr.GetPublicKey(clientSecretKey)
@@ -69,6 +71,7 @@ func CreateAccount(
 	// update this bunker instance so it targets the new key now instead of the provider
 	bunker.target = newlyCreatedPublicKey
 	bunker.sharedSecret, _ = nip04.ComputeSharedSecret(newlyCreatedPublicKey, clientSecretKey)
+	bunker.getPublicKeyResponse = newlyCreatedPublicKey
 
 	// finally try to connect again using the new key as the target
 	_, err = bunker.RPC(ctx, "connect", []string{newlyCreatedPublicKey, ""})

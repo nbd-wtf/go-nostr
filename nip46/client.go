@@ -23,7 +23,9 @@ type BunkerClient struct {
 	relays          []string
 	sharedSecret    []byte
 	listeners       *xsync.MapOf[string, chan Response]
+	expectingAuth   *xsync.MapOf[string, struct{}]
 	idPrefix        string
+	onAuth          func(string)
 
 	// memoized
 	getPublicKeyResponse string
@@ -36,6 +38,7 @@ func ConnectBunker(
 	clientSecretKey string,
 	bunkerURLOrNIP05 string,
 	pool *nostr.SimplePool,
+	onAuth func(string),
 ) (*BunkerClient, error) {
 	parsed, err := url.Parse(bunkerURLOrNIP05)
 	if err != nil {
@@ -71,6 +74,7 @@ func ConnectBunker(
 		targetPublicKey,
 		relays,
 		pool,
+		onAuth,
 	)
 
 	clientPubKey, _ := nostr.GetPublicKey(clientSecretKey)
@@ -84,6 +88,7 @@ func NewBunker(
 	targetPublicKey string,
 	relays []string,
 	pool *nostr.SimplePool,
+	onAuth func(string),
 ) *BunkerClient {
 	if pool == nil {
 		pool = nostr.NewSimplePool(ctx)
@@ -93,12 +98,14 @@ func NewBunker(
 	sharedSecret, _ := nip04.ComputeSharedSecret(targetPublicKey, clientSecretKey)
 
 	bunker := &BunkerClient{
-		pool:         pool,
-		target:       targetPublicKey,
-		relays:       relays,
-		sharedSecret: sharedSecret,
-		listeners:    xsync.NewMapOf[string, chan Response](),
-		idPrefix:     "gn-" + strconv.Itoa(rand.Intn(65536)),
+		pool:          pool,
+		target:        targetPublicKey,
+		relays:        relays,
+		sharedSecret:  sharedSecret,
+		listeners:     xsync.NewMapOf[string, chan Response](),
+		expectingAuth: xsync.NewMapOf[string, struct{}](),
+		onAuth:        onAuth,
+		idPrefix:      "gn-" + strconv.Itoa(rand.Intn(65536)),
 	}
 
 	go func() {
@@ -121,6 +128,15 @@ func NewBunker(
 
 			err = json.Unmarshal([]byte(plain), &resp)
 			if err != nil {
+				continue
+			}
+
+			if resp.Result == "auth_url" {
+				// special case
+				authURL := resp.Error
+				if _, ok := bunker.expectingAuth.Load(resp.ID); ok {
+					bunker.onAuth(authURL)
+				}
 				continue
 			}
 
