@@ -3,10 +3,13 @@ package nip46
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
 )
+
+var BUNKER_REGEX = regexp.MustCompile(`^bunker:\/\/([0-9a-f]{64})\??([?\/\w:.=&%]*)$`)
 
 type Request struct {
 	ID     string   `json:"id"`
@@ -76,4 +79,8 @@ func (s Session) MakeResponse(
 	evt.Tags = nostr.Tags{nostr.Tag{"p", requester}}
 
 	return resp, evt, nil
+}
+
+func IsValidBunkerURL(input string) bool {
+	return BUNKER_REGEX.MatchString(input)
 }

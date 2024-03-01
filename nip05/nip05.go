@@ -5,15 +5,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
 )
 
+var NIP05_REGEX = regexp.MustCompile(`^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$`)
+
 type WellKnownResponse struct {
 	Names  map[string]string   `json:"names"`
 	Relays map[string][]string `json:"relays,omitempty"`
 	NIP46  map[string][]string `json:"nip46,omitempty"`
+}
+
+func ParseIdentifier(fullname string) (name string, domain string, err error) {
+	res := NIP05_REGEX.FindStringSubmatch(fullname)
+	if len(res) == 0 {
+		return "", "", fmt.Errorf("invalid identifier")
+	}
+	if res[1] == "" {
+		res[1] = "_"
+	}
+	return res[1], res[2], nil
 }
 
 func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointer, error) {
@@ -39,18 +53,9 @@ func QueryIdentifier(ctx context.Context, fullname string) (*nostr.ProfilePointe
 }
 
 func Fetch(ctx context.Context, fullname string) (resp WellKnownResponse, name string, err error) {
-	spl := strings.Split(fullname, "@")
-
-	var domain string
-	switch len(spl) {
-	case 1:
-		name = "_"
-		domain = spl[0]
-	case 2:
-		name = spl[0]
-		domain = spl[1]
-	default:
-		return resp, name, fmt.Errorf("not a valid nip-05 identifier")
+	name, domain, err := ParseIdentifier(fullname)
+	if err != nil {
+		return resp, name, fmt.Errorf("failed to parse '%s': %w", fullname, err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET",
