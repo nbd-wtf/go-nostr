@@ -110,6 +110,16 @@ for _, url := range []string{"wss://nostr.zebedee.cloud", "wss://nostr-pub.wello
 }
 ```
 
+### Logging
+
+To get more logs from the interaction with relays printed to STDOUT you can compile or run your program with `-tags debug`.
+
+To remove the info logs completely, replace `nostr.InfoLogger` with something that prints nothing, like
+
+``` go
+nostr.InfoLogger = log.New(io.Discard, "", 0)
+```
+
 ### Example script
 
 ```
