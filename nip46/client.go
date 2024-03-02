@@ -98,14 +98,15 @@ func NewBunker(
 	sharedSecret, _ := nip04.ComputeSharedSecret(targetPublicKey, clientSecretKey)
 
 	bunker := &BunkerClient{
-		pool:          pool,
-		target:        targetPublicKey,
-		relays:        relays,
-		sharedSecret:  sharedSecret,
-		listeners:     xsync.NewMapOf[string, chan Response](),
-		expectingAuth: xsync.NewMapOf[string, struct{}](),
-		onAuth:        onAuth,
-		idPrefix:      "gn-" + strconv.Itoa(rand.Intn(65536)),
+		pool:            pool,
+		clientSecretKey: clientSecretKey,
+		target:          targetPublicKey,
+		relays:          relays,
+		sharedSecret:    sharedSecret,
+		listeners:       xsync.NewMapOf[string, chan Response](),
+		expectingAuth:   xsync.NewMapOf[string, struct{}](),
+		onAuth:          onAuth,
+		idPrefix:        "gn-" + strconv.Itoa(rand.Intn(65536)),
 	}
 
 	go func() {
