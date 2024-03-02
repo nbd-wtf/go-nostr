@@ -25,7 +25,7 @@ type Response struct {
 
 type Signer interface {
 	GetSession(clientPubkey string) (Session, bool)
-	HandleRequest(event *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, harmless bool, err error)
+	HandleRequest(event *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, err error)
 }
 
 type Session struct {
@@ -73,7 +73,6 @@ func (s Session) MakeResponse(
 		return resp, evt, fmt.Errorf("failed to encrypt result: %w", err)
 	}
 	evt.Content = ciphertext
-
 	evt.CreatedAt = nostr.Now()
 	evt.Kind = nostr.KindNostrConnect
 	evt.Tags = nostr.Tags{nostr.Tag{"p", requester}}

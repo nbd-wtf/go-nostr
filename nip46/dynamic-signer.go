@@ -3,9 +3,8 @@ package nip46
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-
 	"slices"
+	"sync"
 
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
@@ -73,24 +72,23 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 	req Request,
 	resp Response,
 	eventResponse nostr.Event,
-	harmless bool,
 	err error,
 ) {
 	if event.Kind != nostr.KindNostrConnect {
-		return req, resp, eventResponse, false,
+		return req, resp, eventResponse,
 			fmt.Errorf("event kind is %d, but we expected %d", event.Kind, nostr.KindNostrConnect)
 	}
 
 	targetUser := event.Tags.GetFirst([]string{"p", ""})
 	if targetUser == nil || !nostr.IsValid32ByteHex((*targetUser)[1]) {
-		return req, resp, eventResponse, false, fmt.Errorf("invalid \"p\" tag")
+		return req, resp, eventResponse, fmt.Errorf("invalid \"p\" tag")
 	}
 
 	targetPubkey := (*targetUser)[1]
 
 	privateKey, err := p.getPrivateKey(targetPubkey)
 	if err != nil {
-		return req, resp, eventResponse, false, fmt.Errorf("no private key for %s: %w", targetPubkey, err)
+		return req, resp, eventResponse, fmt.Errorf("no private key for %s: %w", targetPubkey, err)
 	}
 
 	var session Session
@@ -102,13 +100,13 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 
 		session.SharedKey, err = nip04.ComputeSharedSecret(event.PubKey, privateKey)
 		if err != nil {
-			return req, resp, eventResponse, false, fmt.Errorf("failed to compute shared secret: %w", err)
+			return req, resp, eventResponse, fmt.Errorf("failed to compute shared secret: %w", err)
 		}
 		p.setSession(event.PubKey, session)
 
 		req, err = session.ParseRequest(event)
 		if err != nil {
-			return req, resp, eventResponse, false, fmt.Errorf("error parsing request: %w", err)
+			return req, resp, eventResponse, fmt.Errorf("error parsing request: %w", err)
 		}
 	}
 
@@ -118,10 +116,8 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 	switch req.Method {
 	case "connect":
 		result = "ack"
-		harmless = true
 	case "get_public_key":
 		result = targetPubkey
-		harmless = true
 	case "sign_event":
 		if len(req.Params) != 1 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'sign_event'")
@@ -147,7 +143,6 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 	case "get_relays":
 		jrelays, _ := json.Marshal(p.RelaysToAdvertise)
 		result = string(jrelays)
-		harmless = true
 	case "nip04_encrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
@@ -201,19 +196,19 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 		}
 		result = plaintext
 	default:
-		return req, resp, eventResponse, false,
+		return req, resp, eventResponse,
 			fmt.Errorf("unknown method '%s'", req.Method)
 	}
 
 	resp, eventResponse, err = session.MakeResponse(req.ID, event.PubKey, result, resultErr)
 	if err != nil {
-		return req, resp, eventResponse, harmless, err
+		return req, resp, eventResponse, err
 	}
 
 	err = eventResponse.Sign(privateKey)
 	if err != nil {
-		return req, resp, eventResponse, harmless, err
+		return req, resp, eventResponse, err
 	}
 
-	return req, resp, eventResponse, harmless, err
+	return req, resp, eventResponse, err
 }

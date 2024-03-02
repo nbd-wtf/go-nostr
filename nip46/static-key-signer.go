@@ -3,9 +3,8 @@ package nip46
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-
 	"slices"
+	"sync"
 
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
@@ -23,6 +22,7 @@ type StaticKeySigner struct {
 	sync.Mutex
 
 	RelaysToAdvertise map[string]RelayReadWrite
+	AuthorizeRequest  func(harmless bool, from string) bool
 }
 
 func NewStaticKeySigner(secretKey string) StaticKeySigner {
@@ -73,24 +73,24 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 	req Request,
 	resp Response,
 	eventResponse nostr.Event,
-	harmless bool,
 	err error,
 ) {
 	if event.Kind != nostr.KindNostrConnect {
-		return req, resp, eventResponse, false,
+		return req, resp, eventResponse,
 			fmt.Errorf("event kind is %d, but we expected %d", event.Kind, nostr.KindNostrConnect)
 	}
 
 	session, err := p.getOrCreateSession(event.PubKey)
 	if err != nil {
-		return req, resp, eventResponse, false, err
+		return req, resp, eventResponse, err
 	}
 
 	req, err = session.ParseRequest(event)
 	if err != nil {
-		return req, resp, eventResponse, false, fmt.Errorf("error parsing request: %w", err)
+		return req, resp, eventResponse, fmt.Errorf("error parsing request: %w", err)
 	}
 
+	var harmless bool
 	var result string
 	var resultErr error
 
@@ -174,19 +174,25 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 		}
 		result = plaintext
 	default:
-		return req, resp, eventResponse, false,
+		return req, resp, eventResponse,
 			fmt.Errorf("unknown method '%s'", req.Method)
+	}
+
+	if resultErr == nil && p.AuthorizeRequest != nil {
+		if !p.AuthorizeRequest(harmless, event.PubKey) {
+			resultErr = fmt.Errorf("unauthorized")
+		}
 	}
 
 	resp, eventResponse, err = session.MakeResponse(req.ID, event.PubKey, result, resultErr)
 	if err != nil {
-		return req, resp, eventResponse, harmless, err
+		return req, resp, eventResponse, err
 	}
 
 	err = eventResponse.Sign(p.secretKey)
 	if err != nil {
-		return req, resp, eventResponse, harmless, err
+		return req, resp, eventResponse, err
 	}
 
-	return req, resp, eventResponse, harmless, err
+	return req, resp, eventResponse, err
 }
