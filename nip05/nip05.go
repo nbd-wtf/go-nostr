@@ -19,6 +19,10 @@ type WellKnownResponse struct {
 	NIP46  map[string][]string `json:"nip46,omitempty"`
 }
 
+func IsValidIdentifier(input string) bool {
+	return NIP05_REGEX.MatchString(input)
+}
+
 func ParseIdentifier(fullname string) (name string, domain string, err error) {
 	res := NIP05_REGEX.FindStringSubmatch(fullname)
 	if len(res) == 0 {
