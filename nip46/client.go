@@ -77,8 +77,7 @@ func ConnectBunker(
 		onAuth,
 	)
 
-	clientPubKey, _ := nostr.GetPublicKey(clientSecretKey)
-	_, err = bunker.RPC(ctx, "connect", []string{clientPubKey, secret})
+	_, err = bunker.RPC(ctx, "connect", []string{targetPublicKey, secret})
 	return bunker, err
 }
 

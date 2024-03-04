@@ -50,8 +50,7 @@ func CreateAccount(
 		onAuth,
 	)
 
-	clientPubKey, _ := nostr.GetPublicKey(clientSecretKey)
-	_, err = bunker.RPC(ctx, "connect", []string{clientPubKey, ""})
+	_, err = bunker.RPC(ctx, "connect", []string{providerPubkey, ""})
 	if err != nil {
 		return nil, fmt.Errorf("initial connect error: %w", err)
 	}
