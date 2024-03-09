@@ -18,9 +18,12 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 		defer cancel()
 	}
 
-	// normalize URL to start with http:// or https://
-	if strings.HasPrefix(u, "ws") {
+	// normalize URL to start with http://, https:// or without protocol
+	if strings.HasPrefix(u, "wss://") || strings.HasPrefix(u, "ws://") {
 		u = "http" + u[2:]
+	}
+	if !(strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")) {
+		u = "http://" + u
 	}
 	u = strings.TrimRight(u, "/")
 
