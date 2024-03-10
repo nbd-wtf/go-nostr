@@ -41,4 +41,8 @@ func TestFetch(t *testing.T) {
 	if err != nil || res.Name == "" {
 		t.Errorf("failed to fetch from https")
 	}
+	res, err = Fetch(context.Background(), "relay.nostr.bg")
+	if err != nil || res.Name == "" {
+		t.Errorf("failed to fetch without protocol")
+	}
 }

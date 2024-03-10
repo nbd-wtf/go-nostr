@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
+
+	"github.com/nbd-wtf/go-nostr"
 )
 
 // Fetch fetches the NIP-11 RelayInformationDocument.
@@ -19,14 +20,9 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 	}
 
 	// normalize URL to start with http://, https:// or without protocol
-	if strings.HasPrefix(u, "wss://") || strings.HasPrefix(u, "ws://") {
-		u = "http" + u[2:]
-	}
-	if !(strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")) {
-		u = "http://" + u
-	}
-	u = strings.TrimRight(u, "/")
+	u = "http" + nostr.NormalizeURL(u)[2:]
 
+	// make request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 
 	// add the NIP-11 header
