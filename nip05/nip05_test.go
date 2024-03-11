@@ -1,6 +1,7 @@
 package nip05
 
 import (
+	"context"
 	"testing"
 )
 
@@ -33,5 +34,17 @@ func TestParse(t *testing.T) {
 	_, _, err = ParseIdentifier("////")
 	if err == nil {
 		t.Fatalf("should have errored")
+	}
+}
+
+func TestQuery(t *testing.T) {
+	pp, err := QueryIdentifier(context.Background(), "fiatjaf.com")
+	if err != nil || pp.PublicKey != "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" {
+		t.Fatalf("invalid query for fiatjaf.com")
+	}
+
+	pp, err = QueryIdentifier(context.Background(), "htlc@fiatjaf.com")
+	if err != nil || pp.PublicKey != "f9dd6a762506260b38a2d3e5b464213c2e47fa3877429fe9ee60e071a31a07d7" {
+		t.Fatalf("invalid query for htlc@fiatjaf.com")
 	}
 }

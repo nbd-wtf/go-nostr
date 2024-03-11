@@ -84,7 +84,7 @@ func Fetch(ctx context.Context, fullname string) (resp WellKnownResponse, name s
 		return resp, name, fmt.Errorf("failed to decode json response: %w", err)
 	}
 
-	return resp, name, nil
+	return result, name, nil
 }
 
 func NormalizeIdentifier(fullname string) string {
