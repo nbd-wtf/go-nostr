@@ -10,7 +10,7 @@ func TestNormalization(t *testing.T) {
 		before string
 		after  string
 	}{
-		{"hello", "hello"},
+		{" hello  ", "hello"},
 		{"Goodbye", "goodbye"},
 		{"the long and winding road / that leads to your door", "the-long-and-winding-road---that-leads-to-your-door"},
 		{"it's 平仮名", "it-s-平仮名"},

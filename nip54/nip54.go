@@ -9,7 +9,7 @@ import (
 )
 
 func NormalizeIdentifier(name string) string {
-	name = strings.ToLower(name)
+	name = strings.TrimSpace(strings.ToLower(name))
 	res, _, _ := transform.Bytes(norm.NFKC, []byte(name))
 	runes := []rune(string(res))
 
