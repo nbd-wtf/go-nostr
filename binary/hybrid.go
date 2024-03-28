@@ -50,7 +50,7 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 
 func Marshal(evt *nostr.Event) ([]byte, error) {
 	content := []byte(evt.Content)
-	buf := make([]byte, 32+32+64+4+2+2+len(content)+65536 /* blergh */)
+	buf := make([]byte, 32+32+64+4+2+2+len(content)+65536+len(evt.Tags)*40 /* blergh */)
 
 	hex.Decode(buf[0:32], []byte(evt.ID))
 	hex.Decode(buf[32:64], []byte(evt.PubKey))
