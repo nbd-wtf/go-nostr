@@ -3,6 +3,7 @@ package nostr
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -119,6 +120,11 @@ func (r *Relay) IsConnected() bool { return r.connectionContext.Err() == nil }
 // pass a custom context to the underlying relay connection, use NewRelay() and
 // then Relay.Connect().
 func (r *Relay) Connect(ctx context.Context) error {
+	return r.ConnectWithTLS(ctx, nil)
+}
+
+// ConnectWithTLS tries to establish a secured websocket connection to r.URL using customized tls.Config (CA's, etc).
+func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error {
 	if r.connectionContext == nil || r.Subscriptions == nil {
 		return fmt.Errorf("relay must be initialized with a call to NewRelay()")
 	}
@@ -134,7 +140,7 @@ func (r *Relay) Connect(ctx context.Context) error {
 		defer cancel()
 	}
 
-	conn, err := NewConnection(ctx, r.URL, r.RequestHeader)
+	conn, err := NewConnection(ctx, r.URL, r.RequestHeader, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}
