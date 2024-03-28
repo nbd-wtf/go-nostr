@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -28,12 +29,13 @@ type Connection struct {
 	msgStateW         *wsflate.MessageState
 }
 
-func NewConnection(ctx context.Context, url string, requestHeader http.Header) (*Connection, error) {
+func NewConnection(ctx context.Context, url string, requestHeader http.Header, tlsConfig *tls.Config) (*Connection, error) {
 	dialer := ws.Dialer{
 		Header: ws.HandshakeHeaderHTTP(requestHeader),
 		Extensions: []httphead.Option{
 			wsflate.DefaultParameters.Option(),
 		},
+		TLSConfig: tlsConfig,
 	}
 	conn, _, hs, err := dialer.Dial(ctx, url)
 	if err != nil {
