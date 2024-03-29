@@ -2,7 +2,6 @@ package nostr
 
 import (
 	"encoding/json"
-
 	"slices"
 
 	"github.com/mailru/easyjson"
@@ -19,6 +18,9 @@ type Filter struct {
 	Until   *Timestamp `json:"until,omitempty"`
 	Limit   int        `json:"limit,omitempty"`
 	Search  string     `json:"search,omitempty"`
+
+	// LimitZero is or must be set when there is a "limit":0 in the filter, and not when "limit" is just omitted
+	LimitZero bool `json:"-"`
 }
 
 type TagMap map[string][]string
@@ -115,16 +117,21 @@ func FilterEqual(a Filter, b Filter) bool {
 		return false
 	}
 
+	if a.LimitZero != b.LimitZero {
+		return false
+	}
+
 	return true
 }
 
 func (ef Filter) Clone() Filter {
 	clone := Filter{
-		IDs:     slices.Clone(ef.IDs),
-		Authors: slices.Clone(ef.Authors),
-		Kinds:   slices.Clone(ef.Kinds),
-		Limit:   ef.Limit,
-		Search:  ef.Search,
+		IDs:       slices.Clone(ef.IDs),
+		Authors:   slices.Clone(ef.Authors),
+		Kinds:     slices.Clone(ef.Kinds),
+		Limit:     ef.Limit,
+		Search:    ef.Search,
+		LimitZero: ef.LimitZero,
 	}
 
 	if ef.Tags != nil {

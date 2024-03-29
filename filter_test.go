@@ -2,9 +2,8 @@ package nostr
 
 import (
 	"encoding/json"
-	"testing"
-
 	"slices"
+	"testing"
 )
 
 func TestFilterUnmarshal(t *testing.T) {
@@ -34,6 +33,41 @@ func TestFilterMarshal(t *testing.T) {
 	}
 
 	expected := `{"kinds":[1,2,4],"until":12345678,"#fruit":["banana","mango"]}`
+	if string(filterj) != expected {
+		t.Errorf("filter json was wrong: %s != %s", string(filterj), expected)
+	}
+}
+
+func TestFilterUnmarshalWithLimitZero(t *testing.T) {
+	raw := `{"ids": ["abc"],"#e":["zzz"],"limit":0,"#something":["nothing","bab"],"since":1644254609,"search":"test"}`
+	var f Filter
+	if err := json.Unmarshal([]byte(raw), &f); err != nil {
+		t.Errorf("failed to parse filter json: %v", err)
+	}
+
+	if f.Since == nil ||
+		f.Since.Time().UTC().Format("2006-01-02") != "2022-02-07" ||
+		f.Until != nil ||
+		f.Tags == nil || len(f.Tags) != 2 || !slices.Contains(f.Tags["something"], "bab") ||
+		f.Search != "test" ||
+		f.LimitZero == false {
+		t.Error("failed to parse filter correctly")
+	}
+}
+
+func TestFilterMarshalWithLimitZero(t *testing.T) {
+	until := Timestamp(12345678)
+	filterj, err := json.Marshal(Filter{
+		Kinds:     []int{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
+		Tags:      TagMap{"fruit": {"banana", "mango"}},
+		Until:     &until,
+		LimitZero: true,
+	})
+	if err != nil {
+		t.Errorf("failed to marshal filter json: %v", err)
+	}
+
+	expected := `{"kinds":[1,2,4],"until":12345678,"limit":0,"#fruit":["banana","mango"]}`
 	if string(filterj) != expected {
 		t.Errorf("filter json was wrong: %s != %s", string(filterj), expected)
 	}

@@ -129,6 +129,9 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 			}
 		case "limit":
 			out.Limit = int(in.Int())
+			if out.Limit == 0 {
+				out.LimitZero = true
+			}
 		case "search":
 			out.Search = string(in.String())
 		default:
@@ -243,7 +246,7 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 		}
 		out.Int64(int64(*in.Until))
 	}
-	if in.Limit != 0 {
+	if in.Limit != 0 || in.LimitZero {
 		const prefix string = ",\"limit\":"
 		if first {
 			first = false
