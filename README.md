@@ -42,7 +42,7 @@ func main() {
 
 ``` go
 ctx := context.Background()
-relay, err := nostr.RelayConnect(ctx, "wss://nostr.zebedee.cloud")
+relay, err := nostr.RelayConnect(ctx, "wss://relay.stoner.com")
 if err != nil {
 	panic(err)
 }
@@ -95,7 +95,7 @@ ev.Sign(sk)
 
 // publish the event to two relays
 ctx := context.Background()
-for _, url := range []string{"wss://nostr.zebedee.cloud", "wss://nostr-pub.wellorder.net"} {
+for _, url := range []string{"wss://relay.stoner.com", "wss://nostr-pub.wellorder.net"} {
 	relay, err := nostr.RelayConnect(ctx, url)
 	if err != nil {
 		fmt.Println(err)
