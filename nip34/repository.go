@@ -10,12 +10,14 @@ import (
 type Repository struct {
 	nostr.Event
 
-	ID          string
-	Name        string
-	Description string
-	Web         []string
-	Clone       []string
-	Relays      []string
+	ID                     string
+	Name                   string
+	Description            string
+	Web                    []string
+	Clone                  []string
+	Relays                 []string
+	EarliestUniqueCommitID string
+	Maintainers            []string
 }
 
 func ParseRepository(event nostr.Event) Repository {
@@ -40,6 +42,10 @@ func ParseRepository(event nostr.Event) Repository {
 			repo.Clone = append(repo.Clone, tag[1:]...)
 		case "relays":
 			repo.Relays = append(repo.Relays, tag[1:]...)
+		case "r":
+			repo.EarliestUniqueCommitID = tag[1]
+		case "maintainers":
+			repo.Maintainers = append(repo.Maintainers, tag[1])
 		}
 	}
 
