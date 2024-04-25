@@ -109,10 +109,12 @@ func NewBunker(
 	}
 
 	go func() {
+		now := nostr.Now()
 		events := pool.SubMany(ctx, relays, nostr.Filters{
 			{
 				Tags:  nostr.TagMap{"p": []string{clientPublicKey}},
 				Kinds: []int{nostr.KindNostrConnect},
+				Since: &now,
 			},
 		})
 		for ie := range events {
@@ -202,8 +204,8 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 
 	respWaiter := make(chan Response)
 	bunker.listeners.Store(id, respWaiter)
-
 	hasWorked := false
+
 	for _, r := range bunker.relays {
 		relay, err := bunker.pool.EnsureRelay(r)
 		if err == nil {
@@ -211,6 +213,7 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 		}
 		relay.Publish(ctx, evt)
 	}
+
 	if !hasWorked {
 		return "", fmt.Errorf("couldn't connect to any relay")
 	}
