@@ -108,9 +108,9 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 	first := true
 	_ = first
 	{
-		const prefix string = "\"created_at\":"
+		const prefix string = "\"kind\":"
 		out.RawString(prefix)
-		out.Int64(int64(in.CreatedAt))
+		out.Int(in.Kind)
 	}
 	{
 		if in.ID != "" {
@@ -127,9 +127,9 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 		}
 	}
 	{
-		const prefix string = ",\"kind\":"
+		const prefix string = ",\"created_at\":"
 		out.RawString(prefix)
-		out.Int(in.Kind)
+		out.Int64(int64(in.CreatedAt))
 	}
 	{
 		const prefix string = ",\"tags\":"
