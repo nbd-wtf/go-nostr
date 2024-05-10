@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Subscription struct {
@@ -85,8 +86,23 @@ func (sub *Subscription) dispatchEvent(evt *Event) {
 		added = true
 	}
 
+	acquired := false
+	released := false
+	go func() {
+		time.Sleep(time.Minute)
+		if acquired && !released {
+			fmt.Printf("after a minute we have acquired a lock, but haven't released it\n")
+		} else if !acquired {
+			fmt.Printf("after a minute we have not yet acquired a lock\n")
+		} else {
+			return
+		}
+		fmt.Println("  ", sub.GetID(), sub.Filters, evt)
+	}()
+
 	go func() {
 		sub.mu.Lock()
+		acquired = true
 		defer sub.mu.Unlock()
 
 		if sub.live.Load() {
@@ -99,6 +115,8 @@ func (sub *Subscription) dispatchEvent(evt *Event) {
 		if added {
 			sub.storedwg.Done()
 		}
+
+		released = true
 	}()
 }
 
