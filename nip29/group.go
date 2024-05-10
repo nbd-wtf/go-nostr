@@ -2,12 +2,37 @@ package nip29
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
 )
 
+type GroupAddress struct {
+	Relay string
+	ID    string
+}
+
+func (gid GroupAddress) String() string { return fmt.Sprintf("%s'%s", gid.ID, gid.Relay) }
+
+func (gid GroupAddress) IsValid() bool {
+	return gid.Relay != "" && gid.ID != ""
+}
+
+func (gid GroupAddress) Equals(gid2 GroupAddress) bool {
+	return gid.Relay == gid2.Relay && gid.ID == gid2.ID
+}
+
+func ParseGroupAddress(raw string) (GroupAddress, error) {
+	spl := strings.Split(raw, "'")
+	if len(spl) != 2 {
+		return GroupAddress{}, fmt.Errorf("invalid group id")
+	}
+	return GroupAddress{ID: spl[0], Relay: nostr.NormalizeURL(spl[1])}, nil
+}
+
 type Group struct {
-	ID      string
+	Address GroupAddress
+
 	Name    string
 	Picture string
 	About   string
@@ -20,12 +45,17 @@ type Group struct {
 	LastMembersUpdate  nostr.Timestamp
 }
 
-func NewGroup(id string) Group {
-	return Group{
-		ID:      id,
-		Name:    id,
-		Members: make(map[string]*Role),
+func NewGroup(id string) (Group, error) {
+	gad, err := ParseGroupAddress(id)
+	if err != nil {
+		return Group{}, fmt.Errorf("invalid group id '%s': %w", id, err)
 	}
+
+	return Group{
+		Address: gad,
+		Name:    gad.ID,
+		Members: make(map[string]*Role),
+	}, nil
 }
 
 func (group Group) ToMetadataEvent() *nostr.Event {
@@ -34,7 +64,7 @@ func (group Group) ToMetadataEvent() *nostr.Event {
 		CreatedAt: group.LastMetadataUpdate,
 		Content:   group.About,
 		Tags: nostr.Tags{
-			nostr.Tag{"d", group.ID},
+			nostr.Tag{"d", group.Address.ID},
 		},
 	}
 	if group.Name != "" {
@@ -68,7 +98,7 @@ func (group Group) ToAdminsEvent() *nostr.Event {
 		CreatedAt: group.LastAdminsUpdate,
 		Tags:      make(nostr.Tags, 1, 1+len(group.Members)/3),
 	}
-	evt.Tags[0] = nostr.Tag{"d", group.ID}
+	evt.Tags[0] = nostr.Tag{"d", group.Address.ID}
 
 	for member, role := range group.Members {
 		if role != nil {
@@ -93,7 +123,7 @@ func (group Group) ToMembersEvent() *nostr.Event {
 		CreatedAt: group.LastMembersUpdate,
 		Tags:      make(nostr.Tags, 1, 1+len(group.Members)),
 	}
-	evt.Tags[0] = nostr.Tag{"d", group.ID}
+	evt.Tags[0] = nostr.Tag{"d", group.Address.ID}
 
 	for member := range group.Members {
 		// include both admins and normal members
@@ -112,7 +142,7 @@ func (group *Group) MergeInMetadataEvent(evt *nostr.Event) error {
 	}
 
 	group.LastMetadataUpdate = evt.CreatedAt
-	group.Name = group.ID
+	group.Name = group.Address.ID
 
 	if tag := evt.Tags.GetFirst([]string{"name", ""}); tag != nil {
 		group.Name = (*tag)[1]
