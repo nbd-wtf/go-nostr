@@ -45,10 +45,11 @@ type Group struct {
 	LastMembersUpdate  nostr.Timestamp
 }
 
-func NewGroup(id string) (Group, error) {
-	gad, err := ParseGroupAddress(id)
+// NewGroup takes a group address in the form "<id>'<relay-hostname>"
+func NewGroup(gadstr string) (Group, error) {
+	gad, err := ParseGroupAddress(gadstr)
 	if err != nil {
-		return Group{}, fmt.Errorf("invalid group id '%s': %w", id, err)
+		return Group{}, fmt.Errorf("invalid group id '%s': %w", gadstr, err)
 	}
 
 	return Group{
