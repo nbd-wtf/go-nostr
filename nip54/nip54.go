@@ -15,7 +15,7 @@ func NormalizeIdentifier(name string) string {
 
 	b := make([]rune, len(runes))
 	for i, letter := range runes {
-		if unicode.IsLetter(letter) {
+		if unicode.IsLetter(letter) || unicode.IsNumber(letter) {
 			b[i] = letter
 		} else {
 			b[i] = '-'
