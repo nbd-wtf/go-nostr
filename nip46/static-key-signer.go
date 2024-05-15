@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
+	"github.com/nbd-wtf/go-nostr/nip44"
 )
 
 var _ Signer = (*StaticKeySigner)(nil)
@@ -129,7 +131,7 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 		jrelays, _ := json.Marshal(p.RelaysToAdvertise)
 		result = string(jrelays)
 		harmless = true
-	case "nip04_encrypt":
+	case "nip04_encrypt", "nip44_encrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
 			break
@@ -140,18 +142,26 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 			break
 		}
 		plaintext := req.Params[1]
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
+
+		getKey := nip04.ComputeSharedSecret
+		encrypt := nip04.Encrypt
+		if strings.HasPrefix(req.Method, "nip44") {
+			getKey = nip44.GenerateConversationKey
+			encrypt = func(message string, key []byte) (string, error) { return nip44.Encrypt(message, key) }
+		}
+
+		sharedSecret, err := getKey(thirdPartyPubkey, p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
 			break
 		}
-		ciphertext, err := nip04.Encrypt(plaintext, sharedSecret)
+		ciphertext, err := encrypt(plaintext, sharedSecret)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to encrypt: %w", err)
 			break
 		}
 		result = ciphertext
-	case "nip04_decrypt":
+	case "nip04_decrypt", "nip44_decrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
 			break
@@ -162,12 +172,20 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 			break
 		}
 		ciphertext := req.Params[1]
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, p.secretKey)
+
+		getKey := nip04.ComputeSharedSecret
+		decrypt := nip04.Decrypt
+		if strings.HasPrefix(req.Method, "nip44") {
+			getKey = nip44.GenerateConversationKey
+			decrypt = nip44.Decrypt
+		}
+
+		sharedSecret, err := getKey(thirdPartyPubkey, p.secretKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
 			break
 		}
-		plaintext, err := nip04.Decrypt(ciphertext, sharedSecret)
+		plaintext, err := decrypt(ciphertext, sharedSecret)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to encrypt: %w", err)
 			break

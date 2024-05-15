@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
+	"github.com/nbd-wtf/go-nostr/nip44"
 )
 
 var _ Signer = (*DynamicSigner)(nil)
@@ -21,24 +23,24 @@ type DynamicSigner struct {
 
 	RelaysToAdvertise map[string]RelayReadWrite
 
-	getPrivateKey    func(pubkey string) (string, error)
-	authorizeSigning func(event nostr.Event) bool
-	onEventSigned    func(event nostr.Event)
-	authorizeNIP04   func() bool
+	getPrivateKey       func(pubkey string) (string, error)
+	authorizeSigning    func(event nostr.Event) bool
+	onEventSigned       func(event nostr.Event)
+	authorizeEncryption func() bool
 }
 
 func NewDynamicSigner(
 	getPrivateKey func(pubkey string) (string, error),
 	authorizeSigning func(event nostr.Event) bool,
 	onEventSigned func(event nostr.Event),
-	authorizeNIP04 func() bool,
+	authorizeEncryption func() bool,
 ) DynamicSigner {
 	return DynamicSigner{
-		getPrivateKey:     getPrivateKey,
-		authorizeSigning:  authorizeSigning,
-		onEventSigned:     onEventSigned,
-		authorizeNIP04:    authorizeNIP04,
-		RelaysToAdvertise: make(map[string]RelayReadWrite),
+		getPrivateKey:       getPrivateKey,
+		authorizeSigning:    authorizeSigning,
+		onEventSigned:       onEventSigned,
+		authorizeEncryption: authorizeEncryption,
+		RelaysToAdvertise:   make(map[string]RelayReadWrite),
 	}
 }
 
@@ -143,7 +145,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 	case "get_relays":
 		jrelays, _ := json.Marshal(p.RelaysToAdvertise)
 		result = string(jrelays)
-	case "nip04_encrypt":
+	case "nip04_encrypt", "nip44_encrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
 			break
@@ -153,23 +155,31 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
 			break
 		}
-		if !p.authorizeNIP04() {
+		if !p.authorizeEncryption() {
 			resultErr = fmt.Errorf("refusing to encrypt")
 			break
 		}
 		plaintext := req.Params[1]
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, privateKey)
+
+		getKey := nip04.ComputeSharedSecret
+		encrypt := nip04.Encrypt
+		if strings.HasPrefix(req.Method, "nip44") {
+			getKey = nip44.GenerateConversationKey
+			encrypt = func(message string, key []byte) (string, error) { return nip44.Encrypt(message, key) }
+		}
+
+		sharedSecret, err := getKey(thirdPartyPubkey, privateKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
 			break
 		}
-		ciphertext, err := nip04.Encrypt(plaintext, sharedSecret)
+		ciphertext, err := encrypt(plaintext, sharedSecret)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to encrypt: %w", err)
 			break
 		}
 		result = ciphertext
-	case "nip04_decrypt":
+	case "nip04_decrypt", "nip44_decrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
 			break
@@ -179,17 +189,25 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
 			break
 		}
-		if !p.authorizeNIP04() {
+		if !p.authorizeEncryption() {
 			resultErr = fmt.Errorf("refusing to decrypt")
 			break
 		}
 		ciphertext := req.Params[1]
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, privateKey)
+
+		getKey := nip04.ComputeSharedSecret
+		decrypt := nip04.Decrypt
+		if strings.HasPrefix(req.Method, "nip44") {
+			getKey = nip44.GenerateConversationKey
+			decrypt = nip44.Decrypt
+		}
+
+		sharedSecret, err := getKey(thirdPartyPubkey, privateKey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
 			break
 		}
-		plaintext, err := nip04.Decrypt(ciphertext, sharedSecret)
+		plaintext, err := decrypt(ciphertext, sharedSecret)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to encrypt: %w", err)
 			break
