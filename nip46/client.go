@@ -112,9 +112,10 @@ func NewBunker(
 		now := nostr.Now()
 		events := pool.SubMany(ctx, relays, nostr.Filters{
 			{
-				Tags:  nostr.TagMap{"p": []string{clientPublicKey}},
-				Kinds: []int{nostr.KindNostrConnect},
-				Since: &now,
+				Tags:      nostr.TagMap{"p": []string{clientPublicKey}},
+				Kinds:     []int{nostr.KindNostrConnect},
+				Since:     &now,
+				LimitZero: true,
 			},
 		})
 		for ie := range events {
