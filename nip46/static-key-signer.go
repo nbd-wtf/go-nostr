@@ -24,7 +24,7 @@ type StaticKeySigner struct {
 	sync.Mutex
 
 	RelaysToAdvertise map[string]RelayReadWrite
-	AuthorizeRequest  func(harmless bool, from string) bool
+	AuthorizeRequest  func(harmless bool, from string, secret string) bool
 }
 
 func NewStaticKeySigner(secretKey string) StaticKeySigner {
@@ -92,12 +92,16 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 		return req, resp, eventResponse, fmt.Errorf("error parsing request: %w", err)
 	}
 
+	var secret string
 	var harmless bool
 	var result string
 	var resultErr error
 
 	switch req.Method {
 	case "connect":
+		if len(req.Params) >= 2 {
+			secret = req.Params[1]
+		}
 		result = "ack"
 		harmless = true
 	case "get_public_key":
@@ -197,7 +201,7 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 	}
 
 	if resultErr == nil && p.AuthorizeRequest != nil {
-		if !p.AuthorizeRequest(harmless, event.PubKey) {
+		if !p.AuthorizeRequest(harmless, event.PubKey, secret) {
 			resultErr = fmt.Errorf("unauthorized")
 		}
 	}

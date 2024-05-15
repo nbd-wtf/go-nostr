@@ -24,16 +24,16 @@ type DynamicSigner struct {
 	RelaysToAdvertise map[string]RelayReadWrite
 
 	getPrivateKey       func(pubkey string) (string, error)
-	authorizeSigning    func(event nostr.Event) bool
+	authorizeSigning    func(event nostr.Event, from string, secret string) bool
 	onEventSigned       func(event nostr.Event)
-	authorizeEncryption func() bool
+	authorizeEncryption func(from string, secret string) bool
 }
 
 func NewDynamicSigner(
 	getPrivateKey func(pubkey string) (string, error),
-	authorizeSigning func(event nostr.Event) bool,
+	authorizeSigning func(event nostr.Event, from string, secret string) bool,
 	onEventSigned func(event nostr.Event),
-	authorizeEncryption func() bool,
+	authorizeEncryption func(from string, secret string) bool,
 ) DynamicSigner {
 	return DynamicSigner{
 		getPrivateKey:       getPrivateKey,
@@ -112,11 +112,15 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 		}
 	}
 
+	var secret string
 	var result string
 	var resultErr error
 
 	switch req.Method {
 	case "connect":
+		if len(req.Params) >= 2 {
+			secret = req.Params[1]
+		}
 		result = "ack"
 	case "get_public_key":
 		result = targetPubkey
@@ -131,7 +135,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
 		}
-		if !p.authorizeSigning(evt) {
+		if !p.authorizeSigning(evt, event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to sign this event")
 			break
 		}
@@ -155,7 +159,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
 			break
 		}
-		if !p.authorizeEncryption() {
+		if !p.authorizeEncryption(event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to encrypt")
 			break
 		}
@@ -189,7 +193,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
 			break
 		}
-		if !p.authorizeEncryption() {
+		if !p.authorizeEncryption(event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to decrypt")
 			break
 		}

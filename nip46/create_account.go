@@ -30,15 +30,15 @@ func CreateAccount(
 	pool *nostr.SimplePool,
 	extraOpts *CreateAccountOptions,
 	onAuth func(string),
-) (*BunkerClient, error) {
+) (*BunkerClient, []string, error) {
 	if pool == nil {
 		pool = nostr.NewSimplePool(ctx)
 	}
 
 	// create a bunker that targets the provider directly
-	providerPubkey, relays, err := queryWellKnownNostrJson(ctx, domain)
+	providerPubkey, relays, err := queryWellKnownNostrJson(ctx, "_@"+domain)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	bunker := NewBunker(
@@ -52,7 +52,7 @@ func CreateAccount(
 
 	_, err = bunker.RPC(ctx, "connect", []string{providerPubkey, ""})
 	if err != nil {
-		return nil, fmt.Errorf("initial connect error: %w", err)
+		return nil, relays, fmt.Errorf("initial connect error: %w", err)
 	}
 
 	// call create_account on it, it should return the value of the public key that will be created
@@ -62,7 +62,7 @@ func CreateAccount(
 	}
 	resp, err := bunker.RPC(ctx, "create_account", []string{name, domain, email})
 	if err != nil {
-		return nil, fmt.Errorf("error on create_account: %w", err)
+		return nil, relays, fmt.Errorf("error on create_account: %w", err)
 	}
 
 	newlyCreatedPublicKey := resp
@@ -75,8 +75,8 @@ func CreateAccount(
 	// finally try to connect again using the new key as the target
 	_, err = bunker.RPC(ctx, "connect", []string{newlyCreatedPublicKey, ""})
 	if err != nil {
-		return nil, fmt.Errorf("newly-created public key connect error: %w", err)
+		return bunker, relays, fmt.Errorf("newly-created public key connect error: %w", err)
 	}
 
-	return bunker, err
+	return bunker, relays, err
 }
