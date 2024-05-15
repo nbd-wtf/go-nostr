@@ -7,32 +7,59 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"math"
-	"math/big"
 
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/nbd-wtf/go-nostr/nip04"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/hkdf"
 )
+
+const version byte = 2
 
 var (
 	MinPlaintextSize = 0x0001 // 1b msg => padded to 32b
 	MaxPlaintextSize = 0xffff // 65535 (64kb-1) => padded to 64kb
 )
 
-type EncryptOptions struct {
-	Salt    []byte
-	Version int
+type encryptOptions struct {
+	err  error
+	salt []byte
 }
 
-func Encrypt(conversationKey []byte, plaintext string, options *EncryptOptions) (string, error) {
+func WithCustomSalt(salt []byte) func(opts *encryptOptions) {
+	return func(opts *encryptOptions) {
+		if len(salt) != 32 {
+			opts.err = errors.New("salt must be 32 bytes")
+		}
+		opts.salt = salt
+	}
+}
+
+func Encrypt(plaintext string, conversationKey []byte, applyOptions ...func(opts *encryptOptions)) (string, error) {
+	opts := encryptOptions{
+		salt: nil,
+	}
+
+	for _, apply := range applyOptions {
+		apply(&opts)
+	}
+
+	if opts.err != nil {
+		return "", opts.err
+	}
+
+	salt := opts.salt
+	if salt == nil {
+		salt := make([]byte, 32)
+		if _, err := rand.Read(salt); err != nil {
+			return "", err
+		}
+	}
+
 	var (
-		version    int = 2
-		salt       []byte
 		enc        []byte
 		nonce      []byte
 		auth       []byte
@@ -42,22 +69,7 @@ func Encrypt(conversationKey []byte, plaintext string, options *EncryptOptions) 
 		concat     []byte
 		err        error
 	)
-	if options.Version != 0 {
-		version = options.Version
-	}
-	if options.Salt != nil {
-		salt = options.Salt
-	} else {
-		if salt, err = randomBytes(32); err != nil {
-			return "", err
-		}
-	}
-	if version != 2 {
-		return "", errors.New(fmt.Sprintf("unknown version %d", version))
-	}
-	if len(salt) != 32 {
-		return "", errors.New("salt must be 32 bytes")
-	}
+
 	if enc, nonce, auth, err = messageKeys(conversationKey, salt); err != nil {
 		return "", err
 	}
@@ -70,16 +82,15 @@ func Encrypt(conversationKey []byte, plaintext string, options *EncryptOptions) 
 	if hmac_, err = sha256Hmac(auth, ciphertext, salt); err != nil {
 		return "", err
 	}
-	concat = append(concat, []byte{byte(version)}...)
+	concat = append(concat, []byte{version}...)
 	concat = append(concat, salt...)
 	concat = append(concat, ciphertext...)
 	concat = append(concat, hmac_...)
 	return base64.StdEncoding.EncodeToString(concat), nil
 }
 
-func Decrypt(conversationKey []byte, ciphertext string) (string, error) {
+func Decrypt(ciphertext string, conversationKey []byte) (string, error) {
 	var (
-		version     int = 2
 		decoded     []byte
 		cLen        int
 		dLen        int
@@ -105,8 +116,8 @@ func Decrypt(conversationKey []byte, ciphertext string) (string, error) {
 	if decoded, err = base64.StdEncoding.DecodeString(ciphertext); err != nil {
 		return "", errors.New("invalid base64")
 	}
-	if version = int(decoded[0]); version != 2 {
-		return "", errors.New(fmt.Sprintf("unknown version %d", version))
+	if decoded[0] != version {
+		return "", errors.New(fmt.Sprintf("unknown version %d", decoded[0]))
 	}
 	dLen = len(decoded)
 	if dLen < 99 || dLen > 65603 {
@@ -136,24 +147,15 @@ func Decrypt(conversationKey []byte, ciphertext string) (string, error) {
 	return string(unpadded), nil
 }
 
-func GenerateConversationKey(sendPrivkey []byte, recvPubkey []byte) ([]byte, error) {
-	var (
-		N   = secp256k1.S256().N
-		sk  *secp256k1.PrivateKey
-		pk  *secp256k1.PublicKey
-		err error
-	)
-	// make sure that private key is on curve before using unsafe secp256k1.PrivKeyFromBytes
-	// see https://pkg.go.dev/github.com/decred/dcrd/dcrec/secp256k1/v4#PrivKeyFromBytes
-	skX := new(big.Int).SetBytes(sendPrivkey)
-	if skX.Cmp(big.NewInt(0)) == 0 || skX.Cmp(N) >= 0 {
-		return []byte{}, fmt.Errorf("invalid private key: x coordinate %s is not on the secp256k1 curve", hex.EncodeToString(sendPrivkey))
+func GenerateConversationKey(pub string, sk string) ([]byte, error) {
+	if sk >= "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141" || sk == "0000000000000000000000000000000000000000000000000000000000000000" {
+		return nil, fmt.Errorf("invalid private key: x coordinate %s is not on the secp256k1 curve", sk)
 	}
-	sk = secp256k1.PrivKeyFromBytes(sendPrivkey)
-	if pk, err = secp256k1.ParsePubKey(recvPubkey); err != nil {
-		return []byte{}, err
+
+	shared, err := nip04.ComputeSharedSecret(pub, sk)
+	if err != nil {
+		return nil, err
 	}
-	shared := secp256k1.GenerateSharedSecret(sk, pk)
 	return hkdf.Extract(sha256.New, shared, []byte("nip44-v2")), nil
 }
 
@@ -168,14 +170,6 @@ func chacha20_(key []byte, nonce []byte, message []byte) ([]byte, error) {
 	}
 	cipher.XORKeyStream(dst, message)
 	return dst, nil
-}
-
-func randomBytes(n int) ([]byte, error) {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		return nil, err
-	}
-	return buf, nil
 }
 
 func sha256Hmac(key []byte, ciphertext []byte, aad []byte) ([]byte, error) {
