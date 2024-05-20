@@ -7,6 +7,7 @@ import (
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
+	"github.com/nbd-wtf/go-nostr/nip44"
 )
 
 var BUNKER_REGEX = regexp.MustCompile(`^bunker:\/\/([0-9a-f]{64})\??([?\/\w:.=&%]*)$`)
@@ -29,7 +30,8 @@ type Signer interface {
 }
 
 type Session struct {
-	SharedKey []byte
+	SharedKey       []byte // nip04
+	ConversationKey []byte // nip44
 }
 
 type RelayReadWrite struct {
@@ -40,9 +42,12 @@ type RelayReadWrite struct {
 func (s Session) ParseRequest(event *nostr.Event) (Request, error) {
 	var req Request
 
-	plain, err := nip04.Decrypt(event.Content, s.SharedKey)
+	plain, err := nip44.Decrypt(event.Content, s.ConversationKey)
 	if err != nil {
-		return req, fmt.Errorf("failed to decrypt event from %s: %w", event.PubKey, err)
+		plain, err = nip04.Decrypt(event.Content, s.SharedKey)
+		if err != nil {
+			return req, fmt.Errorf("failed to decrypt event from %s: %w", event.PubKey, err)
+		}
 	}
 
 	err = json.Unmarshal([]byte(plain), &req)

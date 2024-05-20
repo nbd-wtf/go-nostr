@@ -104,6 +104,12 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 		if err != nil {
 			return req, resp, eventResponse, fmt.Errorf("failed to compute shared secret: %w", err)
 		}
+
+		session.SharedKey, err = nip04.ComputeSharedSecret(event.PubKey, privateKey)
+		if err != nil {
+			return req, resp, eventResponse, fmt.Errorf("failed to compute shared secret: %w", err)
+		}
+
 		p.setSession(event.PubKey, session)
 
 		req, err = session.ParseRequest(event)

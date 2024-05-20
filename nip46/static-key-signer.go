@@ -56,8 +56,14 @@ func (p *StaticKeySigner) getOrCreateSession(clientPubkey string) (Session, erro
 		return Session{}, fmt.Errorf("failed to compute shared secret: %w", err)
 	}
 
+	ck, err := nip44.GenerateConversationKey(clientPubkey, p.secretKey)
+	if err != nil {
+		return Session{}, fmt.Errorf("failed to compute shared secret: %w", err)
+	}
+
 	session := Session{
-		SharedKey: shared,
+		SharedKey:       shared,
+		ConversationKey: ck,
 	}
 
 	// add to pool
