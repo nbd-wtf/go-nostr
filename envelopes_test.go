@@ -63,6 +63,19 @@ func TestEoseEnvelopeEncodingAndDecoding(t *testing.T) {
 	}
 }
 
+func TestCountEnvelopeEncodingAndDecoding(t *testing.T) {
+	src := `["COUNT","z",{"count":12}]`
+	var env CountEnvelope
+	json.Unmarshal([]byte(src), &env)
+	if *env.Count != 12 {
+		t.Error("failed to decode COUNT")
+	}
+
+	if res, _ := json.Marshal(env); string(res) != src {
+		t.Errorf("failed to encode COUNT: expected '%s', got '%s'", src, string(res))
+	}
+}
+
 func TestOKEnvelopeEncodingAndDecoding(t *testing.T) {
 	okEnvelopes := []string{
 		`["OK","3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefaaaaa",false,"error: could not connect to the database"]`,

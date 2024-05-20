@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/mailru/easyjson"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -190,7 +191,9 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w.RawString(`["COUNT",`)
 	w.RawString(`"` + v.SubscriptionID + `"`)
 	if v.Count != nil {
-		w.RawString(fmt.Sprintf(`,{"count":%d}`, *v.Count))
+		w.RawString(`,{"count":`)
+		w.RawString(strconv.FormatInt(*v.Count, 10))
+		w.RawString(`}`)
 	} else {
 		for _, filter := range v.Filters {
 			w.RawString(`,`)
