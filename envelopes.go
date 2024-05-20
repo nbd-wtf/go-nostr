@@ -190,7 +190,7 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w.RawString(`["COUNT",`)
 	w.RawString(`"` + v.SubscriptionID + `"`)
 	if v.Count != nil {
-		w.RawString(fmt.Sprintf(`{"count":%d}`, *v.Count))
+		w.RawString(fmt.Sprintf(`,{"count":%d}`, *v.Count))
 	} else {
 		for _, filter := range v.Filters {
 			w.RawString(`,`)
