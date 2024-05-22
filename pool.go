@@ -34,6 +34,10 @@ type IncomingEvent struct {
 	Relay *Relay
 }
 
+func (ie IncomingEvent) String() string {
+	return fmt.Sprintf("[%s] >> %s", ie.Relay.URL, ie.Event)
+}
+
 type PoolOption interface {
 	IsPoolOption()
 	Apply(*SimplePool)
