@@ -2,6 +2,7 @@ package nip29
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -12,7 +13,10 @@ type GroupAddress struct {
 	ID    string
 }
 
-func (gid GroupAddress) String() string { return fmt.Sprintf("%s'%s", gid.ID, gid.Relay) }
+func (gid GroupAddress) String() string {
+	p, _ := url.Parse(gid.Relay)
+	return fmt.Sprintf("%s'%s", gid.ID, p.Host)
+}
 
 func (gid GroupAddress) IsValid() bool {
 	return gid.Relay != "" && gid.ID != ""
