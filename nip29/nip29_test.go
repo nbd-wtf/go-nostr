@@ -12,7 +12,7 @@ const (
 )
 
 func TestGroupEventBackAndForth(t *testing.T) {
-	group1, _ := NewGroup("xyz'relay.com")
+	group1, _ := NewGroup("relay.com'xyz")
 	group1.Name = "banana"
 	group1.Private = true
 	meta1 := group1.ToMetadataEvent()
@@ -22,7 +22,7 @@ func TestGroupEventBackAndForth(t *testing.T) {
 		t.Fatalf("translation of group1 to metadata event failed: %s", meta1)
 	}
 
-	group2, _ := NewGroup("abc'groups.com")
+	group2, _ := NewGroup("groups.com'abc")
 	group2.Members[ALICE] = &Role{Name: "nada", Permissions: map[Permission]struct{}{PermAddUser: {}}}
 	group2.Members[BOB] = &Role{Name: "nada", Permissions: map[Permission]struct{}{PermEditMetadata: {}}}
 	group2.Members[CAROL] = EmptyRole

@@ -15,7 +15,7 @@ type GroupAddress struct {
 
 func (gid GroupAddress) String() string {
 	p, _ := url.Parse(gid.Relay)
-	return fmt.Sprintf("%s'%s", gid.ID, p.Host)
+	return fmt.Sprintf("%s'%s", p.Host, gid.ID)
 }
 
 func (gid GroupAddress) IsValid() bool {
@@ -31,7 +31,7 @@ func ParseGroupAddress(raw string) (GroupAddress, error) {
 	if len(spl) != 2 {
 		return GroupAddress{}, fmt.Errorf("invalid group id")
 	}
-	return GroupAddress{ID: spl[0], Relay: nostr.NormalizeURL(spl[1])}, nil
+	return GroupAddress{ID: spl[1], Relay: nostr.NormalizeURL(spl[0])}, nil
 }
 
 type Group struct {
