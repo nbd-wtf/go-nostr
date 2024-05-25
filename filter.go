@@ -10,14 +10,14 @@ import (
 type Filters []Filter
 
 type Filter struct {
-	IDs     []string   `json:"ids,omitempty"`
-	Kinds   []int      `json:"kinds,omitempty"`
-	Authors []string   `json:"authors,omitempty"`
-	Tags    TagMap     `json:"-,omitempty"`
-	Since   *Timestamp `json:"since,omitempty"`
-	Until   *Timestamp `json:"until,omitempty"`
-	Limit   int        `json:"limit,omitempty"`
-	Search  string     `json:"search,omitempty"`
+	IDs     []string
+	Kinds   []int
+	Authors []string
+	Tags    TagMap
+	Since   *Timestamp
+	Until   *Timestamp
+	Limit   int
+	Search  string
 
 	// LimitZero is or must be set when there is a "limit":0 in the filter, and not when "limit" is just omitted
 	LimitZero bool `json:"-"`
