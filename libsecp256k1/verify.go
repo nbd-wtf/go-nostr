@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/core"
 )
 
-func CheckSignature(evt *nostr.Event) (bool, error) {
+func CheckSignature(evt core.Event) (bool, error) {
 	var pk [32]byte
 	_, err := hex.Decode(pk[:], []byte(evt.PubKey))
 	if err != nil {
