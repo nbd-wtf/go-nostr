@@ -8,12 +8,13 @@ import (
 
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/test_common"
 )
 
 func BenchmarkBinaryEncoding(b *testing.B) {
-	events := make([]*nostr.Event, len(normalEvents))
-	binaryEvents := make([]*Event, len(normalEvents))
-	for i, jevt := range normalEvents {
+	events := make([]*nostr.Event, len(test_common.NormalEvents))
+	binaryEvents := make([]*Event, len(test_common.NormalEvents))
+	for i, jevt := range test_common.NormalEvents {
 		evt := &nostr.Event{}
 		json.Unmarshal([]byte(jevt), evt)
 		events[i] = evt
@@ -56,9 +57,9 @@ func BenchmarkBinaryEncoding(b *testing.B) {
 }
 
 func BenchmarkBinaryDecoding(b *testing.B) {
-	events := make([][]byte, len(normalEvents))
-	gevents := make([][]byte, len(normalEvents))
-	for i, jevt := range normalEvents {
+	events := make([][]byte, len(test_common.NormalEvents))
+	gevents := make([][]byte, len(test_common.NormalEvents))
+	for i, jevt := range test_common.NormalEvents {
 		evt := &nostr.Event{}
 		json.Unmarshal([]byte(jevt), evt)
 		bevt, _ := Marshal(evt)
@@ -71,7 +72,7 @@ func BenchmarkBinaryDecoding(b *testing.B) {
 
 	b.Run("easyjson.Unmarshal", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for _, jevt := range normalEvents {
+			for _, jevt := range test_common.NormalEvents {
 				evt := &nostr.Event{}
 				err := easyjson.Unmarshal([]byte(jevt), evt)
 				if err != nil {
@@ -118,7 +119,7 @@ func BenchmarkBinaryDecoding(b *testing.B) {
 
 	b.Run("easyjson.Unmarshal+sig", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			for _, nevt := range normalEvents {
+			for _, nevt := range test_common.NormalEvents {
 				evt := &nostr.Event{}
 				err := easyjson.Unmarshal([]byte(nevt), evt)
 				if err != nil {
