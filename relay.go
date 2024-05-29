@@ -38,6 +38,7 @@ type Relay struct {
 	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
+	signatureChecker              func(Event) bool
 
 	// custom things that aren't often used
 	//
@@ -60,18 +61,14 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		okCallbacks:                   xsync.NewMapOf[string, func(bool, string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
+		signatureChecker: func(e Event) bool {
+			ok, _ := e.CheckSignature()
+			return ok
+		},
 	}
 
 	for _, opt := range opts {
-		switch o := opt.(type) {
-		case WithNoticeHandler:
-			r.notices = make(chan string)
-			go func() {
-				for notice := range r.notices {
-					o(notice)
-				}
-			}()
-		}
+		opt.ApplyRelayOption(r)
 	}
 
 	return r
@@ -89,16 +86,34 @@ func RelayConnect(ctx context.Context, url string, opts ...RelayOption) (*Relay,
 // When instantiating relay connections, some options may be passed.
 // RelayOption is the type of the argument passed for that.
 type RelayOption interface {
-	IsRelayOption()
+	ApplyRelayOption(*Relay)
 }
+
+var (
+	_ RelayOption = (WithNoticeHandler)(nil)
+	_ RelayOption = (WithSignatureChecker)(nil)
+)
 
 // WithNoticeHandler just takes notices and is expected to do something with them.
 // when not given, defaults to logging the notices.
 type WithNoticeHandler func(notice string)
 
-func (_ WithNoticeHandler) IsRelayOption() {}
+func (nh WithNoticeHandler) ApplyRelayOption(r *Relay) {
+	r.notices = make(chan string)
+	go func() {
+		for notice := range r.notices {
+			nh(notice)
+		}
+	}()
+}
 
-var _ RelayOption = (WithNoticeHandler)(nil)
+// WithSignatureChecker must be a function that checks the signature of an
+// event and returns true or false.
+type WithSignatureChecker func(Event) bool
+
+func (sc WithSignatureChecker) ApplyRelayOption(r *Relay) {
+	r.signatureChecker = sc
+}
 
 // String just returns the relay URL.
 func (r *Relay) String() string {
@@ -237,12 +252,8 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 					// check signature, ignore invalid, except from trusted (AssumeValid) relays
 					if !r.AssumeValid {
-						if ok, err := env.Event.CheckSignature(); !ok {
-							errmsg := ""
-							if err != nil {
-								errmsg = err.Error()
-							}
-							InfoLogger.Printf("{%s} bad signature on %s; %s\n", r.URL, env.Event.ID, errmsg)
+						if ok := r.signatureChecker(env.Event); !ok {
+							InfoLogger.Printf("{%s} bad signature on %s\n", r.URL, env.Event.ID)
 							continue
 						}
 					}

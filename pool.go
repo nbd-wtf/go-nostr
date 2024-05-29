@@ -22,6 +22,9 @@ type SimplePool struct {
 
 	authHandler func(*Event) error
 	cancel      context.CancelFunc
+
+	// custom things not often used
+	SignatureChecker func(Event) bool
 }
 
 type DirectedFilters struct {
@@ -85,7 +88,13 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 		// we use this ctx here so when the pool dies everything dies
 		ctx, cancel := context.WithTimeout(pool.Context, time.Second*15)
 		defer cancel()
-		if relay, err = RelayConnect(ctx, nm); err != nil {
+
+		opts := make([]RelayOption, 0, 1)
+		if pool.SignatureChecker != nil {
+			opts = append(opts, WithSignatureChecker(pool.SignatureChecker))
+		}
+
+		if relay, err = RelayConnect(ctx, nm, opts...); err != nil {
 			return nil, fmt.Errorf("failed to connect: %w", err)
 		}
 
