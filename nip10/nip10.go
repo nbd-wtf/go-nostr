@@ -22,7 +22,7 @@ func GetImmediateReply(tags nostr.Tags) *nostr.Tag {
 		if len(tag) < 2 {
 			continue
 		}
-		if tag[0] != "e" {
+		if tag[0] != "e" && tag[0] != "a" {
 			continue
 		}
 
