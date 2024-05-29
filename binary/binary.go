@@ -7,6 +7,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
+// Deprecated -- the encoding used here is not very elegant, we'll have a better binary format later.
 func UnmarshalBinary(data []byte, evt *Event) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -47,6 +48,7 @@ func UnmarshalBinary(data []byte, evt *Event) (err error) {
 	return err
 }
 
+// Deprecated -- the encoding used here is not very elegant, we'll have a better binary format later.
 func MarshalBinary(evt *Event) []byte {
 	content := []byte(evt.Content)
 	buf := make([]byte, 32+32+64+4+2+2+len(content)+65536 /* blergh */)
