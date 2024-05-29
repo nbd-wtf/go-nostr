@@ -74,8 +74,7 @@ var _ PoolOption = (WithAuthHandler)(nil)
 
 func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	nm := NormalizeURL(url)
-
-	defer namedLock(url)()
+	defer namedLock(nm)()
 
 	relay, ok := pool.Relays.Load(nm)
 	if ok && relay.IsConnected() {
