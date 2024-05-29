@@ -25,13 +25,9 @@ func BenchmarkSignatureVerification(b *testing.B) {
 	})
 
 	b.Run("libsecp256k1", func(b *testing.B) {
-		c, err := NewContext()
-		if err != nil {
-			panic(err)
-		}
 		for i := 0; i < b.N; i++ {
 			for _, evt := range events {
-				c.CheckSignature(evt)
+				CheckSignature(evt)
 			}
 		}
 	})

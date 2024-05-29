@@ -8,7 +8,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-func (c *Context) CheckSignature(evt *nostr.Event) (bool, error) {
+func CheckSignature(evt *nostr.Event) (bool, error) {
 	var pk [32]byte
 	_, err := hex.Decode(pk[:], []byte(evt.PubKey))
 	if err != nil {
@@ -22,5 +22,5 @@ func (c *Context) CheckSignature(evt *nostr.Event) (bool, error) {
 	}
 
 	msg := sha256.Sum256(evt.Serialize())
-	return c.Verify(msg, sig, pk), nil
+	return Verify(msg, sig, pk), nil
 }
