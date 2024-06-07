@@ -63,6 +63,20 @@ func NewGroup(gadstr string) (Group, error) {
 	}, nil
 }
 
+func NewGroupFromMetadataEvent(relayURL string, evt *nostr.Event) (Group, error) {
+	g := Group{
+		Address: GroupAddress{
+			Relay: relayURL,
+			ID:    evt.Tags.GetD(),
+		},
+		Name:    evt.Tags.GetD(),
+		Members: make(map[string]*Role),
+	}
+
+	err := g.MergeInMetadataEvent(evt)
+	return g, err
+}
+
 func (group Group) ToMetadataEvent() *nostr.Event {
 	evt := &nostr.Event{
 		Kind:      nostr.KindSimpleGroupMetadata,
