@@ -45,7 +45,7 @@ func ParseRepository(event nostr.Event) Repository {
 		case "r":
 			repo.EarliestUniqueCommitID = tag[1]
 		case "maintainers":
-			repo.Maintainers = append(repo.Maintainers, tag[1])
+			repo.Maintainers = append(repo.Maintainers, tag[1:]...)
 		}
 	}
 
