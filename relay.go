@@ -487,10 +487,20 @@ func (r *Relay) Close() error {
 	defer r.closeMutex.Unlock()
 
 	if r.connectionContextCancel == nil {
+		return fmt.Errorf("relay already closed")
+	}
+	r.connectionContextCancel()
+	r.connectionContextCancel = nil
+
+	if r.Connection == nil {
 		return fmt.Errorf("relay not connected")
 	}
 
-	r.connectionContextCancel()
-	r.connectionContextCancel = nil
-	return r.Connection.Close()
+	err := r.Connection.Close()
+	r.Connection = nil
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
