@@ -3,6 +3,8 @@ package nip11
 import "slices"
 
 type RelayInformationDocument struct {
+	URL string `json:"-"`
+
 	Name          string `json:"name"`
 	Description   string `json:"description"`
 	PubKey        string `json:"pubkey"`

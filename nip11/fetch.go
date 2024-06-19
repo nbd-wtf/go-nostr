@@ -10,8 +10,12 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-// Fetch fetches the NIP-11 RelayInformationDocument.
-func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err error) {
+// Fetch fetches the NIP-11 metadata for a relay.
+//
+// It will always return `info` with at least `URL` filled -- even if we can't connect to the
+// relay or if it doesn't have a NIP-11 handler -- although in that case it will also return
+// an error.
+func Fetch(ctx context.Context, u string) (info RelayInformationDocument, err error) {
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
@@ -20,10 +24,14 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 	}
 
 	// normalize URL to start with http://, https:// or without protocol
-	u = "http" + nostr.NormalizeURL(u)[2:]
+	u = nostr.NormalizeURL(u)
+
+	info = RelayInformationDocument{
+		URL: u,
+	}
 
 	// make request
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "http"+u[2:], nil)
 
 	// add the NIP-11 header
 	req.Header.Add("Accept", "application/nostr+json")
@@ -31,13 +39,12 @@ func Fetch(ctx context.Context, u string) (info *RelayInformationDocument, err e
 	// send the request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return info, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	info = &RelayInformationDocument{}
-	if err := json.NewDecoder(resp.Body).Decode(info); err != nil {
-		return nil, fmt.Errorf("invalid json: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return info, fmt.Errorf("invalid json: %w", err)
 	}
 
 	return info, nil

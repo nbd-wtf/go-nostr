@@ -3,6 +3,8 @@ package nip11
 import (
 	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAddSupportedNIP(t *testing.T) {
@@ -34,15 +36,20 @@ func TestAddSupportedNIP(t *testing.T) {
 
 func TestFetch(t *testing.T) {
 	res, err := Fetch(context.Background(), "wss://relay.nostr.bg")
-	if err != nil || res.Name == "" {
-		t.Errorf("failed to fetch from wss")
-	}
+	assert.Equal(t, res.URL, "wss://relay.nostr.bg")
+	assert.Nil(t, err, "failed to fetch from wss")
+	assert.NotEmpty(t, res.Name)
+
 	res, err = Fetch(context.Background(), "https://relay.nostr.bg")
-	if err != nil || res.Name == "" {
-		t.Errorf("failed to fetch from https")
-	}
+	assert.Nil(t, err, "failed to fetch from https")
+	assert.NotEmpty(t, res.Name)
+
 	res, err = Fetch(context.Background(), "relay.nostr.bg")
-	if err != nil || res.Name == "" {
-		t.Errorf("failed to fetch without protocol")
-	}
+	assert.Nil(t, err, "failed to fetch without protocol")
+	assert.NotEmpty(t, res.Name)
+
+	res, err = Fetch(context.Background(), "wlenwqkeqwe.asjdaskd")
+	assert.Error(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, res.URL, "wss://wlenwqkeqwe.asjdaskd")
 }
