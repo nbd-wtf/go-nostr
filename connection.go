@@ -105,7 +105,13 @@ func NewConnection(ctx context.Context, url string, requestHeader http.Header, t
 	}, nil
 }
 
-func (c *Connection) WriteMessage(data []byte) error {
+func (c *Connection) WriteMessage(ctx context.Context, data []byte) error {
+	select {
+	case <-ctx.Done():
+		return errors.New("context canceled")
+	default:
+	}
+
 	if c.msgStateW.IsCompressed() && c.enableCompression {
 		c.flateWriter.Reset(c.writer)
 		if _, err := io.Copy(c.flateWriter, bytes.NewReader(data)); err != nil {

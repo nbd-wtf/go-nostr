@@ -193,7 +193,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				}
 			case writeRequest := <-r.writeQueue:
 				// all write requests will go through this to prevent races
-				if err := r.Connection.WriteMessage(writeRequest.msg); err != nil {
+				if err := r.Connection.WriteMessage(r.connectionContext, writeRequest.msg); err != nil {
 					writeRequest.answer <- err
 				}
 				close(writeRequest.answer)
