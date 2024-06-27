@@ -377,6 +377,10 @@ func (r *Relay) publish(ctx context.Context, id string, env Envelope) error {
 func (r *Relay) Subscribe(ctx context.Context, filters Filters, opts ...SubscriptionOption) (*Subscription, error) {
 	sub := r.PrepareSubscription(ctx, filters, opts...)
 
+	if r.Connection == nil {
+		return nil, fmt.Errorf("not connected to %s", r.URL)
+	}
+
 	if err := sub.Fire(); err != nil {
 		return nil, fmt.Errorf("couldn't subscribe to %v at %s: %w", filters, r.URL, err)
 	}
@@ -389,10 +393,6 @@ func (r *Relay) Subscribe(ctx context.Context, filters Filters, opts ...Subscrip
 // Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.
 // Failure to do that will result in a huge number of halted goroutines being created.
 func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts ...SubscriptionOption) *Subscription {
-	if r.Connection == nil {
-		panic(fmt.Errorf("must call .Connect() first before calling .Subscribe()"))
-	}
-
 	current := subscriptionIDCounter.Add(1)
 	ctx, cancel := context.WithCancel(ctx)
 
