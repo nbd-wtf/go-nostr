@@ -21,6 +21,9 @@ var urlTests = []urlTest{
 	{"wss://x.com/", "wss://x.com"},
 	{"x.com////", "wss://x.com"},
 	{"x.com/?x=23", "wss://x.com?x=23"},
+	{"localhost:4036", "ws://localhost:4036"},
+	{"localhost:4036/relay", "ws://localhost:4036/relay"},
+	{NormalizeURL("localhost:4036/relay"), "ws://localhost:4036/relay"},
 }
 
 func TestNormalizeURL(t *testing.T) {
