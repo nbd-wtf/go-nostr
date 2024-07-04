@@ -49,6 +49,7 @@ const (
 	KindSimpleGroupRemovePermission int = 9004
 	KindSimpleGroupDeleteEvent      int = 9005
 	KindSimpleGroupEditGroupStatus  int = 9006
+	KindSimpleGroupCreateGroup      int = 9007
 	KindSimpleGroupJoinRequest      int = 9021
 	KindZapRequest                  int = 9734
 	KindZap                         int = 9735

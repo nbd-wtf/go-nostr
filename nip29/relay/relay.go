@@ -159,6 +159,9 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 
 		return egs, nil
 	},
+	nostr.KindSimpleGroupCreateGroup: func(evt *nostr.Event) (Action, error) {
+		return &CreateGroup{evt.PubKey}, nil
+	},
 }
 
 type DeleteEvent struct {
@@ -296,4 +299,23 @@ func (a EditGroupStatus) Apply(group *nip29.Group) {
 	}
 
 	group.LastMetadataUpdate = a.When
+}
+
+type CreateGroup struct {
+	Creator string
+}
+
+func (CreateGroup) PermissionName() nip29.Permission { return nip29.PermEditGroupStatus }
+func (a CreateGroup) Apply(group *nip29.Group) {
+	group.Members[a.Creator] = &nip29.Role{
+		Permissions: map[nip29.Permission]struct{}{
+			nip29.PermAddUser:          {},
+			nip29.PermRemoveUser:       {},
+			nip29.PermEditMetadata:     {},
+			nip29.PermAddPermission:    {},
+			nip29.PermRemovePermission: {},
+			nip29.PermDeleteEvent:      {},
+			nip29.PermEditGroupStatus:  {},
+		},
+	}
 }

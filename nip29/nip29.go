@@ -33,6 +33,7 @@ var ModerationEventKinds = KindRange{
 	nostr.KindSimpleGroupRemovePermission,
 	nostr.KindSimpleGroupDeleteEvent,
 	nostr.KindSimpleGroupEditGroupStatus,
+	nostr.KindSimpleGroupCreateGroup,
 }
 
 var MetadataEventKinds = KindRange{
