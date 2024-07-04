@@ -1,32 +1,33 @@
 package nostr
 
-import "fmt"
+import (
+	"testing"
+)
 
-func ExampleNormalizeURL() {
-	fmt.Println(NormalizeURL(""))
-	fmt.Println(NormalizeURL("wss://x.com/y"))
-	fmt.Println(NormalizeURL("wss://x.com/y/"))
-	fmt.Println(NormalizeURL("http://x.com/y"))
-	fmt.Println(NormalizeURL(NormalizeURL("http://x.com/y")))
-	fmt.Println(NormalizeURL("wss://x.com"))
-	fmt.Println(NormalizeURL("wss://x.com/"))
-	fmt.Println(NormalizeURL(NormalizeURL(NormalizeURL("wss://x.com/"))))
-	fmt.Println(NormalizeURL("x.com"))
-	fmt.Println(NormalizeURL("x.com/"))
-	fmt.Println(NormalizeURL("x.com////"))
-	fmt.Println(NormalizeURL("x.com/?x=23"))
+type urlTest struct {
+	url, expected string
+}
 
-	// Output:
-	//
-	// wss://x.com/y
-	// wss://x.com/y
-	// ws://x.com/y
-	// ws://x.com/y
-	// wss://x.com
-	// wss://x.com
-	// wss://x.com
-	// wss://x.com
-	// wss://x.com
-	// wss://x.com
-	// wss://x.com?x=23
+var urlTests = []urlTest{
+	{"", ""},
+	{"wss://x.com/y", "wss://x.com/y"},
+	{"wss://x.com/y/", "wss://x.com/y"},
+	{"http://x.com/y", "ws://x.com/y"},
+	{NormalizeURL("http://x.com/y"), "ws://x.com/y"},
+	{NormalizeURL("wss://x.com"), "wss://x.com"},
+	{NormalizeURL("wss://x.com/"), "wss://x.com"},
+	{NormalizeURL(NormalizeURL(NormalizeURL("wss://x.com/"))), "wss://x.com"},
+	{"wss://x.com", "wss://x.com"},
+	{"wss://x.com/", "wss://x.com"},
+	{"x.com////", "wss://x.com"},
+	{"x.com/?x=23", "wss://x.com?x=23"},
+}
+
+func TestNormalizeURL(t *testing.T) {
+
+	for _, test := range urlTests {
+		if output := NormalizeURL(test.url); output != test.expected {
+			t.Errorf("Output '%s' not equal to expected '%s'", output, test.expected)
+		}
+	}
 }
