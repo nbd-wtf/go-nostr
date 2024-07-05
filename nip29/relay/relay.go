@@ -146,15 +146,10 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 
 		// disallow contradictions
 		if egs.Public && egs.Private {
-			return nil, fmt.Errorf("contradiction")
+			return nil, fmt.Errorf("contradiction: can't be public and private at the same time")
 		}
 		if egs.Open && egs.Closed {
-			return nil, fmt.Errorf("contradiction")
-		}
-
-		// TODO remove this once we start supporting private groups
-		if egs.Private {
-			return nil, fmt.Errorf("private groups not yet supported")
+			return nil, fmt.Errorf("contradiction: can't be open and closed at the same time")
 		}
 
 		return egs, nil
