@@ -81,7 +81,6 @@ func (group Group) ToMetadataEvent() *nostr.Event {
 	evt := &nostr.Event{
 		Kind:      nostr.KindSimpleGroupMetadata,
 		CreatedAt: group.LastMetadataUpdate,
-		Content:   group.About,
 		Tags: nostr.Tags{
 			nostr.Tag{"d", group.Address.ID},
 		},
@@ -90,7 +89,7 @@ func (group Group) ToMetadataEvent() *nostr.Event {
 		evt.Tags = append(evt.Tags, nostr.Tag{"name", group.Name})
 	}
 	if group.About != "" {
-		evt.Tags = append(evt.Tags, nostr.Tag{"about", group.Name})
+		evt.Tags = append(evt.Tags, nostr.Tag{"about", group.About})
 	}
 	if group.Picture != "" {
 		evt.Tags = append(evt.Tags, nostr.Tag{"picture", group.Picture})
