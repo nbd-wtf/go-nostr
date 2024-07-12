@@ -30,7 +30,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 			targets = append(targets, tag[1])
 		}
 		if len(targets) > 0 {
-			return &AddUser{Targets: targets}, nil
+			return &AddUser{Targets: targets, When: evt.CreatedAt}, nil
 		}
 		return nil, fmt.Errorf("missing 'p' tags")
 	},
@@ -43,7 +43,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 			targets = append(targets, tag[1])
 		}
 		if len(targets) > 0 {
-			return &RemoveUser{Targets: targets}, nil
+			return &RemoveUser{Targets: targets, When: evt.CreatedAt}, nil
 		}
 		return nil, fmt.Errorf("missing 'p' tags")
 	},
@@ -88,7 +88,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 		}
 
 		if len(permissions) > 0 && len(targets) > 0 {
-			return &AddPermission{Initiator: evt.PubKey, Targets: targets, Permissions: permissions}, nil
+			return &AddPermission{Initiator: evt.PubKey, Targets: targets, Permissions: permissions, When: evt.CreatedAt}, nil
 		}
 
 		return nil, fmt.Errorf("")
@@ -114,7 +114,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 		}
 
 		if len(permissions) > 0 && len(targets) > 0 {
-			return &RemovePermission{Targets: targets, Permissions: permissions}, nil
+			return &RemovePermission{Targets: targets, Permissions: permissions, When: evt.CreatedAt}, nil
 		}
 
 		return nil, fmt.Errorf("")
@@ -155,7 +155,7 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 		return egs, nil
 	},
 	nostr.KindSimpleGroupCreateGroup: func(evt *nostr.Event) (Action, error) {
-		return &CreateGroup{evt.PubKey}, nil
+		return &CreateGroup{Creator: evt.PubKey, When: evt.CreatedAt}, nil
 	},
 }
 
@@ -168,6 +168,7 @@ func (a DeleteEvent) Apply(group *nip29.Group)       {}
 
 type AddUser struct {
 	Targets []string
+	When    nostr.Timestamp
 }
 
 func (AddUser) PermissionName() nip29.Permission { return nip29.PermAddUser }
@@ -179,6 +180,7 @@ func (a AddUser) Apply(group *nip29.Group) {
 
 type RemoveUser struct {
 	Targets []string
+	When    nostr.Timestamp
 }
 
 func (RemoveUser) PermissionName() nip29.Permission { return nip29.PermRemoveUser }
@@ -215,6 +217,7 @@ type AddPermission struct {
 	Initiator   string // the user who is adding the permissions
 	Targets     []string
 	Permissions []nip29.Permission
+	When        nostr.Timestamp
 }
 
 func (AddPermission) PermissionName() nip29.Permission { return nip29.PermAddPermission }
@@ -227,6 +230,9 @@ func (a AddPermission) Apply(group *nip29.Group) {
 		if !ok || target == nip29.EmptyRole {
 			target = &nip29.Role{Permissions: make(map[nip29.Permission]struct{})}
 			group.Members[tpk] = target
+
+			// when the user doesn't exit it will be added, so
+			group.LastMembersUpdate = a.When
 		}
 
 		// only add permissions that the user performing this already have
@@ -239,11 +245,13 @@ func (a AddPermission) Apply(group *nip29.Group) {
 			}
 		}
 	}
+	group.LastAdminsUpdate = a.When
 }
 
 type RemovePermission struct {
 	Targets     []string
 	Permissions []nip29.Permission
+	When        nostr.Timestamp
 }
 
 func (RemovePermission) PermissionName() nip29.Permission { return nip29.PermRemovePermission }
@@ -269,6 +277,7 @@ func (a RemovePermission) Apply(group *nip29.Group) {
 			group.Members[tpk] = nip29.EmptyRole
 		}
 	}
+	group.LastAdminsUpdate = a.When
 }
 
 type EditGroupStatus struct {
@@ -298,6 +307,7 @@ func (a EditGroupStatus) Apply(group *nip29.Group) {
 
 type CreateGroup struct {
 	Creator string
+	When    nostr.Timestamp
 }
 
 func (CreateGroup) PermissionName() nip29.Permission { return nip29.PermEditGroupStatus }
@@ -313,4 +323,7 @@ func (a CreateGroup) Apply(group *nip29.Group) {
 			nip29.PermEditGroupStatus:  {},
 		},
 	}
+	group.LastMetadataUpdate = a.When
+	group.LastAdminsUpdate = a.When
+	group.LastMembersUpdate = a.When
 }
