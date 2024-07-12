@@ -41,7 +41,7 @@ func DecodeRequest(req Request) (MethodParams, error) {
 		}
 		return AllowPubKey{pk, reason}, nil
 	case "listallowedpubkeys":
-		return ListBannedPubKeys{}, nil
+		return ListAllowedPubKeys{}, nil
 	case "listeventsneedingmoderation":
 		return ListEventsNeedingModeration{}, nil
 	case "allowevent":
