@@ -224,7 +224,7 @@ func assertCryptLong(t *testing.T, conversationKey string, salt string, pattern 
 	}
 }
 
-func TestCryptPubFail(t *testing.T) {
+func TestCryptPub0001(t *testing.T) {
 	sk1 := nostr.GeneratePrivateKey()
 	sk2 := nostr.GeneratePrivateKey()
 	pub2, _ := nostr.GetPublicKey(sk2)
