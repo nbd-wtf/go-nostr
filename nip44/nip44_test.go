@@ -1,9 +1,12 @@
 package nip44
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"hash"
+	"strings"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -219,6 +222,29 @@ func assertCryptLong(t *testing.T, conversationKey string, salt string, pattern 
 	if ok = assert.Equalf(t, payloadSha256, actualPayloadSha256, "invalid payload sha256 hash: %v", err); !ok {
 		return
 	}
+}
+
+func TestCryptPubFail(t *testing.T) {
+	sk1 := nostr.GeneratePrivateKey()
+	sk2 := nostr.GeneratePrivateKey()
+	pub2, _ := nostr.GetPublicKey(sk2)
+	salt := make([]byte, 32)
+	rand.Read(salt)
+	conversationKey, _ := GenerateConversationKey(pub2, sk1)
+	plaintext := strings.Repeat("a", MaxPlaintextSize)
+	encrypted, err := Encrypt(plaintext, conversationKey, WithCustomSalt(salt))
+	if err != nil {
+		t.Error(err)
+	}
+
+	assertCryptPub(t,
+		sk1,
+		pub2,
+		fmt.Sprintf("%x", conversationKey),
+		fmt.Sprintf("%x", salt),
+		plaintext,
+		encrypted,
+	)
 }
 
 func TestCryptPriv001(t *testing.T) {
