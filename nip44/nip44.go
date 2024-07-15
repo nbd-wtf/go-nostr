@@ -140,7 +140,7 @@ func Decrypt(ciphertext string, conversationKey []byte) (string, error) {
 	if unpaddedLen < uint16(MinPlaintextSize) || unpaddedLen > uint16(MaxPlaintextSize) || len(padded) != 2+calcPadding(int(unpaddedLen)) {
 		return "", errors.New("invalid padding")
 	}
-	unpadded = padded[2 : unpaddedLen+2]
+	unpadded = padded[2 : int32(unpaddedLen)+2]
 	if len(unpadded) == 0 || len(unpadded) != int(unpaddedLen) {
 		return "", errors.New("invalid padding")
 	}
