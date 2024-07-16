@@ -1,9 +1,12 @@
 package nip44
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"hash"
+	"strings"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -30,41 +33,7 @@ func assertCryptPriv(t *testing.T, sk1 string, sk2 string, conversationKey strin
 	if ok = assert.NoErrorf(t, err, "hex decode failed for salt: %v", err); !ok {
 		return
 	}
-	actual, err = Encrypt(plaintext, k1, WithCustomSalt(s))
-	if ok = assert.NoError(t, err, "encryption failed: %v", err); !ok {
-		return
-	}
-	if ok = assert.Equalf(t, expected, actual, "wrong encryption"); !ok {
-		return
-	}
-	decrypted, err = Decrypt(expected, k1)
-	if ok = assert.NoErrorf(t, err, "decryption failed: %v", err); !ok {
-		return
-	}
-	assert.Equal(t, decrypted, plaintext, "wrong decryption")
-}
-
-func assertCryptPub(t *testing.T, sk1 string, pub2 string, conversationKey string, salt string, plaintext string, expected string) {
-	var (
-		k1        []byte
-		s         []byte
-		actual    string
-		decrypted string
-		ok        bool
-		err       error
-	)
-	k1, err = hex.DecodeString(conversationKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
-		return
-	}
-	if ok = assertConversationKeyGenerationPub(t, sk1, pub2, conversationKey); !ok {
-		return
-	}
-	s, err = hex.DecodeString(salt)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for salt: %v", err); !ok {
-		return
-	}
-	actual, err = Encrypt(plaintext, k1, WithCustomSalt(s))
+	actual, err = Encrypt(plaintext, k1, WithCustomNonce(s))
 	if ok = assert.NoError(t, err, "encryption failed: %v", err); !ok {
 		return
 	}
@@ -209,7 +178,7 @@ func assertCryptLong(t *testing.T, conversationKey string, salt string, pattern 
 	if ok = assert.Equalf(t, plaintextSha256, actualPlaintextSha256, "invalid plaintext sha256 hash: %v", err); !ok {
 		return
 	}
-	actualPayload, err = Encrypt(plaintext, convKey, WithCustomSalt(convSalt))
+	actualPayload, err = Encrypt(plaintext, convKey, WithCustomNonce(convSalt))
 	if ok = assert.NoErrorf(t, err, "encryption failed: %v", err); !ok {
 		return
 	}
@@ -1168,4 +1137,61 @@ func TestMessageKeyGeneration033(t *testing.T) {
 		"a8188daff807a1182200b39d",
 		"47b89da97f68d389867b5d8a2d7ba55715a30e3d88a3cc11f3646bc2af5580ef",
 	)
+}
+
+func TestMaxLength(t *testing.T) {
+	sk1 := nostr.GeneratePrivateKey()
+	sk2 := nostr.GeneratePrivateKey()
+	pub2, _ := nostr.GetPublicKey(sk2)
+	salt := make([]byte, 32)
+	rand.Read(salt)
+	conversationKey, _ := GenerateConversationKey(pub2, sk1)
+	plaintext := strings.Repeat("a", MaxPlaintextSize)
+	encrypted, err := Encrypt(plaintext, conversationKey, WithCustomNonce(salt))
+	if err != nil {
+		t.Error(err)
+	}
+
+	assertCryptPub(t,
+		sk1,
+		pub2,
+		fmt.Sprintf("%x", conversationKey),
+		fmt.Sprintf("%x", salt),
+		plaintext,
+		encrypted,
+	)
+}
+
+func assertCryptPub(t *testing.T, sk1 string, pub2 string, conversationKey string, salt string, plaintext string, expected string) {
+	var (
+		k1        []byte
+		s         []byte
+		actual    string
+		decrypted string
+		ok        bool
+		err       error
+	)
+	k1, err = hex.DecodeString(conversationKey)
+	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
+		return
+	}
+	if ok = assertConversationKeyGenerationPub(t, sk1, pub2, conversationKey); !ok {
+		return
+	}
+	s, err = hex.DecodeString(salt)
+	if ok = assert.NoErrorf(t, err, "hex decode failed for salt: %v", err); !ok {
+		return
+	}
+	actual, err = Encrypt(plaintext, k1, WithCustomNonce(s))
+	if ok = assert.NoError(t, err, "encryption failed: %v", err); !ok {
+		return
+	}
+	if ok = assert.Equalf(t, expected, actual, "wrong encryption"); !ok {
+		return
+	}
+	decrypted, err = Decrypt(expected, k1)
+	if ok = assert.NoErrorf(t, err, "decryption failed: %v", err); !ok {
+		return
+	}
+	assert.Equal(t, decrypted, plaintext, "wrong decryption")
 }

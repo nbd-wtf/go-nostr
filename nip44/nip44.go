@@ -25,24 +25,24 @@ const (
 )
 
 type encryptOptions struct {
-	err  error
-	salt []byte
+	err   error
+	nonce []byte
 }
 
-func WithCustomSalt(salt []byte) func(opts *encryptOptions) {
+// Deprecated: use WithCustomNonce instead of WithCustomSalt, so the naming is less confusing
+var WithCustomSalt = WithCustomNonce
+
+func WithCustomNonce(salt []byte) func(opts *encryptOptions) {
 	return func(opts *encryptOptions) {
 		if len(salt) != 32 {
 			opts.err = errors.New("salt must be 32 bytes")
 		}
-		opts.salt = salt
+		opts.nonce = salt
 	}
 }
 
 func Encrypt(plaintext string, conversationKey []byte, applyOptions ...func(opts *encryptOptions)) (string, error) {
-	opts := encryptOptions{
-		salt: nil,
-	}
-
+	opts := encryptOptions{}
 	for _, apply := range applyOptions {
 		apply(&opts)
 	}
@@ -51,53 +51,59 @@ func Encrypt(plaintext string, conversationKey []byte, applyOptions ...func(opts
 		return "", opts.err
 	}
 
-	salt := opts.salt
-	if salt == nil {
-		salt := make([]byte, 32)
-		if _, err := rand.Read(salt); err != nil {
+	nonce := opts.nonce
+	if nonce == nil {
+		nonce := make([]byte, 32)
+		if _, err := rand.Read(nonce); err != nil {
 			return "", err
 		}
 	}
 
-	enc, nonce, auth, err := messageKeys(conversationKey, salt)
+	enc, cc20nonce, auth, err := messageKeys(conversationKey, nonce)
 	if err != nil {
 		return "", err
 	}
 
-	padded, err := pad(plaintext)
+	plain := []byte(plaintext)
+	size := len(plain)
+	if size < MinPlaintextSize || size > MaxPlaintextSize {
+		return "", errors.New("plaintext should be between 1b and 64kB")
+	}
+
+	padding := calcPadding(size)
+	padded := make([]byte, 2+padding)
+	binary.BigEndian.PutUint16(padded, uint16(size))
+	copy(padded[2:], plain)
+
+	ciphertext, err := chacha(enc, cc20nonce, []byte(padded))
 	if err != nil {
 		return "", err
 	}
 
-	ciphertext, err := chacha20_(enc, nonce, []byte(padded))
+	mac, err := sha256Hmac(auth, ciphertext, nonce)
 	if err != nil {
 		return "", err
 	}
 
-	hmac_, err := sha256Hmac(auth, ciphertext, salt)
-	if err != nil {
-		return "", err
-	}
-
-	concat := make([]byte, 1+len(salt)+len(ciphertext)+len(hmac_))
+	concat := make([]byte, 1+32+len(ciphertext)+32)
 	concat[0] = version
-	copy(concat[1:], salt)
-	copy(concat[1+len(salt):], ciphertext)
-	copy(concat[1+len(salt)+len(ciphertext):], hmac_)
+	copy(concat[1:], nonce)
+	copy(concat[1+32:], ciphertext)
+	copy(concat[1+32+len(ciphertext):], mac)
 
 	return base64.StdEncoding.EncodeToString(concat), nil
 }
 
-func Decrypt(ciphertext string, conversationKey []byte) (string, error) {
-	cLen := len(ciphertext)
+func Decrypt(b64ciphertextWrapped string, conversationKey []byte) (string, error) {
+	cLen := len(b64ciphertextWrapped)
 	if cLen < 132 || cLen > 87472 {
 		return "", errors.New(fmt.Sprintf("invalid payload length: %d", cLen))
 	}
-	if ciphertext[0:1] == "#" {
+	if b64ciphertextWrapped[0:1] == "#" {
 		return "", errors.New("unknown version")
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(ciphertext)
+	decoded, err := base64.StdEncoding.DecodeString(b64ciphertextWrapped)
 	if err != nil {
 		return "", errors.New("invalid base64")
 	}
@@ -111,33 +117,33 @@ func Decrypt(ciphertext string, conversationKey []byte) (string, error) {
 		return "", errors.New(fmt.Sprintf("invalid data length: %d", dLen))
 	}
 
-	salt, ciphertext_, hmac_ := decoded[1:33], decoded[33:dLen-32], decoded[dLen-32:]
-	enc, nonce, auth, err := messageKeys(conversationKey, salt)
+	nonce, ciphertext, givenMac := decoded[1:33], decoded[33:dLen-32], decoded[dLen-32:]
+	enc, cc20nonce, auth, err := messageKeys(conversationKey, nonce)
 	if err != nil {
 		return "", err
 	}
 
-	hmac, err := sha256Hmac(auth, ciphertext_, salt)
+	expectedMac, err := sha256Hmac(auth, ciphertext, nonce)
 	if err != nil {
 		return "", err
 	}
 
-	if !bytes.Equal(hmac_, hmac) {
+	if !bytes.Equal(givenMac, expectedMac) {
 		return "", errors.New("invalid hmac")
 	}
 
-	padded, err := chacha20_(enc, nonce, ciphertext_)
+	padded, err := chacha(enc, cc20nonce, ciphertext)
 	if err != nil {
 		return "", err
 	}
 
 	unpaddedLen := binary.BigEndian.Uint16(padded[0:2])
-	if unpaddedLen < uint16(MinPlaintextSize) ||
-		unpaddedLen > uint16(MaxPlaintextSize) || len(padded) != 2+calcPadding(int(unpaddedLen)) {
+	if unpaddedLen < uint16(MinPlaintextSize) || unpaddedLen > uint16(MaxPlaintextSize) ||
+		len(padded) != 2+calcPadding(int(unpaddedLen)) {
 		return "", errors.New("invalid padding")
 	}
 
-	unpadded := padded[2 : unpaddedLen+2]
+	unpadded := padded[2:][:unpaddedLen]
 	if len(unpadded) == 0 || len(unpadded) != int(unpaddedLen) {
 		return "", errors.New("invalid padding")
 	}
@@ -157,7 +163,7 @@ func GenerateConversationKey(pub string, sk string) ([]byte, error) {
 	return hkdf.Extract(sha256.New, shared, []byte("nip44-v2")), nil
 }
 
-func chacha20_(key []byte, nonce []byte, message []byte) ([]byte, error) {
+func chacha(key []byte, nonce []byte, message []byte) ([]byte, error) {
 	cipher, err := chacha20.NewUnauthenticatedCipher(key, nonce)
 	if err != nil {
 		return nil, err
@@ -168,32 +174,32 @@ func chacha20_(key []byte, nonce []byte, message []byte) ([]byte, error) {
 	return dst, nil
 }
 
-func sha256Hmac(key []byte, ciphertext []byte, aad []byte) ([]byte, error) {
-	if len(aad) != 32 {
-		return nil, errors.New("aad data must be 32 bytes")
+func sha256Hmac(key []byte, ciphertext []byte, nonce []byte) ([]byte, error) {
+	if len(nonce) != 32 {
+		return nil, errors.New("nonce aad must be 32 bytes")
 	}
 	h := hmac.New(sha256.New, key)
-	h.Write(aad)
+	h.Write(nonce)
 	h.Write(ciphertext)
 	return h.Sum(nil), nil
 }
 
-func messageKeys(conversationKey []byte, salt []byte) ([]byte, []byte, []byte, error) {
+func messageKeys(conversationKey []byte, nonce []byte) ([]byte, []byte, []byte, error) {
 	if len(conversationKey) != 32 {
 		return nil, nil, nil, errors.New("conversation key must be 32 bytes")
 	}
-	if len(salt) != 32 {
-		return nil, nil, nil, errors.New("salt must be 32 bytes")
+	if len(nonce) != 32 {
+		return nil, nil, nil, errors.New("nonce must be 32 bytes")
 	}
 
-	r := hkdf.Expand(sha256.New, conversationKey, salt)
+	r := hkdf.Expand(sha256.New, conversationKey, nonce)
 	enc := make([]byte, 32)
 	if _, err := io.ReadFull(r, enc); err != nil {
 		return nil, nil, nil, err
 	}
 
-	nonce := make([]byte, 12)
-	if _, err := io.ReadFull(r, nonce); err != nil {
+	cc20nonce := make([]byte, 12)
+	if _, err := io.ReadFull(r, cc20nonce); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -202,21 +208,7 @@ func messageKeys(conversationKey []byte, salt []byte) ([]byte, []byte, []byte, e
 		return nil, nil, nil, err
 	}
 
-	return enc, nonce, auth, nil
-}
-
-func pad(s string) ([]byte, error) {
-	sb := []byte(s)
-	sbLen := len(sb)
-	if sbLen < 1 || sbLen > MaxPlaintextSize {
-		return nil, errors.New("plaintext should be between 1b and 64kB")
-	}
-	padding := calcPadding(sbLen)
-	result := make([]byte, 2)
-	binary.BigEndian.PutUint16(result, uint16(sbLen))
-	result = append(result, sb...)
-	result = append(result, make([]byte, padding-sbLen)...)
-	return result, nil
+	return enc, cc20nonce, auth, nil
 }
 
 func calcPadding(sLen int) int {
