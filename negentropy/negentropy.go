@@ -3,51 +3,64 @@ package negentropy
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"math"
 	"os"
+
+	"github.com/nbd-wtf/go-nostr"
 )
 
 const (
-	ProtocolVersion   byte   = 0x61 // Version 1
-	MaxU64            uint64 = ^uint64(0)
-	FrameSizeMinLimit uint64 = 4096
+	protocolVersion byte = 0x61 // version 1
+	maxTimestamp         = nostr.Timestamp(math.MaxInt64)
 )
 
 type Negentropy struct {
-	Storage
+	storage          Storage
 	frameSizeLimit   uint64
+	idSize           int // in bytes
 	IsInitiator      bool
-	lastTimestampIn  uint64
-	lastTimestampOut uint64
+	lastTimestampIn  nostr.Timestamp
+	lastTimestampOut nostr.Timestamp
 }
 
-func NewNegentropy(storage Storage, frameSizeLimit uint64) (*Negentropy, error) {
+func NewNegentropy(storage Storage, frameSizeLimit uint64, IDSize int) (*Negentropy, error) {
 	if frameSizeLimit != 0 && frameSizeLimit < 4096 {
-		return nil, errors.New("frameSizeLimit too small")
+		return nil, fmt.Errorf("frameSizeLimit too small")
+	}
+	if IDSize > 32 {
+		return nil, fmt.Errorf("id size cannot be more than 32, got %d", IDSize)
 	}
 	return &Negentropy{
-		Storage:        storage,
+		storage:        storage,
 		frameSizeLimit: frameSizeLimit,
+		idSize:         IDSize,
 	}, nil
+}
+
+func (n *Negentropy) Insert(evt *nostr.Event) {
+	err := n.storage.Insert(evt.CreatedAt, evt.ID[0:n.idSize*2])
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (n *Negentropy) Initiate() ([]byte, error) {
 	if n.IsInitiator {
-		return []byte{}, errors.New("already initiated")
+		return []byte{}, fmt.Errorf("already initiated")
 	}
 	n.IsInitiator = true
 
-	output := make([]byte, 1, 1+n.Storage.Size()*IDSize)
-	output[0] = ProtocolVersion
-	n.SplitRange(0, n.Storage.Size(), Bound{Item: Item{Timestamp: MaxU64}}, &output)
+	output := make([]byte, 1, 1+n.storage.Size()*n.idSize)
+	output[0] = protocolVersion
+	n.SplitRange(0, n.storage.Size(), Bound{Item: Item{Timestamp: maxTimestamp}}, &output)
 
 	return output, nil
 }
 
 func (n *Negentropy) Reconcile(query []byte) ([]byte, error) {
 	if n.IsInitiator {
-		return []byte{}, errors.New("initiator not asking for have/need IDs")
+		return []byte{}, fmt.Errorf("initiator not asking for have/need IDs")
 	}
 	var haveIds, needIds []string
 
@@ -66,7 +79,7 @@ func (n *Negentropy) Reconcile(query []byte) ([]byte, error) {
 // ReconcileWithIDs when IDs are expected to be returned.
 func (n *Negentropy) ReconcileWithIDs(query []byte, haveIds, needIds *[]string) ([]byte, error) {
 	if !n.IsInitiator {
-		return nil, errors.New("non-initiator asking for have/need IDs")
+		return nil, fmt.Errorf("non-initiator asking for have/need IDs")
 	}
 
 	output, err := n.ReconcileAux(query, haveIds, needIds)
@@ -85,28 +98,28 @@ func (n *Negentropy) ReconcileAux(query []byte, haveIds, needIds *[]string) ([]b
 	n.lastTimestampIn, n.lastTimestampOut = 0, 0 // Reset for each message
 
 	var fullOutput []byte
-	fullOutput = append(fullOutput, ProtocolVersion)
+	fullOutput = append(fullOutput, protocolVersion)
 
 	protocolVersion, err := getByte(&query)
 	if err != nil {
 		return nil, err
 	}
 	if protocolVersion < 0x60 || protocolVersion > 0x6F {
-		return nil, errors.New("invalid negentropy protocol version byte")
+		return nil, fmt.Errorf("invalid negentropy protocol version byte")
 	}
-	if protocolVersion != ProtocolVersion {
+	if protocolVersion != protocolVersion {
 		if n.IsInitiator {
-			return nil, errors.New("unsupported negentropy protocol version requested")
+			return nil, fmt.Errorf("unsupported negentropy protocol version requested")
 		}
 		return fullOutput, nil
 	}
 
-	storageSize := n.Storage.Size()
+	storageSize := n.storage.Size()
 	var prevBound Bound
 	prevIndex := 0
 	skip := false
 
-	// Convert the loop to process the query until it's consumed
+	// convert the loop to process the query until it's consumed
 	for len(query) > 0 {
 		var o []byte
 
@@ -133,7 +146,7 @@ func (n *Negentropy) ReconcileAux(query []byte, haveIds, needIds *[]string) ([]b
 		mode := Mode(modeVal)
 
 		lower := prevIndex
-		upper, err := n.Storage.FindLowerBound(prevIndex, storageSize, currBound)
+		upper, err := n.storage.FindLowerBound(prevIndex, storageSize, currBound)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +160,7 @@ func (n *Negentropy) ReconcileAux(query []byte, haveIds, needIds *[]string) ([]b
 			if err != nil {
 				return nil, err
 			}
-			ourFingerprint, err := n.Storage.Fingerprint(lower, upper)
+			ourFingerprint, err := n.storage.Fingerprint(lower, upper)
 			if err != nil {
 				return nil, err // Handle the error appropriately
 			}
@@ -160,21 +173,22 @@ func (n *Negentropy) ReconcileAux(query []byte, haveIds, needIds *[]string) ([]b
 			}
 
 		case IdListMode:
-			numIds, err := decodeVarInt(&query)
+			numIds64, err := decodeVarInt(&query)
 			if err != nil {
 				return nil, err
 			}
+			numIds := int(numIds64)
 
 			theirElems := make(map[string]struct{})
 			for i := 0; i < numIds; i++ {
-				e, err := getBytes(&query, IDSize)
+				e, err := getBytes(&query, n.idSize)
 				if err != nil {
 					return nil, err
 				}
 				theirElems[hex.EncodeToString(e)] = struct{}{}
 			}
 
-			n.Storage.Iterate(lower, upper, func(item Item, _ int) bool {
+			n.storage.Iterate(lower, upper, func(item Item, _ int) bool {
 				k := item.ID
 				if _, exists := theirElems[k]; !exists {
 					if n.IsInitiator {
@@ -195,14 +209,14 @@ func (n *Negentropy) ReconcileAux(query []byte, haveIds, needIds *[]string) ([]b
 			} else {
 				doSkip()
 
-				responseIds := make([]byte, 0, IDSize*n.Storage.Size())
+				responseIds := make([]byte, 0, n.idSize*n.storage.Size())
 				responseIdsPtr := &responseIds
 				numResponseIds := 0
 				endBound := currBound
 
-				n.Storage.Iterate(lower, upper, func(item Item, index int) bool {
+				n.storage.Iterate(lower, upper, func(item Item, index int) bool {
 					if n.ExceededFrameSizeLimit(len(fullOutput) + len(*responseIdsPtr)) {
-						endBound = *NewBoundWithItem(item)
+						endBound = Bound{item}
 						upper = index
 						return false
 					}
@@ -229,18 +243,18 @@ func (n *Negentropy) ReconcileAux(query []byte, haveIds, needIds *[]string) ([]b
 			}
 
 		default:
-			return nil, errors.New("unexpected mode")
+			return nil, fmt.Errorf("unexpected mode %d", mode)
 		}
 
 		// Check if the frame size limit is exceeded
 		if n.ExceededFrameSizeLimit(len(fullOutput) + len(o)) {
 			// Frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
-			remainingFingerprint, err := n.Storage.Fingerprint(upper, storageSize)
+			remainingFingerprint, err := n.storage.Fingerprint(upper, storageSize)
 			if err != nil {
 				panic(err)
 			}
 
-			encodedBound, err := n.encodeBound(Bound{Item: Item{Timestamp: MaxU64}})
+			encodedBound, err := n.encodeBound(Bound{Item: Item{Timestamp: maxTimestamp}})
 			if err != nil {
 				panic(err)
 			}
@@ -271,11 +285,12 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *[]by
 			fmt.Fprintln(os.Stderr, err)
 			panic(err)
 		}
+		fmt.Println("upp", upperBound, boundEncoded)
 		*output = append(*output, boundEncoded...)
 		*output = append(*output, encodeVarInt(IdListMode)...)
 		*output = append(*output, encodeVarInt(numElems)...)
 
-		n.Storage.Iterate(lower, upper, func(item Item, _ int) bool {
+		n.storage.Iterate(lower, upper, func(item Item, _ int) bool {
 			id, _ := hex.DecodeString(item.ID)
 			*output = append(*output, id...)
 			return true
@@ -290,7 +305,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *[]by
 			if i < bucketsWithExtra {
 				bucketSize++
 			}
-			ourFingerprint, err := n.Storage.Fingerprint(curr, curr+bucketSize)
+			ourFingerprint, err := n.storage.Fingerprint(curr, curr+bucketSize)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				panic(err)
@@ -304,7 +319,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *[]by
 			} else {
 				var prevItem, currItem Item
 
-				n.Storage.Iterate(curr-1, curr+1, func(item Item, index int) bool {
+				n.storage.Iterate(curr-1, curr+1, func(item Item, index int) bool {
 					if index == curr-1 {
 						prevItem = item
 					} else {
@@ -313,11 +328,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *[]by
 					return true
 				})
 
-				minBound, err := getMinimalBound(prevItem, currItem)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					panic(err)
-				}
+				minBound := n.getMinimalBound(prevItem, currItem)
 				nextBound = minBound
 			}
 
@@ -339,21 +350,22 @@ func (n *Negentropy) ExceededFrameSizeLimit(size int) bool {
 
 // Decoding
 
-func (n *Negentropy) DecodeTimestampIn(encoded *[]byte) (uint64, error) {
+func (n *Negentropy) DecodeTimestampIn(encoded *[]byte) (nostr.Timestamp, error) {
 	t, err := decodeVarInt(encoded)
 	if err != nil {
 		return 0, err
 	}
-	timestamp := uint64(t)
+
+	timestamp := nostr.Timestamp(t)
 	if timestamp == 0 {
-		timestamp = MaxU64
+		timestamp = maxTimestamp
 	} else {
 		timestamp--
 	}
 
 	timestamp += n.lastTimestampIn
 	if timestamp < n.lastTimestampIn { // Check for overflow
-		timestamp = MaxU64
+		timestamp = maxTimestamp
 	}
 	n.lastTimestampIn = timestamp
 	return timestamp, nil
@@ -375,20 +387,15 @@ func (n *Negentropy) DecodeBound(encoded *[]byte) (Bound, error) {
 		return Bound{}, err
 	}
 
-	bound, err := NewBound(timestamp, hex.EncodeToString(id))
-	if err != nil {
-		return Bound{}, err
-	}
-
-	return *bound, nil
+	return Bound{Item{timestamp, hex.EncodeToString(id)}}, nil
 }
 
 // Encoding
 
 // encodeTimestampOut encodes the given timestamp.
-func (n *Negentropy) encodeTimestampOut(timestamp uint64) []byte {
-	if timestamp == MaxU64 {
-		n.lastTimestampOut = MaxU64
+func (n *Negentropy) encodeTimestampOut(timestamp nostr.Timestamp) []byte {
+	if timestamp == maxTimestamp {
+		n.lastTimestampOut = maxTimestamp
 		return encodeVarInt(0)
 	}
 	temp := timestamp
@@ -397,32 +404,27 @@ func (n *Negentropy) encodeTimestampOut(timestamp uint64) []byte {
 	return encodeVarInt(int(timestamp + 1))
 }
 
-// encodeBound encodes the given Bound into a byte slice.
 func (n *Negentropy) encodeBound(bound Bound) ([]byte, error) {
 	var output []byte
 
 	t := n.encodeTimestampOut(bound.Item.Timestamp)
-	idlen := encodeVarInt(bound.IDLen)
+	idlen := encodeVarInt(n.idSize)
 	output = append(output, t...)
 	output = append(output, idlen...)
 	id := bound.Item.ID
 
-	if len(id) < bound.IDLen {
-		return nil, errors.New("ID length exceeds bound")
-	}
 	output = append(output, id...)
 	return output, nil
 }
 
-func getMinimalBound(prev, curr Item) (Bound, error) {
+func (n *Negentropy) getMinimalBound(prev, curr Item) Bound {
 	if curr.Timestamp != prev.Timestamp {
-		bound, err := NewBound(curr.Timestamp, "")
-		return *bound, err
+		return Bound{Item{curr.Timestamp, ""}}
 	}
 
 	sharedPrefixBytes := 0
 
-	for i := 0; i < IDSize; i++ {
+	for i := 0; i < n.idSize; i++ {
 		if curr.ID[i:i+2] != prev.ID[i:i+2] {
 			break
 		}
@@ -430,7 +432,5 @@ func getMinimalBound(prev, curr Item) (Bound, error) {
 	}
 
 	// sharedPrefixBytes + 1 to include the first differing byte, or the entire ID if identical.
-	// Ensure not to exceed the slice's length.
-	bound, err := NewBound(curr.Timestamp, curr.ID[:sharedPrefixBytes*2+1])
-	return *bound, err
+	return Bound{Item{curr.Timestamp, curr.ID[:sharedPrefixBytes*2+1]}}
 }

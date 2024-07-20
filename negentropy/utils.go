@@ -17,7 +17,7 @@ func getByte(encoded *[]byte) (byte, error) {
 }
 
 func getBytes(encoded *[]byte, n int) ([]byte, error) {
-	//fmt.Fprintln(os.Stderr, "getBytes", len(*encoded), n)
+	// fmt.Fprintln(os.Stderr, "getBytes", len(*encoded), n)
 	if len(*encoded) < n {
 		return nil, errors.New("parse ends prematurely")
 	}
@@ -39,7 +39,7 @@ func decodeVarInt(encoded *[]byte) (int, error) {
 	//	}
 	//}
 	//return 0, ErrParseEndsPrematurely
-	res := 0
+	var res int = 0
 
 	for {
 		if len(*encoded) == 0 {

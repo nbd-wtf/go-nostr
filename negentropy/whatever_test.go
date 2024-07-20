@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,13 +14,19 @@ func TestSimple(t *testing.T) {
 	var n1 *Negentropy
 	var n2 *Negentropy
 
+	events := make([]*nostr.Event, 20)
+	for i := range events {
+		evt := nostr.Event{Content: fmt.Sprintf("event %d", i+1)}
+		evt.CreatedAt = nostr.Timestamp(i)
+		evt.ID = evt.GetID()
+		events[i] = &evt
+	}
+
 	{
-		n1, _ = NewNegentropy(NewVector(), 1<<16)
-		n1.Insert(10, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-		n1.Insert(20, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-		n1.Insert(30, "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
-		n1.Insert(40, "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
-		n1.Seal()
+		n1, _ = NewNegentropy(NewVector(32), 1<<16, 32)
+		for i := 2; i < 15; i++ {
+			n1.Insert(events[i])
+		}
 
 		q, err = n1.Initiate()
 		if err != nil {
@@ -31,11 +38,13 @@ func TestSimple(t *testing.T) {
 	}
 
 	{
-		n2, _ = NewNegentropy(NewVector(), 1<<16)
-		n2.Insert(20, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-		n2.Insert(30, "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
-		n2.Insert(50, "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
-		n2.Seal()
+		n2, _ = NewNegentropy(NewVector(32), 1<<16, 32)
+		for i := 0; i < 2; i++ {
+			n2.Insert(events[i])
+		}
+		for i := 15; i < 20; i++ {
+			n2.Insert(events[i])
+		}
 
 		q, err = n2.Reconcile(q)
 		if err != nil {
