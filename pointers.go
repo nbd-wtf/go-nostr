@@ -18,3 +18,7 @@ type EntityPointer struct {
 	Identifier string   `json:"identifier,omitempty"`
 	Relays     []string `json:"relays,omitempty"`
 }
+
+type EntityRelay struct {
+	Relay string `json:"relay"`
+}

@@ -123,6 +123,15 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 
 			curr = curr + 2 + len(v)
 		}
+	case "nrelay":
+		var result nostr.EntityRelay
+		curr := 0
+		t, v := readTLVEntry(data[curr:])
+		if v == nil || t != TLVDefault || curr+2+len(v) != len(data) {
+			return prefix, result, fmt.Errorf("incomplete nrelay")
+		}
+
+		return prefix, nostr.EntityRelay{Relay: string(v)}, nil
 	}
 
 	return prefix, data, fmt.Errorf("unknown tag %s", prefix)
