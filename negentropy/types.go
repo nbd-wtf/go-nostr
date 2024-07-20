@@ -4,18 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
-	"math/big"
+
+	"github.com/nbd-wtf/go-nostr"
 )
 
-const (
-	IDSize          = 32
-	FingerprintSize = 16
-)
-
-var modulo = new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
-
-var ErrBadIDSize = errors.New("bad id size")
+const FingerprintSize = 16
 
 type Mode int
 
@@ -25,17 +18,20 @@ const (
 	IdListMode
 )
 
+type Storage interface {
+	Insert(nostr.Timestamp, string) error
+	Seal() error
+
+	IDSize() int
+	Size() int
+	Iterate(begin, end int, cb func(item Item, i int) bool) error
+	FindLowerBound(begin, end int, value Bound) (int, error)
+	Fingerprint(begin, end int) (Fingerprint, error)
+}
+
 type Item struct {
-	Timestamp uint64
+	Timestamp nostr.Timestamp
 	ID        string
-}
-
-func NewItem(timestamp uint64, id string) *Item {
-	return &Item{Timestamp: timestamp, ID: id}
-}
-
-func (i Item) Equals(other Item) bool {
-	return i.Timestamp == other.Timestamp && i.ID == other.ID
 }
 
 func (i Item) LessThan(other Item) bool {
@@ -45,37 +41,7 @@ func (i Item) LessThan(other Item) bool {
 	return i.ID < other.ID
 }
 
-type Bound struct {
-	Item  Item
-	IDLen int
-}
-
-// NewBound creates a new Bound instance with a timestamp and ID.
-// It returns an error if the ID size is incorrect.
-func NewBound(timestamp uint64, id string) (*Bound, error) {
-	b := &Bound{
-		Item:  *NewItem(timestamp, id),
-		IDLen: len(id),
-	}
-	return b, nil
-}
-
-// NewBoundWithItem creates a new Bound instance from an existing Item.
-func NewBoundWithItem(item Item) *Bound {
-	return &Bound{
-		Item:  item,
-		IDLen: len(item.ID),
-	}
-}
-
-// Equals checks if two Bound instances are equal.
-func (b Bound) Equals(other Bound) bool {
-	return b.Item.Equals(other.Item)
-}
-
-func (b Bound) LessThan(other Bound) bool {
-	return b.Item.LessThan(other.Item)
-}
+type Bound struct{ Item }
 
 type Fingerprint struct {
 	Buf [FingerprintSize]byte
@@ -93,8 +59,8 @@ func (acc *Accumulator) SetToZero() {
 	acc.Buf = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 }
 
-func (acc *Accumulator) AddItem(other Item) {
-	b, _ := hex.DecodeString(other.ID)
+func (acc *Accumulator) Add(id string) {
+	b, _ := hex.DecodeString(id)
 	acc.AddBytes(b)
 }
 

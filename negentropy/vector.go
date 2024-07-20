@@ -2,27 +2,32 @@ package negentropy
 
 import (
 	"errors"
+	"fmt"
 	"sort"
+
+	"github.com/nbd-wtf/go-nostr"
 )
 
 type Vector struct {
-	items []Item
+	items  []Item
+	idSize int
 }
 
-func NewVector() *Vector {
+func NewVector(idSize int) *Vector {
 	return &Vector{
-		items: make([]Item, 0, 30),
+		items:  make([]Item, 0, 30),
+		idSize: idSize,
 	}
 }
 
-func (v *Vector) Insert(createdAt uint64, id string) error {
+func (v *Vector) Insert(createdAt nostr.Timestamp, id string) error {
 	// fmt.Fprintln(os.Stderr, "Insert", createdAt, id)
-	if len(id) != IDSize*2 {
-		return errors.New("bad id size for added item")
+	if len(id)/2 != v.idSize {
+		return fmt.Errorf("bad id size for added item: expected %d, got %d", v.idSize, len(id)/2)
 	}
-	item := NewItem(createdAt, id)
 
-	v.items = append(v.items, *item)
+	item := Item{createdAt, id}
+	v.items = append(v.items, item)
 	return nil
 }
 
@@ -32,23 +37,15 @@ func (v *Vector) Seal() error {
 	})
 
 	for i := 1; i < len(v.items); i++ {
-		if v.items[i-1].Equals(v.items[i]) {
+		if v.items[i-1].ID == v.items[i].ID {
 			return errors.New("duplicate item inserted")
 		}
 	}
 	return nil
 }
 
-func (v *Vector) Size() int {
-	return len(v.items)
-}
-
-func (v *Vector) GetItem(i uint64) (Item, error) {
-	if i >= uint64(len(v.items)) {
-		return Item{}, errors.New("index out of bounds")
-	}
-	return v.items[i], nil
-}
+func (v *Vector) Size() int   { return len(v.items) }
+func (v *Vector) IDSize() int { return v.idSize }
 
 func (v *Vector) Iterate(begin, end int, cb func(Item, int) bool) error {
 	for i := begin; i < end; i++ {
@@ -71,7 +68,7 @@ func (v *Vector) Fingerprint(begin, end int) (Fingerprint, error) {
 	out.SetToZero()
 
 	if err := v.Iterate(begin, end, func(item Item, _ int) bool {
-		out.AddItem(item)
+		out.Add(item.ID)
 		return true
 	}); err != nil {
 		return Fingerprint{}, err
