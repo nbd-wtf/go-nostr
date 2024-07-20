@@ -249,3 +249,14 @@ func EncodeEntity(publicKey string, kind int, identifier string, relays []string
 
 	return bech32.Encode("naddr", bits5)
 }
+
+func EncodeRelay(url string) (string, error) {
+	buf := &bytes.Buffer{}
+	writeTLVEntry(buf, TLVDefault, []byte(url))
+	bits5, err := bech32.ConvertBits(buf.Bytes(), 8, 5, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert bits: %w", err)
+	}
+
+	return bech32.Encode("nrelay", bits5)
+}
