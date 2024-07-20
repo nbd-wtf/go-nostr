@@ -96,6 +96,23 @@ func TestDecodeOtherNprofile(t *testing.T) {
 	}
 }
 
+func TestDecodeNrelay(t *testing.T) {
+	prefix, data, err := Decode("nrelay1qq28wumn8ghj7un9d3shjtnyv9kh2uewd9hsc5zt2x")
+	if err != nil {
+		t.Errorf("shouldn't error: %s", err)
+	}
+	if prefix != "nrelay" {
+		t.Error("returned invalid prefix")
+	}
+	er, ok := data.(nostr.EntityRelay)
+	if !ok {
+		t.Error("value returned of wrong type")
+	}
+	if er.Relay != "wss://relay.damus.io" {
+		t.Error("returned wrong relay")
+	}
+}
+
 func TestEncodeNprofile(t *testing.T) {
 	nprofile, err := EncodeProfile("3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d", []string{
 		"wss://r.x.com",
@@ -204,5 +221,15 @@ func TestEncodeDecodeNEventTestEncodeDecodeNEvent(t *testing.T) {
 
 	if len(ep.Relays) != 1 || ep.Relays[0] != "wss://banana.com" {
 		t.Error("wrong relay")
+	}
+}
+
+func TestEncodeNrelay(t *testing.T) {
+	nrelay, err := EncodeRelay("wss://relay.damus.io")
+	if err != nil {
+		t.Errorf("shouldn't error: %s", err)
+	}
+	if nrelay != "nrelay1qq28wumn8ghj7un9d3shjtnyv9kh2uewd9hsc5zt2x" {
+		t.Error("produced an unexpected  string")
 	}
 }
