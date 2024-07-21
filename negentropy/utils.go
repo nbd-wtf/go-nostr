@@ -1,58 +1,18 @@
 package negentropy
 
-import (
-	"errors"
-)
+import "bytes"
 
-var ErrParseEndsPrematurely = errors.New("parse ends prematurely")
-
-func getByte(encoded *[]byte) (byte, error) {
-	if len(*encoded) < 1 {
-		return 0, ErrParseEndsPrematurely
-	}
-	b := (*encoded)[0]
-	*encoded = (*encoded)[1:]
-
-	return b, nil
-}
-
-func getBytes(encoded *[]byte, n int) ([]byte, error) {
-	// fmt.Fprintln(os.Stderr, "getBytes", len(*encoded), n)
-	if len(*encoded) < n {
-		return nil, errors.New("parse ends prematurely")
-	}
-	result := (*encoded)[:n]
-	*encoded = (*encoded)[n:]
-	return result, nil
-}
-
-func decodeVarInt(encoded *[]byte) (int, error) {
-	//var res uint64
-	//
-	//for i := 0; i < len(*encoded); i++ {
-	//	byte := (*encoded)[i]
-	//	res = (res << 7) | uint64(byte&0x7F)
-	//	if (byte & 0x80) == 0 {
-	//		fmt.Fprintln(os.Stderr, "decodeVarInt", encoded, i)
-	//		*encoded = (*encoded)[i+1:] // Advance the slice to reflect consumed bytes
-	//		return res, nil
-	//	}
-	//}
-	//return 0, ErrParseEndsPrematurely
+func decodeVarInt(reader *bytes.Reader) (int, error) {
 	var res int = 0
 
 	for {
-		if len(*encoded) == 0 {
-			return 0, errors.New("parse ends prematurely")
+		b, err := reader.ReadByte()
+		if err != nil {
+			return 0, err
 		}
 
-		// Remove the first byte from the slice and update the slice.
-		// This simulates JavaScript's shift operation on arrays.
-		byte := (*encoded)[0]
-		*encoded = (*encoded)[1:]
-
-		res = (res << 7) | (int(byte) & 127)
-		if (byte & 128) == 0 {
+		res = (res << 7) | (int(b) & 127)
+		if (b & 128) == 0 {
 			break
 		}
 	}
