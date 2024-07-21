@@ -46,7 +46,7 @@ func TestSimple(t *testing.T) {
 			n2.Insert(events[i])
 		}
 
-		q, err = n2.Reconcile(q)
+		q, _, _, err = n2.Reconcile(q)
 		if err != nil {
 			t.Fatal(err)
 			return
@@ -57,7 +57,7 @@ func TestSimple(t *testing.T) {
 	{
 		var have []string
 		var need []string
-		q, err = n1.ReconcileWithIDs(q, &have, &need)
+		q, have, need, err = n1.Reconcile(q)
 		if err != nil {
 			t.Fatal(err)
 			return
