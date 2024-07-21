@@ -59,10 +59,6 @@ func (n *Negentropy) Initiate() ([]byte, error) {
 }
 
 func (n *Negentropy) Reconcile(query []byte) (output []byte, haveIds []string, needIds []string, err error) {
-	if n.IsInitiator {
-		return nil, nil, nil, fmt.Errorf("initiator not asking for have/need IDs")
-	}
-
 	reader := bytes.NewReader(query)
 	haveIds = make([]string, 0, 100)
 	needIds = make([]string, 0, 100)
@@ -391,8 +387,8 @@ func (n *Negentropy) encodeTimestampOut(timestamp nostr.Timestamp) []byte {
 func (n *Negentropy) encodeBound(bound Bound) ([]byte, error) {
 	var output []byte
 
-	t := n.encodeTimestampOut(bound.Item.Timestamp)
-	idlen := encodeVarInt(n.idSize)
+	t := n.encodeTimestampOut(bound.Timestamp)
+	idlen := encodeVarInt(len(bound.ID) / 2)
 	output = append(output, t...)
 	output = append(output, idlen...)
 	id := bound.Item.ID

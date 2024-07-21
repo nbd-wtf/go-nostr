@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSimple(t *testing.T) {
+func TestSmallNumber(t *testing.T) {
 	var err error
 	var q []byte
 	var n1 *Negentropy
@@ -34,15 +34,15 @@ func TestSimple(t *testing.T) {
 			return
 		}
 
-		fmt.Println("n1:", q)
+		fmt.Println("[n1]:", q)
 	}
 
 	{
 		n2, _ = NewNegentropy(NewVector(32), 1<<16, 32)
-		for i := 0; i < 2; i++ {
+		for i := 0; i < 7; i++ {
 			n2.Insert(events[i])
 		}
-		for i := 15; i < 20; i++ {
+		for i := 10; i < 20; i++ {
 			n2.Insert(events[i])
 		}
 
@@ -51,7 +51,7 @@ func TestSimple(t *testing.T) {
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("n2:", q)
+		fmt.Println("[n2]:", q)
 	}
 
 	{
@@ -62,11 +62,25 @@ func TestSimple(t *testing.T) {
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("n1:", q)
+		fmt.Println("[n1]:", q)
+		fmt.Println("")
 		fmt.Println("have", have)
 		fmt.Println("need", need)
 
-		require.Equal(t, have, []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"})
-		require.Equal(t, need, []string{"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"})
+		expectedNeed := make([]string, 0, 2+5)
+		for i := 0; i < 2; i++ {
+			expectedNeed = append(expectedNeed, events[i].ID)
+		}
+		for i := 15; i < 20; i++ {
+			expectedNeed = append(expectedNeed, events[i].ID)
+		}
+
+		expectedHave := make([]string, 0, 3)
+		for i := 7; i < 10; i++ {
+			expectedHave = append(expectedHave, events[i].ID)
+		}
+
+		require.ElementsMatch(t, expectedNeed, need, "wrong need")
+		require.ElementsMatch(t, expectedHave, have, "wrong have")
 	}
 }
