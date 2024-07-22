@@ -51,19 +51,20 @@ func (n *Negentropy) Initiate() ([]byte, error) {
 	}
 	n.IsInitiator = true
 
-	output := make([]byte, 1, 1+n.storage.Size()*n.idSize)
-	output[0] = protocolVersion
-	n.SplitRange(0, n.storage.Size(), Bound{Item: Item{Timestamp: maxTimestamp}}, &output)
+	output := bytes.NewBuffer(make([]byte, 0, 1+n.storage.Size()*n.idSize))
+	output.WriteByte(protocolVersion)
+	n.SplitRange(0, n.storage.Size(), Bound{Item: Item{Timestamp: maxTimestamp}}, output)
 
-	return output, nil
+	return output.Bytes(), nil
 }
 
 func (n *Negentropy) Reconcile(query []byte) (output []byte, haveIds []string, needIds []string, err error) {
 	reader := bytes.NewReader(query)
+
 	haveIds = make([]string, 0, 100)
 	needIds = make([]string, 0, 100)
 
-	output, err = n.ReconcileAux(reader, &haveIds, &needIds)
+	output, err = n.reconcileAux(reader, &haveIds, &needIds)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -72,10 +73,10 @@ func (n *Negentropy) Reconcile(query []byte) (output []byte, haveIds []string, n
 		return nil, haveIds, needIds, nil
 	}
 
-	return output, haveIds, needIds, nil
+	return output, nil, nil, nil
 }
 
-func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]string) ([]byte, error) {
+func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]string) ([]byte, error) {
 	n.lastTimestampIn, n.lastTimestampOut = 0, 0 // Reset for each message
 
 	var fullOutput []byte
@@ -85,8 +86,9 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 	if err != nil {
 		return nil, err
 	}
-	if pv < 0x60 || pv > 0x6F {
-		return nil, fmt.Errorf("invalid negentropy protocol version byte")
+
+	if pv < 0x60 || pv > 0x6f {
+		return nil, fmt.Errorf("invalid protocol version byte")
 	}
 	if pv != protocolVersion {
 		if n.IsInitiator {
@@ -99,8 +101,9 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 	prevIndex := 0
 	skip := false
 
+	partialOutput := bytes.NewBuffer(make([]byte, 0, 100))
 	for reader.Len() > 0 {
-		var o []byte
+		partialOutput.Reset()
 
 		doSkip := func() {
 			if skip {
@@ -109,8 +112,8 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 				if err != nil {
 					panic(err)
 				}
-				o = append(o, encodedBound...)
-				o = append(o, encodeVarInt(SkipMode)...)
+				partialOutput.Write(encodedBound)
+				partialOutput.WriteByte(SkipMode)
 			}
 		}
 
@@ -147,7 +150,7 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 
 			if !bytes.Equal(theirFingerprint, ourFingerprint.Buf[:]) {
 				doSkip()
-				n.SplitRange(lower, upper, currBound, &o)
+				n.SplitRange(lower, upper, currBound, partialOutput)
 			} else {
 				skip = true
 			}
@@ -214,13 +217,13 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 					panic(err)
 				}
 
-				o = append(o, encodedBound...)
-				o = append(o, encodeVarInt(IdListMode)...)
-				o = append(o, encodeVarInt(numResponseIds)...)
-				o = append(o, responseIds...)
+				partialOutput.Write(encodedBound)
+				partialOutput.WriteByte(IdListMode)
+				partialOutput.Write(encodeVarInt(numResponseIds))
+				partialOutput.Write(responseIds)
 
-				fullOutput = append(fullOutput, o...)
-				o = []byte{}
+				fullOutput = append(fullOutput, partialOutput.Bytes()...)
+				partialOutput.Reset()
 			}
 
 		default:
@@ -228,7 +231,7 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 		}
 
 		// Check if the frame size limit is exceeded
-		if n.ExceededFrameSizeLimit(len(fullOutput) + len(o)) {
+		if n.ExceededFrameSizeLimit(len(fullOutput) + partialOutput.Len()) {
 			// Frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint, err := n.storage.Fingerprint(upper, n.storage.Size())
 			if err != nil {
@@ -246,7 +249,7 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 			break // Stop processing further
 		} else {
 			// Append the constructed output for this iteration
-			fullOutput = append(fullOutput, o...)
+			fullOutput = append(fullOutput, partialOutput.Bytes()...)
 		}
 
 		prevIndex = upper
@@ -256,7 +259,7 @@ func (n *Negentropy) ReconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 	return fullOutput, nil
 }
 
-func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *[]byte) {
+func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *bytes.Buffer) {
 	numElems := upper - lower
 	const buckets = 16
 
@@ -266,13 +269,14 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *[]by
 			fmt.Fprintln(os.Stderr, err)
 			panic(err)
 		}
-		*output = append(*output, boundEncoded...)
-		*output = append(*output, encodeVarInt(IdListMode)...)
-		*output = append(*output, encodeVarInt(numElems)...)
+
+		output.Write(boundEncoded)
+		output.WriteByte(IdListMode)
+		output.Write(encodeVarInt(numElems))
 
 		n.storage.Iterate(lower, upper, func(item Item, _ int) bool {
 			id, _ := hex.DecodeString(item.ID)
-			*output = append(*output, id...)
+			output.Write(id)
 			return true
 		})
 	} else {
@@ -317,9 +321,10 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *[]by
 				fmt.Fprintln(os.Stderr, err)
 				panic(err)
 			}
-			*output = append(*output, boundEncoded...)
-			*output = append(*output, encodeVarInt(FingerprintMode)...)
-			*output = append(*output, ourFingerprint.SV()...)
+
+			output.Write(boundEncoded)
+			output.WriteByte(FingerprintMode)
+			output.Write(ourFingerprint.SV())
 		}
 	}
 }

@@ -13,9 +13,9 @@ const FingerprintSize = 16
 type Mode int
 
 const (
-	SkipMode = iota
-	FingerprintMode
-	IdListMode
+	SkipMode        = 0
+	FingerprintMode = 1
+	IdListMode      = 2
 )
 
 type Storage interface {
