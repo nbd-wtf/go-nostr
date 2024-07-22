@@ -8,16 +8,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWhatever(t *testing.T) {
+func TestSuperSmall(t *testing.T) {
 	runTestWith(t,
-		"small numbers",
+		4,
+		[][]int{{0, 3}}, [][]int{{2, 4}},
+		[][]int{{3, 4}}, [][]int{{0, 2}},
+	)
+}
+
+func TestNoNeedToSync(t *testing.T) {
+	runTestWith(t,
+		50,
+		[][]int{{0, 50}}, [][]int{{0, 50}},
+		[][]int{}, [][]int{},
+	)
+}
+
+func TestSmallNumbers(t *testing.T) {
+	runTestWith(t,
 		20,
 		[][]int{{2, 15}}, [][]int{{0, 7}, {10, 20}},
-		[][]int{{0, 2}, {15, 20}}, [][]int{{7, 10}})
+		[][]int{{0, 2}, {15, 20}}, [][]int{{7, 10}},
+	)
+}
+
+func TestBigNumbers(t *testing.T) {
+	runTestWith(t,
+		200,
+		[][]int{{20, 150}}, [][]int{{0, 70}, {100, 200}},
+		[][]int{{0, 20}, {150, 200}}, [][]int{{70, 100}},
+	)
 }
 
 func runTestWith(t *testing.T,
-	name string,
 	totalEvents int,
 	n1Ranges [][]int, n2Ranges [][]int,
 	expectedN1NeedRanges [][]int, expectedN1HaveRanges [][]int,
@@ -52,7 +75,7 @@ func runTestWith(t *testing.T,
 			return
 		}
 
-		fmt.Println("[n1]:", q)
+		fmt.Println("[n1]:", len(q), q)
 	}
 
 	{
@@ -68,40 +91,49 @@ func runTestWith(t *testing.T,
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("[n2]:", q)
+		fmt.Println("[n2]:", len(q), q)
 	}
 
-	{
+	invert := map[*Negentropy]*Negentropy{
+		n1: n2,
+		n2: n1,
+	}
+
+	for n := n1; q != nil; n = invert[n] {
 		var have []string
 		var need []string
-		q, have, need, err = n1.Reconcile(q)
+
+		q, have, need, err = n.Reconcile(q)
 		if err != nil {
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("[n1]:", q)
-		fmt.Println("")
-		fmt.Println("<need>", need)
-		fmt.Println("<have>", have)
+		fmt.Println("[n-]:", len(q), q)
 
-		expectedNeed := make([]string, 0, 100)
-		for _, r := range expectedN1NeedRanges {
-			for i := r[0]; i < r[1]; i++ {
-				expectedNeed = append(expectedNeed, events[i].ID)
+		if q == nil {
+			fmt.Println("")
+			// fmt.Println("<need>", need)
+			// fmt.Println("<have>", have)
+
+			expectedNeed := make([]string, 0, 100)
+			for _, r := range expectedN1NeedRanges {
+				for i := r[0]; i < r[1]; i++ {
+					expectedNeed = append(expectedNeed, events[i].ID)
+				}
 			}
-		}
 
-		expectedHave := make([]string, 0, 100)
-		for _, r := range expectedN1HaveRanges {
-			for i := r[0]; i < r[1]; i++ {
-				expectedHave = append(expectedHave, events[i].ID)
+			expectedHave := make([]string, 0, 100)
+			for _, r := range expectedN1HaveRanges {
+				for i := r[0]; i < r[1]; i++ {
+					expectedHave = append(expectedHave, events[i].ID)
+				}
 			}
+
+			// fmt.Println("<e-need>", expectedNeed)
+			// fmt.Println("<e-have>", expectedHave)
+
+			require.ElementsMatch(t, expectedNeed, need, "wrong need")
+			require.ElementsMatch(t, expectedHave, have, "wrong have")
 		}
-
-		fmt.Println("<e-need>", expectedNeed)
-		fmt.Println("<e-have>", expectedHave)
-
-		require.ElementsMatch(t, expectedNeed, need, "wrong need")
-		require.ElementsMatch(t, expectedHave, have, "wrong have")
 	}
 }
