@@ -22,7 +22,6 @@ type Storage interface {
 	Insert(nostr.Timestamp, string) error
 	Seal() error
 
-	IDSize() int
 	Size() int
 	Iterate(begin, end int, cb func(item Item, i int) bool) error
 	FindLowerBound(begin, end int, value Bound) (int, error)

@@ -44,8 +44,7 @@ func (v *Vector) Seal() error {
 	return nil
 }
 
-func (v *Vector) Size() int   { return len(v.items) }
-func (v *Vector) IDSize() int { return v.idSize }
+func (v *Vector) Size() int { return len(v.items) }
 
 func (v *Vector) Iterate(begin, end int, cb func(Item, int) bool) error {
 	for i := begin; i < end; i++ {
