@@ -1,29 +1,26 @@
 package negentropy
 
 import (
-	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/nbd-wtf/go-nostr"
 )
 
 type Vector struct {
 	items  []Item
-	idSize int
+	sealed bool
 }
 
-func NewVector(idSize int) *Vector {
+func NewVector() *Vector {
 	return &Vector{
-		items:  make([]Item, 0, 30),
-		idSize: idSize,
+		items: make([]Item, 0, 30),
 	}
 }
 
 func (v *Vector) Insert(createdAt nostr.Timestamp, id string) error {
-	// fmt.Fprintln(os.Stderr, "Insert", createdAt, id)
-	if len(id)/2 != v.idSize {
-		return fmt.Errorf("bad id size for added item: expected %d, got %d", v.idSize, len(id)/2)
+	if len(id)/2 != 32 {
+		return fmt.Errorf("bad id size for added item: expected %d, got %d", 32, len(id)/2)
 	}
 
 	item := Item{createdAt, id}
@@ -31,20 +28,22 @@ func (v *Vector) Insert(createdAt nostr.Timestamp, id string) error {
 	return nil
 }
 
-func (v *Vector) Seal() error {
-	sort.Slice(v.items, func(i, j int) bool {
-		return v.items[i].LessThan(v.items[j])
-	})
+func (v *Vector) Size() int { return len(v.items) }
 
-	for i := 1; i < len(v.items); i++ {
-		if v.items[i-1].ID == v.items[i].ID {
-			return errors.New("duplicate item inserted")
-		}
+func (v *Vector) Seal() {
+	if v.sealed {
+		panic("trying to seal an already sealed vector")
 	}
-	return nil
+	v.sealed = true
+	slices.SortFunc(v.items, itemCompare)
 }
 
-func (v *Vector) Size() int { return len(v.items) }
+func (v *Vector) GetBound(idx int) Bound {
+	if idx < len(v.items) {
+		return Bound{v.items[idx]}
+	}
+	return infiniteBound
+}
 
 func (v *Vector) Iterate(begin, end int, cb func(Item, int) bool) error {
 	for i := begin; i < end; i++ {
@@ -55,14 +54,12 @@ func (v *Vector) Iterate(begin, end int, cb func(Item, int) bool) error {
 	return nil
 }
 
-func (v *Vector) FindLowerBound(begin, end int, bound Bound) (int, error) {
-	i := sort.Search(len(v.items[begin:end]), func(i int) bool {
-		return !v.items[begin+i].LessThan(bound.Item)
-	})
-	return begin + i, nil
+func (v *Vector) FindLowerBound(begin, end int, bound Bound) int {
+	idx, _ := slices.BinarySearchFunc(v.items[begin:end], bound.Item, itemCompare)
+	return begin + idx
 }
 
-func (v *Vector) Fingerprint(begin, end int) (Fingerprint, error) {
+func (v *Vector) Fingerprint(begin, end int) ([FingerprintSize]byte, error) {
 	var out Accumulator
 	out.SetToZero()
 
@@ -70,7 +67,7 @@ func (v *Vector) Fingerprint(begin, end int) (Fingerprint, error) {
 		out.Add(item.ID)
 		return true
 	}); err != nil {
-		return Fingerprint{}, err
+		return [FingerprintSize]byte{}, err
 	}
 
 	return out.GetFingerprint(end - begin), nil

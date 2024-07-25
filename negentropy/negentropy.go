@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
+	"unsafe"
 
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -15,69 +17,74 @@ const (
 	maxTimestamp         = nostr.Timestamp(math.MaxInt64)
 )
 
+var infiniteBound = Bound{Item: Item{Timestamp: maxTimestamp}}
+
 type Negentropy struct {
 	storage          Storage
-	frameSizeLimit   uint64
-	idSize           int // in bytes
-	IsInitiator      bool
+	sealed           bool
+	frameSizeLimit   int
+	isInitiator      bool
 	lastTimestampIn  nostr.Timestamp
 	lastTimestampOut nostr.Timestamp
+	haveIds          []string
+	needIds          []string
 }
 
-func NewNegentropy(storage Storage, frameSizeLimit uint64, IDSize int) (*Negentropy, error) {
-	if frameSizeLimit != 0 && frameSizeLimit < 4096 {
-		return nil, fmt.Errorf("frameSizeLimit too small")
-	}
-	if IDSize > 32 {
-		return nil, fmt.Errorf("id size cannot be more than 32, got %d", IDSize)
-	}
+func NewNegentropy(storage Storage, frameSizeLimit int) (*Negentropy, error) {
 	return &Negentropy{
 		storage:        storage,
 		frameSizeLimit: frameSizeLimit,
-		idSize:         IDSize,
 	}, nil
 }
 
 func (n *Negentropy) Insert(evt *nostr.Event) {
-	err := n.storage.Insert(evt.CreatedAt, evt.ID[0:n.idSize*2])
+	err := n.storage.Insert(evt.CreatedAt, evt.ID)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (n *Negentropy) Initiate() ([]byte, error) {
-	if n.IsInitiator {
-		return []byte{}, fmt.Errorf("already initiated")
+func (n *Negentropy) seal() {
+	if !n.sealed {
+		n.storage.Seal()
 	}
-	n.IsInitiator = true
-
-	output := bytes.NewBuffer(make([]byte, 0, 1+n.storage.Size()*n.idSize))
-	output.WriteByte(protocolVersion)
-	n.SplitRange(0, n.storage.Size(), Bound{Item: Item{Timestamp: maxTimestamp}}, output)
-
-	return output.Bytes(), nil
+	n.sealed = true
 }
 
-func (n *Negentropy) Reconcile(query []byte) (output []byte, haveIds []string, needIds []string, err error) {
+func (n *Negentropy) Initiate() []byte {
+	n.seal()
+	n.isInitiator = true
+
+	n.haveIds = make([]string, 0, n.storage.Size()/2)
+	n.needIds = make([]string, 0, n.storage.Size()/2)
+
+	output := bytes.NewBuffer(make([]byte, 0, 1+n.storage.Size()*32))
+	output.WriteByte(protocolVersion)
+	n.SplitRange(0, 0, n.storage.Size(), infiniteBound, output)
+
+	return output.Bytes()
+}
+
+func (n *Negentropy) Reconcile(step int, query []byte) (output []byte, haveIds []string, needIds []string, err error) {
+	n.seal()
 	reader := bytes.NewReader(query)
 
-	haveIds = make([]string, 0, 100)
-	needIds = make([]string, 0, 100)
-
-	output, err = n.reconcileAux(reader, &haveIds, &needIds)
+	output, err = n.reconcileAux(step, reader)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	if len(output) == 1 && n.IsInitiator {
-		return nil, haveIds, needIds, nil
+	if len(output) == 1 && n.isInitiator {
+		slices.Sort(n.haveIds)
+		slices.Sort(n.needIds)
+		return nil, n.haveIds, n.needIds, nil
 	}
 
 	return output, nil, nil, nil
 }
 
-func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]string) ([]byte, error) {
-	n.lastTimestampIn, n.lastTimestampOut = 0, 0 // Reset for each message
+func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error) {
+	n.lastTimestampIn, n.lastTimestampOut = 0, 0 // reset for each message
 
 	fullOutput := bytes.NewBuffer(make([]byte, 0, 5000))
 	fullOutput.WriteByte(protocolVersion)
@@ -91,7 +98,7 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 		return nil, fmt.Errorf("invalid protocol version byte")
 	}
 	if pv != protocolVersion {
-		if n.IsInitiator {
+		if n.isInitiator {
 			return nil, fmt.Errorf("unsupported negentropy protocol version requested")
 		}
 		return fullOutput.Bytes(), nil
@@ -108,10 +115,8 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 		doSkip := func() {
 			if skip {
 				skip = false
-				encodedBound, err := n.encodeBound(prevBound) // Handle error appropriately
-				if err != nil {
-					panic(err)
-				}
+				encodedBound := n.encodeBound(prevBound)
+				fmt.Println(n.Name(), step, "~>      skip", prevBound)
 				partialOutput.Write(encodedBound)
 				partialOutput.WriteByte(SkipMode)
 			}
@@ -121,6 +126,7 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println(n.Name(), step, "<~ read bound", currBound)
 		modeVal, err := decodeVarInt(reader)
 		if err != nil {
 			return nil, err
@@ -128,98 +134,121 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 		mode := Mode(modeVal)
 
 		lower := prevIndex
-		upper, err := n.storage.FindLowerBound(prevIndex, n.storage.Size(), currBound)
-		if err != nil {
-			return nil, err
-		}
+		upper := n.storage.FindLowerBound(prevIndex, n.storage.Size(), currBound)
+		fmt.Println(n.Name(), step, "<~ [", lower, n.storage.GetBound(lower), "---", n.storage.GetBound(upper), upper, "]")
 
 		switch mode {
 		case SkipMode:
+			fmt.Println(n.Name(), step, "<~  skip")
+			fmt.Println(n.Name(), step, "~>    will be skipped")
 			skip = true
 
 		case FingerprintMode:
-			theirFingerprint := make([]byte, FingerprintSize)
-			_, err := reader.Read(theirFingerprint)
+			fmt.Println(n.Name(), step, "<~  fingerprint")
+
+			var theirFingerprint [FingerprintSize]byte
+			_, err := reader.Read(theirFingerprint[:])
 			if err != nil {
 				return nil, err
 			}
 			ourFingerprint, err := n.storage.Fingerprint(lower, upper)
 			if err != nil {
-				return nil, err // Handle the error appropriately
+				return nil, err
 			}
 
-			if !bytes.Equal(theirFingerprint, ourFingerprint.Buf[:]) {
-				doSkip()
-				n.SplitRange(lower, upper, currBound, partialOutput)
-			} else {
+			fmt.Println(n.Name(), step, "<~    ours", hex.EncodeToString(ourFingerprint[:]))
+			fmt.Println(n.Name(), step, "<~    thrs", hex.EncodeToString(theirFingerprint[:]))
+
+			if theirFingerprint == ourFingerprint {
 				skip = true
+			} else {
+				doSkip()
+				n.SplitRange(step, lower, upper, currBound, partialOutput)
 			}
 
 		case IdListMode:
-			numIds64, err := decodeVarInt(reader)
+			fmt.Print(n.Name(), " ", step, " <~  idlist")
+			numIds, err := decodeVarInt(reader)
 			if err != nil {
 				return nil, err
 			}
-			numIds := int(numIds64)
+			fmt.Printf(" (%d)", numIds)
 
 			theirElems := make(map[string]struct{})
-			idb := make([]byte, n.idSize)
+			var idb [32]byte
+
+			firstid := "()"
+			lastid := "()"
 			for i := 0; i < numIds; i++ {
-				_, err := reader.Read(idb)
+				_, err := reader.Read(idb[:])
 				if err != nil {
 					return nil, err
 				}
-				theirElems[hex.EncodeToString(idb)] = struct{}{}
+				// fmt.Println(n.Name(), step, "<~    id", hex.EncodeToString(idb))
+				id := hex.EncodeToString(idb[:])
+				if firstid == "()" {
+					firstid = id
+				}
+				theirElems[id] = struct{}{}
+				lastid = id
 			}
+			fmt.Println("", firstid, "---", lastid)
 
 			n.storage.Iterate(lower, upper, func(item Item, _ int) bool {
-				k := item.ID
-				if _, exists := theirElems[k]; !exists {
-					if n.IsInitiator {
-						*haveIds = append(*haveIds, k)
+				id := item.ID
+				if _, exists := theirElems[id]; !exists {
+					if n.isInitiator {
+						n.haveIds = append(n.haveIds, id)
+						// fmt.Println(n.Name(), step, "<~      have", id)
 					}
 				} else {
-					delete(theirElems, k)
+					delete(theirElems, id)
 				}
 				return true
 			})
 
-			if n.IsInitiator {
+			if n.isInitiator {
 				skip = true
+				fmt.Println(n.Name(), step, "~>        will be skipped")
 
-				for k := range theirElems {
-					*needIds = append(*needIds, k)
+				for id := range theirElems {
+					n.needIds = append(n.needIds, id)
+					// fmt.Println(n.Name(), step, "<~      need", id)
 				}
 			} else {
 				doSkip()
 
-				responseIds := make([]byte, 0, n.idSize*n.storage.Size())
-				responseIdsPtr := &responseIds
-				numResponseIds := 0
+				responseIds := make([]byte, 0, 32*n.storage.Size())
 				endBound := currBound
+				fmt.Print(n.Name(), " ", step, " ~>      idlist")
 
+				firstid := "()"
+				lastid := "()"
 				n.storage.Iterate(lower, upper, func(item Item, index int) bool {
-					if n.ExceededFrameSizeLimit(fullOutput.Len() + len(*responseIdsPtr)) {
+					if firstid == "()" {
+						firstid = item.ID
+					}
+
+					if n.frameSizeLimit-200 < fullOutput.Len()+len(responseIds) {
+						fmt.Println(" ###")
 						endBound = Bound{item}
 						upper = index
 						return false
 					}
 
+					lastid = item.ID
 					id, _ := hex.DecodeString(item.ID)
-					*responseIdsPtr = append(*responseIdsPtr, id...)
-					numResponseIds++
+					// fmt.Println(n.Name(), step, "~>      id", item.ID)
+					responseIds = append(responseIds, id...)
 					return true
 				})
+				fmt.Println(endBound, firstid, "---", lastid)
 
-				encodedBound, err := n.encodeBound(endBound)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					panic(err)
-				}
+				encodedBound := n.encodeBound(endBound)
 
 				partialOutput.Write(encodedBound)
 				partialOutput.WriteByte(IdListMode)
-				partialOutput.Write(encodeVarInt(numResponseIds))
+				partialOutput.Write(encodeVarInt(len(responseIds) / 32))
 				partialOutput.Write(responseIds)
 
 				partialOutput.WriteTo(fullOutput)
@@ -230,26 +259,22 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 			return nil, fmt.Errorf("unexpected mode %d", mode)
 		}
 
-		// Check if the frame size limit is exceeded
-		if n.ExceededFrameSizeLimit(fullOutput.Len() + partialOutput.Len()) {
-			// Frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
+		if n.frameSizeLimit-200 < fullOutput.Len()+partialOutput.Len() {
+			fmt.Println(" #####")
+			// frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint, err := n.storage.Fingerprint(upper, n.storage.Size())
 			if err != nil {
 				panic(err)
 			}
 
-			encodedBound, err := n.encodeBound(Bound{Item: Item{Timestamp: maxTimestamp}})
-			if err != nil {
-				panic(err)
-			}
-
-			fullOutput.Write(encodedBound)
+			fullOutput.Write(n.encodeBound(infiniteBound))
 			fullOutput.WriteByte(FingerprintMode)
-			fullOutput.Write(remainingFingerprint.SV())
+			fullOutput.Write(remainingFingerprint[:])
+			fmt.Println(n.Name(), step, "~>   last fingerprint", infiniteBound)
 
-			break // Stop processing further
+			break // stop processing further
 		} else {
-			// Append the constructed output for this iteration
+			// append the constructed output for this iteration
 			partialOutput.WriteTo(fullOutput)
 		}
 
@@ -260,26 +285,34 @@ func (n *Negentropy) reconcileAux(reader *bytes.Reader, haveIds, needIds *[]stri
 	return fullOutput.Bytes(), nil
 }
 
-func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *bytes.Buffer) {
+func (n *Negentropy) SplitRange(step int, lower, upper int, upperBound Bound, output *bytes.Buffer) {
 	numElems := upper - lower
 	const buckets = 16
 
-	if numElems < buckets*2 {
-		boundEncoded, err := n.encodeBound(upperBound)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			panic(err)
-		}
+	fmt.Println(n.Name(), step, "~> splitting range", lower, n.storage.GetBound(lower), "---", n.storage.GetBound(upper), upper)
 
+	if numElems < buckets*2 {
+		// we just send the full ids here
+		boundEncoded := n.encodeBound(upperBound)
 		output.Write(boundEncoded)
 		output.WriteByte(IdListMode)
 		output.Write(encodeVarInt(numElems))
 
+		fmt.Print(n.Name(), " ", step, " ~>   idlist ", upperBound)
+
+		firstid := "()"
+		lastid := "()"
 		n.storage.Iterate(lower, upper, func(item Item, _ int) bool {
+			if firstid == "()" {
+				firstid = item.ID
+			}
+			lastid = item.ID
+			// fmt.Println(n.Name(), step, "~>    ", item.ID)
 			id, _ := hex.DecodeString(item.ID)
 			output.Write(id)
 			return true
 		})
+		fmt.Println("", firstid, "---", lastid)
 	} else {
 		itemsPerBucket := numElems / buckets
 		bucketsWithExtra := numElems % buckets
@@ -313,110 +346,20 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *byte
 					return true
 				})
 
-				minBound := n.getMinimalBound(prevItem, currItem)
+				minBound := getMinimalBound(prevItem, currItem)
 				nextBound = minBound
 			}
 
-			boundEncoded, err := n.encodeBound(nextBound)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				panic(err)
-			}
-
+			fmt.Println(n.Name(), step, "~>   bound and fingerprint", nextBound, hex.EncodeToString(ourFingerprint[:]))
+			boundEncoded := n.encodeBound(nextBound)
 			output.Write(boundEncoded)
 			output.WriteByte(FingerprintMode)
-			output.Write(ourFingerprint.SV())
+			output.Write(ourFingerprint[:])
 		}
 	}
 }
 
-func (n *Negentropy) ExceededFrameSizeLimit(size int) bool {
-	return n.frameSizeLimit != 0 && size > int(n.frameSizeLimit)-200
-}
-
-// Decoding
-
-func (n *Negentropy) DecodeTimestampIn(reader *bytes.Reader) (nostr.Timestamp, error) {
-	t, err := decodeVarInt(reader)
-	if err != nil {
-		return 0, err
-	}
-
-	timestamp := nostr.Timestamp(t)
-	if timestamp == 0 {
-		timestamp = maxTimestamp
-	} else {
-		timestamp--
-	}
-
-	timestamp += n.lastTimestampIn
-	if timestamp < n.lastTimestampIn { // Check for overflow
-		timestamp = maxTimestamp
-	}
-	n.lastTimestampIn = timestamp
-	return timestamp, nil
-}
-
-func (n *Negentropy) DecodeBound(reader *bytes.Reader) (Bound, error) {
-	timestamp, err := n.DecodeTimestampIn(reader)
-	if err != nil {
-		return Bound{}, err
-	}
-
-	length, err := decodeVarInt(reader)
-	if err != nil {
-		return Bound{}, err
-	}
-
-	id := make([]byte, length)
-	if _, err = reader.Read(id); err != nil {
-		return Bound{}, err
-	}
-
-	return Bound{Item{timestamp, hex.EncodeToString(id)}}, nil
-}
-
-// Encoding
-
-// encodeTimestampOut encodes the given timestamp.
-func (n *Negentropy) encodeTimestampOut(timestamp nostr.Timestamp) []byte {
-	if timestamp == maxTimestamp {
-		n.lastTimestampOut = maxTimestamp
-		return encodeVarInt(0)
-	}
-	temp := timestamp
-	timestamp -= n.lastTimestampOut
-	n.lastTimestampOut = temp
-	return encodeVarInt(int(timestamp + 1))
-}
-
-func (n *Negentropy) encodeBound(bound Bound) ([]byte, error) {
-	var output []byte
-
-	t := n.encodeTimestampOut(bound.Timestamp)
-	idlen := encodeVarInt(len(bound.ID) / 2)
-	output = append(output, t...)
-	output = append(output, idlen...)
-	id := bound.Item.ID
-
-	output = append(output, id...)
-	return output, nil
-}
-
-func (n *Negentropy) getMinimalBound(prev, curr Item) Bound {
-	if curr.Timestamp != prev.Timestamp {
-		return Bound{Item{curr.Timestamp, ""}}
-	}
-
-	sharedPrefixBytes := 0
-
-	for i := 0; i < n.idSize; i++ {
-		if curr.ID[i:i+2] != prev.ID[i:i+2] {
-			break
-		}
-		sharedPrefixBytes++
-	}
-
-	// sharedPrefixBytes + 1 to include the first differing byte, or the entire ID if identical.
-	return Bound{Item{curr.Timestamp, curr.ID[:sharedPrefixBytes*2+1]}}
+func (n *Negentropy) Name() string {
+	p := unsafe.Pointer(n)
+	return fmt.Sprintf("%d", uintptr(p)&127)
 }

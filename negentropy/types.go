@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
+	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -20,12 +22,12 @@ const (
 
 type Storage interface {
 	Insert(nostr.Timestamp, string) error
-	Seal() error
-
+	Seal()
 	Size() int
 	Iterate(begin, end int, cb func(item Item, i int) bool) error
-	FindLowerBound(begin, end int, value Bound) (int, error)
-	Fingerprint(begin, end int) (Fingerprint, error)
+	FindLowerBound(begin, end int, value Bound) int
+	GetBound(idx int) Bound
+	Fingerprint(begin, end int) ([FingerprintSize]byte, error)
 }
 
 type Item struct {
@@ -33,21 +35,22 @@ type Item struct {
 	ID        string
 }
 
-func (i Item) LessThan(other Item) bool {
-	if i.Timestamp != other.Timestamp {
-		return i.Timestamp < other.Timestamp
+func itemCompare(a, b Item) int {
+	if a.Timestamp != b.Timestamp {
+		return int(a.Timestamp - b.Timestamp)
 	}
-	return i.ID < other.ID
+	return strings.Compare(a.ID, b.ID)
 }
+
+func (i Item) String() string { return fmt.Sprintf("Item<%d:%s>", i.Timestamp, i.ID) }
 
 type Bound struct{ Item }
 
-type Fingerprint struct {
-	Buf [FingerprintSize]byte
-}
-
-func (f *Fingerprint) SV() []byte {
-	return f.Buf[:]
+func (b Bound) String() string {
+	if b.Timestamp == infiniteBound.Timestamp {
+		return "Bound<infinite>"
+	}
+	return fmt.Sprintf("Bound<%d:%s>", b.Timestamp, b.ID)
 }
 
 type Accumulator struct {
@@ -107,13 +110,13 @@ func (acc *Accumulator) SV() []byte {
 	return acc.Buf[:]
 }
 
-func (acc *Accumulator) GetFingerprint(n int) Fingerprint {
+func (acc *Accumulator) GetFingerprint(n int) [FingerprintSize]byte {
 	input := acc.SV()
 	input = append(input, encodeVarInt(n)...)
 
 	hash := sha256.Sum256(input)
 
-	var fingerprint Fingerprint
-	copy(fingerprint.Buf[:], hash[:FingerprintSize])
+	var fingerprint [FingerprintSize]byte
+	copy(fingerprint[:], hash[:FingerprintSize])
 	return fingerprint
 }

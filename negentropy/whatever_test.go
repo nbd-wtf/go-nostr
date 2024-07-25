@@ -1,7 +1,9 @@
 package negentropy
 
 import (
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -40,6 +42,16 @@ func TestBigNumbers(t *testing.T) {
 	)
 }
 
+func TestMuchBiggerNumbersAndConfusion(t *testing.T) {
+	runTestWith(t,
+		20000,
+		[][]int{{20, 150}, {1700, 3400}, {7000, 8100}, {13800, 13816}, {13817, 14950}, {19800, 20000}}, // n1
+		[][]int{{0, 2000}, {3000, 3600}, {10000, 12200}, {13799, 13801}, {14800, 19900}},               // n2
+		[][]int{{0, 20}, {150, 1700}, {3400, 3600}, {10000, 12200}, {13799, 13800}, {14950, 19800}},    // n1 need
+		[][]int{{2000, 3000}, {7000, 8100}, {13801, 13816}, {13817, 14800}, {19900, 20000}},            // n1 have
+	)
+}
+
 func runTestWith(t *testing.T,
 	totalEvents int,
 	n1Ranges [][]int, n2Ranges [][]int,
@@ -53,62 +65,61 @@ func runTestWith(t *testing.T,
 	events := make([]*nostr.Event, totalEvents)
 	for i := range events {
 		evt := nostr.Event{}
-		evt.Content = fmt.Sprintf("event %d", i+1)
+		evt.Content = fmt.Sprintf("event %d", i)
 		evt.Kind = 1
 		evt.CreatedAt = nostr.Timestamp(i)
-		evt.ID = evt.GetID()
+		evt.ID = fmt.Sprintf("%064d", i)
 		events[i] = &evt
-		fmt.Println("evt", i, evt.ID)
 	}
 
 	{
-		n1, _ = NewNegentropy(NewVector(32), 1<<16, 32)
+		n1, _ = NewNegentropy(NewVector(), 1<<16)
 		for _, r := range n1Ranges {
 			for i := r[0]; i < r[1]; i++ {
 				n1.Insert(events[i])
 			}
 		}
 
-		q, err = n1.Initiate()
-		if err != nil {
-			t.Fatal(err)
-			return
-		}
+		q = n1.Initiate()
 
-		fmt.Println("[n1]:", len(q), q)
+		fmt.Println("[n1]:", len(q)) //, hexedBytes(q))
+		fmt.Println("")
 	}
 
 	{
-		n2, _ = NewNegentropy(NewVector(32), 1<<16, 32)
+		n2, _ = NewNegentropy(NewVector(), 1<<16)
 		for _, r := range n2Ranges {
 			for i := r[0]; i < r[1]; i++ {
 				n2.Insert(events[i])
 			}
 		}
 
-		q, _, _, err = n2.Reconcile(q)
+		q, _, _, err = n2.Reconcile(1, q)
 		if err != nil {
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("[n2]:", len(q), q)
+		fmt.Println("[n2]:", len(q)) // , hexedBytes(q))
+		fmt.Println("")
 	}
 
 	invert := map[*Negentropy]*Negentropy{
 		n1: n2,
 		n2: n1,
 	}
-
+	i := 1
 	for n := n1; q != nil; n = invert[n] {
+		i++
 		var have []string
 		var need []string
 
-		q, have, need, err = n.Reconcile(q)
+		q, have, need, err = n.Reconcile(i, q)
 		if err != nil {
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("[n-]:", len(q), q)
+		fmt.Println("[n-]:", len(q)) //, hexedBytes(q))
+		fmt.Println("")
 
 		if q == nil {
 			fmt.Println("")
@@ -136,4 +147,18 @@ func runTestWith(t *testing.T,
 			require.ElementsMatch(t, expectedHave, have, "wrong have")
 		}
 	}
+}
+
+func hexedBytes(o []byte) string {
+	s := strings.Builder{}
+	s.Grow(2 + 1 + len(o)*5)
+	s.WriteString("[ ")
+	for _, b := range o {
+		x := hex.EncodeToString([]byte{b})
+		s.WriteString("0x")
+		s.WriteString(x)
+		s.WriteString(" ")
+	}
+	s.WriteString("]")
+	return s.String()
 }
