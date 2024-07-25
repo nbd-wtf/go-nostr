@@ -8,6 +8,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.3
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.2.0
+	github.com/kr/pretty v0.3.1
 	github.com/mailru/easyjson v0.7.7
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
 	github.com/stretchr/testify v1.8.2
@@ -29,7 +30,9 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
