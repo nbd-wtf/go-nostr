@@ -14,9 +14,6 @@ func IsValidRelayURL(u string) bool {
 	if parsed.Scheme != "wss" && parsed.Scheme != "ws" {
 		return false
 	}
-	if len(strings.Split(parsed.Host, ".")) < 2 {
-		return false
-	}
 	return true
 }
 
