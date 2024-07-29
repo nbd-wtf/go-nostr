@@ -5,7 +5,9 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # temporary using newest ubuntu instead of ubuntu-latest since
+    #   libsecp256k1-dev does not have secp256k1_schnorrsig_sign32 in jammy
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
