@@ -66,14 +66,10 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 						v1 = nil
 					} else {
 						in.Delim('[')
-						if v1 == nil {
-							if !in.IsDelim(']') {
-								v1 = make(Tag, 0, 5)
-							} else {
-								v1 = Tag{}
-							}
+						if !in.IsDelim(']') {
+							v1 = make(Tag, 0, 5)
 						} else {
-							v1 = (v1)[:0]
+							v1 = Tag{}
 						}
 						for !in.IsDelim(']') {
 							var v2 string
@@ -134,29 +130,21 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 	{
 		const prefix string = ",\"tags\":"
 		out.RawString(prefix)
-		if in.Tags == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
-		} else {
+		out.RawByte('[')
+		for v3, v4 := range in.Tags {
+			if v3 > 0 {
+				out.RawByte(',')
+			}
 			out.RawByte('[')
-			for v3, v4 := range in.Tags {
-				if v3 > 0 {
+			for v5, v6 := range v4 {
+				if v5 > 0 {
 					out.RawByte(',')
 				}
-				if v4 == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-					out.RawString("null")
-				} else {
-					out.RawByte('[')
-					for v5, v6 := range v4 {
-						if v5 > 0 {
-							out.RawByte(',')
-						}
-						out.String(string(v6))
-					}
-					out.RawByte(']')
-				}
+				out.String(string(v6))
 			}
 			out.RawByte(']')
 		}
+		out.RawByte(']')
 	}
 	{
 		const prefix string = ",\"content\":"
