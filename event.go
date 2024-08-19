@@ -52,6 +52,7 @@ const (
 	KindSimpleGroupCreateGroup      int = 9007
 	KindSimpleGroupDeleteGroup      int = 9008
 	KindSimpleGroupJoinRequest      int = 9021
+	KindSimpleGroupLeaveRequest     int = 9022
 	KindZapRequest                  int = 9734
 	KindZap                         int = 9735
 	KindMuteList                    int = 10000
