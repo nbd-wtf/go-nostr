@@ -15,6 +15,7 @@ import (
 var (
 	ErrDifficultyTooLow = errors.New("nip13: insufficient difficulty")
 	ErrGenerateTimeout  = errors.New("nip13: generating proof of work took too long")
+	ErrMissingPubKey    = errors.New("nip13: attempting to work on an event without a pubkey, which makes no sense")
 )
 
 // Difficulty counts the number of leading zero bits in an event ID.
@@ -53,6 +54,10 @@ func Check(id string, minDifficulty int) error {
 // Upon success, the returned event always contains a "nonce" tag with the target difficulty
 // commitment, and an updated event.CreatedAt.
 func Generate(event *nostr.Event, targetDifficulty int, timeout time.Duration) (*nostr.Event, error) {
+	if event.PubKey == "" {
+		return nil, ErrMissingPubKey
+	}
+
 	tag := nostr.Tag{"nonce", "", strconv.Itoa(targetDifficulty)}
 	event.Tags = append(event.Tags, tag)
 	var nonce uint64
