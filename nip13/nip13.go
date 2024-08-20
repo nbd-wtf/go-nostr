@@ -18,19 +18,15 @@ var (
 )
 
 // Difficulty counts the number of leading zero bits in an event ID.
-// It returns a negative number if the event ID is malformed.
-func Difficulty(eventID string) int {
-	if len(eventID) != 64 {
-		return -1
-	}
+func Difficulty(id string) int {
 	var zeros int
+	var b [1]byte
 	for i := 0; i < 64; i += 2 {
-		if eventID[i:i+2] == "00" {
+		if id[i:i+2] == "00" {
 			zeros += 8
 			continue
 		}
-		var b [1]byte
-		if _, err := hex.Decode(b[:], []byte{eventID[i], eventID[i+1]}); err != nil {
+		if _, err := hex.Decode(b[:], []byte{id[i], id[i+1]}); err != nil {
 			return -1
 		}
 		zeros += bits.LeadingZeros8(b[0])
@@ -43,8 +39,8 @@ func Difficulty(eventID string) int {
 // Note that Check performs no validation other than counting leading zero bits
 // in an event ID. It is up to the callers to verify the event with other methods,
 // such as [nostr.Event.CheckSignature].
-func Check(eventID string, minDifficulty int) error {
-	if Difficulty(eventID) < minDifficulty {
+func Check(id string, minDifficulty int) error {
+	if Difficulty(id) < minDifficulty {
 		return ErrDifficultyTooLow
 	}
 	return nil
@@ -64,13 +60,12 @@ func Generate(event *nostr.Event, targetDifficulty int, timeout time.Duration) (
 	for {
 		nonce++
 		tag[1] = strconv.FormatUint(nonce, 10)
-		event.CreatedAt = nostr.Now()
 		if Difficulty(event.GetID()) >= targetDifficulty {
 			return event, nil
 		}
 		// benchmarks show one iteration is approx 3000ns on i7-8565U @ 1.8GHz.
-		// so, check every 3ms; arbitrary
-		if nonce%1000 == 0 && time.Since(start) > timeout {
+		// so, check every 30ms; arbitrary
+		if nonce%10000 == 0 && time.Since(start) > timeout {
 			return nil, ErrGenerateTimeout
 		}
 	}
