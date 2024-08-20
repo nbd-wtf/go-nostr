@@ -8,6 +8,7 @@ import (
 	"time"
 
 	nostr "github.com/nbd-wtf/go-nostr"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCheck(t *testing.T) {
@@ -28,6 +29,26 @@ func TestCheck(t *testing.T) {
 		if err := Check(eventID, tc.minDifficulty); err != tc.wantErr {
 			t.Errorf("%d: Check(%q, %d) returned %v; want err: %v", i, eventID, tc.minDifficulty, err, tc.wantErr)
 		}
+	}
+}
+
+func TestCommittedDifficulty(t *testing.T) {
+	tests := []struct {
+		result int
+		id     string
+		tags   nostr.Tags
+	}{
+		{18, "000000000e9d97a1ab09fc381030b346cdd7a142ad57e6df0b46dc9bef6c7e2d", nostr.Tags{{"-"}, {"nonce", "654", "18"}}},
+		{36, "000000000e9d97a1ab09fc381030b346cdd7a142ad57e6df0b46dc9bef6c7e2d", nostr.Tags{{"nonce", "12315", "36"}}},
+		{0, "000000000e9d97a1ab09fc381030b346cdd7a142ad57e6df0b46dc9bef6c7e2d", nostr.Tags{{"nonce", "12315", "37"}}},
+		{0, "000000000e9d97a1ab09fc381030b346cdd7a142ad57e6df0b46dc9bef6c7e2d", nostr.Tags{{"nonce", "654", "64"}, {"t", "spam"}}},
+		{0, "000000000e9d97a1ab09fc381030b346cdd7a142ad57e6df0b46dc9bef6c7e2d", nostr.Tags{}},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			work := CommittedDifficulty(&nostr.Event{ID: tc.id, Tags: tc.tags})
+			require.Equal(t, tc.result, work)
+		})
 	}
 }
 

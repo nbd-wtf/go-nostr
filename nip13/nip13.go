@@ -1,5 +1,3 @@
-// Package nip13 implements NIP-13
-// See https://github.com/nostr-protocol/nips/blob/master/13.md for details.
 package nip13
 
 import (
@@ -17,6 +15,24 @@ var (
 	ErrGenerateTimeout  = errors.New("nip13: generating proof of work took too long")
 	ErrMissingPubKey    = errors.New("nip13: attempting to work on an event without a pubkey, which makes no sense")
 )
+
+// CommittedDifficulty returns the Difficulty but checks the "nonce" tag for a target.
+//
+// if the target is smaller than the actual difficulty then the value of the target is used.
+// if the target is bigger than the actual difficulty then it returns 0.
+func CommittedDifficulty(event *nostr.Event) int {
+	work := 0
+	if nonceTag := event.Tags.GetFirst([]string{"nonce", ""}); nonceTag != nil && len(*nonceTag) >= 3 {
+		work = Difficulty(event.ID)
+		target, _ := strconv.Atoi((*nonceTag)[2])
+		if target <= work {
+			work = target
+		} else {
+			work = 0
+		}
+	}
+	return work
+}
 
 // Difficulty counts the number of leading zero bits in an event ID.
 func Difficulty(id string) int {
