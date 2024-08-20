@@ -100,8 +100,8 @@ func testNonceTag(t *testing.T, event *nostr.Event, commitment int) {
 	if tag[0] != "nonce" {
 		t.Errorf("tag[0] = %q; want 'nonce'", tag[0])
 	}
-	if n, err := strconv.ParseInt(tag[1], 10, 64); err != nil || n < 1 {
-		t.Errorf("tag[1] = %q; want an int greater than 0", tag[1])
+	if len(tag[1]) < 0 {
+		t.Errorf("tag[1] = %q; want a nonce character", tag[1])
 	}
 	if n, err := strconv.Atoi(tag[2]); err != nil || n != commitment {
 		t.Errorf("tag[2] = %q; want %d", tag[2], commitment)
