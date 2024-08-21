@@ -1,9 +1,11 @@
 package nip13
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"math/bits"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -63,12 +65,7 @@ func Check(id string, minDifficulty int) error {
 	return nil
 }
 
-// Generate performs proof of work on the specified event until either the target
-// difficulty is reached or the function runs for longer than the timeout.
-// The latter case results in ErrGenerateTimeout.
-//
-// Upon success, the returned event always contains a "nonce" tag with the target difficulty
-// commitment, and an updated event.CreatedAt.
+// Deprecated: use DoWork()
 func Generate(event *nostr.Event, targetDifficulty int, timeout time.Duration) (*nostr.Event, error) {
 	if event.PubKey == "" {
 		return nil, ErrMissingPubKey
@@ -90,4 +87,54 @@ func Generate(event *nostr.Event, targetDifficulty int, timeout time.Duration) (
 			return nil, ErrGenerateTimeout
 		}
 	}
+}
+
+// DoWork() performs work in multiple threads (given by runtime.NumCPU()) and returns the first
+// nonce (as a nostr.Tag) that yields the required work.
+// Returns an error if the context expires before that.
+func DoWork(ctx context.Context, event nostr.Event, targetDifficulty int) (nostr.Tag, error) {
+	if event.PubKey == "" {
+		return nil, ErrMissingPubKey
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	nthreads := runtime.NumCPU()
+	var nonceTag nostr.Tag
+
+	for i := 0; i < nthreads; i++ {
+		go func(event nostr.Event, nonce uint64) {
+			tag := nostr.Tag{"nonce", "", strconv.Itoa(targetDifficulty)}
+			event.Tags = append(event.Tags, tag)
+			for {
+				// try 10000 times (~30ms)
+				for n := 0; n < 10000; n++ {
+					tag[1] = strconv.FormatUint(nonce, 10)
+
+					if Difficulty(event.GetID()) >= targetDifficulty {
+						nonceTag = tag
+						cancel()
+						return
+					}
+
+					nonce += uint64(nthreads)
+				}
+
+				// then check if the context was canceled
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					// otherwise keep trying
+				}
+			}
+		}(event, uint64(i))
+	}
+
+	<-ctx.Done()
+
+	if nonceTag != nil {
+		return nonceTag, nil
+	}
+
+	return nil, ErrGenerateTimeout
 }
