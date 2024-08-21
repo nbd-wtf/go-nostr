@@ -2,6 +2,7 @@ package nip13
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"math/bits"
@@ -53,6 +54,19 @@ func Difficulty(id string) int {
 	return zeros
 }
 
+func difficultyBytes(id [32]byte) int {
+	var zeroBits int
+	for _, idByte := range id {
+		if idByte == 0 {
+			zeroBits += 8
+			continue
+		}
+		zeroBits += bits.LeadingZeros8(idByte)
+		break
+	}
+	return zeroBits
+}
+
 // Check reports whether the event ID demonstrates a sufficient proof of work difficulty.
 // Note that Check performs no validation other than counting leading zero bits
 // in an event ID. It is up to the callers to verify the event with other methods,
@@ -91,7 +105,7 @@ func DoWork(ctx context.Context, event nostr.Event, targetDifficulty int) (nostr
 				for n := 0; n < 10000; n++ {
 					tag[1] = strconv.FormatUint(nonce, 10)
 
-					if Difficulty(event.GetID()) >= targetDifficulty {
+					if difficultyBytes(sha256.Sum256(event.Serialize())) >= targetDifficulty {
 						// must select{} here otherwise a goroutine that finds a good nonce
 						// right after the first will get stuck in the ch forever
 						select {
