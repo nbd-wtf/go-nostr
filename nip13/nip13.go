@@ -99,19 +99,30 @@ func DoWork(ctx context.Context, event nostr.Event, targetDifficulty int) (nostr
 
 	ctx, cancel := context.WithCancel(ctx)
 	nthreads := runtime.NumCPU()
-	var nonceTag nostr.Tag
+	tagCh := make(chan nostr.Tag)
 
 	for i := 0; i < nthreads; i++ {
+		// we must copy the tags here otherwise only a pointer to them will be copied below
+		// and that will cause all sorts of weird races when computing the difficulty
+		event.Tags = append(nostr.Tags{}, event.Tags...)
+
 		go func(event nostr.Event, nonce uint64) {
+			// we make a tag here and add it -- later we will just overwrite it on each iteration
 			tag := nostr.Tag{"nonce", "", strconv.Itoa(targetDifficulty)}
 			event.Tags = append(event.Tags, tag)
+
 			for {
 				// try 10000 times (~30ms)
 				for n := 0; n < 10000; n++ {
 					tag[1] = strconv.FormatUint(nonce, 10)
 
 					if Difficulty(event.GetID()) >= targetDifficulty {
-						nonceTag = tag
+						// must select{} here otherwise a goroutine that finds a good nonce
+						// right after the first will get stuck in the ch forever
+						select {
+						case tagCh <- tag:
+						case <-ctx.Done():
+						}
 						cancel()
 						return
 					}
@@ -130,11 +141,10 @@ func DoWork(ctx context.Context, event nostr.Event, targetDifficulty int) (nostr
 		}(event, uint64(i))
 	}
 
-	<-ctx.Done()
-
-	if nonceTag != nil {
-		return nonceTag, nil
+	select {
+	case <-ctx.Done():
+		return nil, ErrGenerateTimeout
+	case tag := <-tagCh:
+		return tag, nil
 	}
-
-	return nil, ErrGenerateTimeout
 }
