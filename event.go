@@ -23,60 +23,6 @@ type Event struct {
 	extra map[string]any
 }
 
-const (
-	KindProfileMetadata             int = 0
-	KindTextNote                    int = 1
-	KindRecommendServer             int = 2
-	KindContactList                 int = 3
-	KindEncryptedDirectMessage      int = 4
-	KindDeletion                    int = 5
-	KindRepost                      int = 6
-	KindReaction                    int = 7
-	KindSimpleGroupChatMessage      int = 9
-	KindSimpleGroupThread           int = 11
-	KindSimpleGroupReply            int = 12
-	KindChannelCreation             int = 40
-	KindChannelMetadata             int = 41
-	KindChannelMessage              int = 42
-	KindChannelHideMessage          int = 43
-	KindChannelMuteUser             int = 44
-	KindPatch                       int = 1617
-	KindFileMetadata                int = 1063
-	KindSimpleGroupAddUser          int = 9000
-	KindSimpleGroupRemoveUser       int = 9001
-	KindSimpleGroupEditMetadata     int = 9002
-	KindSimpleGroupAddPermission    int = 9003
-	KindSimpleGroupRemovePermission int = 9004
-	KindSimpleGroupDeleteEvent      int = 9005
-	KindSimpleGroupEditGroupStatus  int = 9006
-	KindSimpleGroupCreateGroup      int = 9007
-	KindSimpleGroupDeleteGroup      int = 9008
-	KindSimpleGroupJoinRequest      int = 9021
-	KindSimpleGroupLeaveRequest     int = 9022
-	KindZapRequest                  int = 9734
-	KindZap                         int = 9735
-	KindMuteList                    int = 10000
-	KindPinList                     int = 10001
-	KindRelayListMetadata           int = 10002
-	KindNWCWalletInfo               int = 13194
-	KindClientAuthentication        int = 22242
-	KindNWCWalletRequest            int = 23194
-	KindNWCWalletResponse           int = 23195
-	KindNostrConnect                int = 24133
-	KindCategorizedPeopleList       int = 30000
-	KindCategorizedBookmarksList    int = 30001
-	KindProfileBadges               int = 30008
-	KindBadgeDefinition             int = 30009
-	KindStallDefinition             int = 30017
-	KindProductDefinition           int = 30018
-	KindArticle                     int = 30023
-	KindApplicationSpecificData     int = 30078
-	KindRepositoryAnnouncement      int = 30617
-	KindSimpleGroupMetadata         int = 39000
-	KindSimpleGroupAdmins           int = 39001
-	KindSimpleGroupMembers          int = 39002
-)
-
 // Event Stringer interface, just returns the raw JSON as a string.
 func (evt Event) String() string {
 	j, _ := easyjson.Marshal(evt)
