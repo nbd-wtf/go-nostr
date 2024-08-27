@@ -52,6 +52,51 @@ func ParseRepository(event nostr.Event) Repository {
 	return repo
 }
 
+func (r Repository) ToEvent() nostr.Event {
+	tags := make(nostr.Tags, 0, 10)
+
+	tags = append(tags, nostr.Tag{"d", r.ID})
+
+	if r.Name != "" {
+		tags = append(tags, nostr.Tag{"name", r.Name})
+	}
+	if r.Description != "" {
+		tags = append(tags, nostr.Tag{"description", r.Description})
+	}
+	if r.EarliestUniqueCommitID != "" {
+		tags = append(tags, nostr.Tag{"r", r.EarliestUniqueCommitID, "euc"})
+	}
+	if len(r.Maintainers) > 0 {
+		tag := make(nostr.Tag, 1, 1+len(r.Maintainers))
+		tag[0] = "maintainers"
+		tag = append(tag, r.Maintainers...)
+		tags = append(tags, tag)
+	}
+	if len(r.Web) > 0 {
+		tag := make(nostr.Tag, 1, 1+len(r.Web))
+		tag[0] = "web"
+		tag = append(tag, r.Web...)
+		tags = append(tags, tag)
+	}
+	if len(r.Clone) > 0 {
+		tag := make(nostr.Tag, 1, 1+len(r.Clone))
+		tag[0] = "clone"
+		tag = append(tag, r.Clone...)
+		tags = append(tags, tag)
+	}
+	if len(r.Relays) > 0 {
+		tag := make(nostr.Tag, 1, 1+len(r.Relays))
+		tag[0] = "relays"
+		tag = append(tag, r.Relays...)
+		tags = append(tags, tag)
+	}
+
+	return nostr.Event{
+		Kind: 30617,
+		Tags: tags,
+	}
+}
+
 func (repo Repository) GetPatchesSync(ctx context.Context, s nostr.RelayStore) []Patch {
 	res, _ := s.QuerySync(ctx, nostr.Filter{
 		Kinds: []int{nostr.KindPatch},
