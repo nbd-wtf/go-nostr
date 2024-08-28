@@ -45,20 +45,23 @@ func ParseRepositoryState(event nostr.Event) RepositoryState {
 	return st
 }
 
-func (rs RepositoryState) ToEvent() nostr.Event {
-	tags := make(nostr.Tags, 0, 2+len(rs.Branches)+len(rs.Tags))
+func (rs RepositoryState) ToEvent() *nostr.Event {
+	tags := make(nostr.Tags, 1, 2+len(rs.Branches)+len(rs.Tags))
 
-	tags = append(tags, nostr.Tag{"d", rs.ID})
-	tags = append(tags, nostr.Tag{"ref: refs/heads/" + rs.HEAD})
+	tags[0] = nostr.Tag{"d", rs.ID}
 	for branchName, commitId := range rs.Branches {
 		tags = append(tags, nostr.Tag{"refs/heads/" + branchName, commitId})
 	}
 	for tagName, commitId := range rs.Tags {
 		tags = append(tags, nostr.Tag{"refs/tags/" + tagName, commitId})
 	}
+	if rs.HEAD != "" {
+		tags = append(tags, nostr.Tag{"HEAD", "ref: refs/heads/" + rs.HEAD})
+	}
 
-	return nostr.Event{
-		Kind: 30618,
-		Tags: tags,
+	return &nostr.Event{
+		Kind:      30618,
+		Tags:      tags,
+		CreatedAt: nostr.Now(),
 	}
 }

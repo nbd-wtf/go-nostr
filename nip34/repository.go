@@ -52,7 +52,7 @@ func ParseRepository(event nostr.Event) Repository {
 	return repo
 }
 
-func (r Repository) ToEvent() nostr.Event {
+func (r Repository) ToEvent() *nostr.Event {
 	tags := make(nostr.Tags, 0, 10)
 
 	tags = append(tags, nostr.Tag{"d", r.ID})
@@ -91,10 +91,27 @@ func (r Repository) ToEvent() nostr.Event {
 		tags = append(tags, tag)
 	}
 
-	return nostr.Event{
-		Kind: 30617,
-		Tags: tags,
+	return &nostr.Event{
+		Kind:      nostr.KindRepositoryAnnouncement,
+		Tags:      tags,
+		CreatedAt: nostr.Now(),
 	}
+}
+
+func (repo Repository) FetchState(ctx context.Context, s nostr.RelayStore) *RepositoryState {
+	res, _ := s.QuerySync(ctx, nostr.Filter{
+		Kinds: []int{nostr.KindRepositoryState},
+		Tags: nostr.TagMap{
+			"d": []string{repo.Tags.GetD()},
+		},
+	})
+
+	if len(res) == 0 {
+		return nil
+	}
+
+	rs := ParseRepositoryState(*res[0])
+	return &rs
 }
 
 func (repo Repository) GetPatchesSync(ctx context.Context, s nostr.RelayStore) []Patch {
