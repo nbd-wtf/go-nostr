@@ -37,7 +37,7 @@ func ParseRepositoryState(event nostr.Event) RepositoryState {
 			if strings.HasPrefix(tag[0], "refs/heads/") {
 				st.Branches[tag[0][11:]] = tag[1]
 			} else if strings.HasPrefix(tag[0], "refs/tags/") {
-				st.Branches[tag[0][10:]] = tag[1]
+				st.Tags[tag[0][10:]] = tag[1]
 			}
 		}
 	}
