@@ -33,8 +33,8 @@ type Relay struct {
 	connectionContext       context.Context // will be canceled when the connection closes
 	connectionContextCancel context.CancelFunc
 
-	challenge                     string      // NIP-42 challenge, we only keep the last
-	notices                       chan string // NIP-01 NOTICEs
+	challenge                     string       // NIP-42 challenge, we only keep the last
+	noticeHandler                 func(string) // NIP-01 NOTICEs
 	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
@@ -99,12 +99,7 @@ var (
 type WithNoticeHandler func(notice string)
 
 func (nh WithNoticeHandler) ApplyRelayOption(r *Relay) {
-	r.notices = make(chan string)
-	go func() {
-		for notice := range r.notices {
-			nh(notice)
-		}
-	}()
+	r.noticeHandler = nh
 }
 
 // WithSignatureChecker must be a function that checks the signature of an
@@ -167,10 +162,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 	// to be used when the connection is closed
 	go func() {
 		<-r.connectionContext.Done()
-		// close these things when the connection is closed
-		if r.notices != nil {
-			close(r.notices)
-		}
+
 		// stop the ticker
 		ticker.Stop()
 		// close all subscriptions
@@ -226,8 +218,8 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			switch env := envelope.(type) {
 			case *NoticeEnvelope:
 				// see WithNoticeHandler
-				if r.notices != nil {
-					r.notices <- string(*env)
+				if r.noticeHandler != nil {
+					r.noticeHandler(string(*env))
 				} else {
 					log.Printf("NOTICE from %s: '%s'\n", r.URL, string(*env))
 				}
