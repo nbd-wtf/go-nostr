@@ -84,7 +84,11 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				}
 				result.Author = hex.EncodeToString(v)
 			case TLVKind:
-				result.Kind = int(binary.BigEndian.Uint32(v))
+				if len(v) == 4 {
+					result.Kind = int(binary.BigEndian.Uint32(v))
+				} else {
+					return prefix, nil, fmt.Errorf("invalid uint32 value for integer (%v)", v)
+				}
 			default:
 				// ignore
 			}
