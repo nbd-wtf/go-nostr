@@ -39,12 +39,37 @@ func (eff Filters) Match(event *Event) bool {
 	return false
 }
 
+func (eff Filters) MatchIgnoringTimestampConstraints(event *Event) bool {
+	for _, filter := range eff {
+		if filter.MatchesIgnoringTimestampConstraints(event) {
+			return true
+		}
+	}
+	return false
+}
+
 func (ef Filter) String() string {
 	j, _ := easyjson.Marshal(ef)
 	return string(j)
 }
 
 func (ef Filter) Matches(event *Event) bool {
+	if !ef.MatchesIgnoringTimestampConstraints(event) {
+		return false
+	}
+
+	if ef.Since != nil && event.CreatedAt < *ef.Since {
+		return false
+	}
+
+	if ef.Until != nil && event.CreatedAt > *ef.Until {
+		return false
+	}
+
+	return true
+}
+
+func (ef Filter) MatchesIgnoringTimestampConstraints(event *Event) bool {
 	if event == nil {
 		return false
 	}
@@ -65,14 +90,6 @@ func (ef Filter) Matches(event *Event) bool {
 		if v != nil && !event.Tags.ContainsAny(f, v) {
 			return false
 		}
-	}
-
-	if ef.Since != nil && event.CreatedAt < *ef.Since {
-		return false
-	}
-
-	if ef.Until != nil && event.CreatedAt > *ef.Until {
-		return false
 	}
 
 	return true

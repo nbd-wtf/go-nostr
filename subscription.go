@@ -32,6 +32,7 @@ type Subscription struct {
 	// Context will be .Done() when the subscription ends
 	Context context.Context
 
+	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
 	eosed  atomic.Bool
 	closed atomic.Bool
@@ -104,6 +105,7 @@ func (sub *Subscription) dispatchEvent(evt *Event) {
 
 func (sub *Subscription) dispatchEose() {
 	if sub.eosed.CompareAndSwap(false, true) {
+		sub.match = sub.Filters.MatchIgnoringTimestampConstraints
 		go func() {
 			sub.storedwg.Wait()
 			sub.EndOfStoredEvents <- struct{}{}
