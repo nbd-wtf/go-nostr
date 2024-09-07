@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"unsafe"
 
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -23,7 +22,7 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 	evt.CreatedAt = nostr.Timestamp(binary.BigEndian.Uint32(data[128:132]))
 	evt.Kind = int(binary.BigEndian.Uint16(data[132:134]))
 	contentLength := int(binary.BigEndian.Uint16(data[134:136]))
-	evt.Content = unsafe.String(&data[136], contentLength)
+	evt.Content = string(data[136 : 136+contentLength])
 
 	curr := 136 + contentLength
 
@@ -39,7 +38,7 @@ func Unmarshal(data []byte, evt *nostr.Event) (err error) {
 			curr = curr + 1
 			itemSize := int(binary.BigEndian.Uint16(data[curr : curr+2]))
 			itemStart := curr + 2
-			item := unsafe.String(&data[itemStart], itemSize)
+			item := string(data[itemStart : itemStart+itemSize])
 			tag[i] = item
 			curr = itemStart + itemSize
 		}
