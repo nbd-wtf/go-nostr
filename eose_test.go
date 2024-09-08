@@ -4,19 +4,18 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEOSEMadness(t *testing.T) {
-	rl := mustRelayConnect(RELAY)
+	rl := mustRelayConnect(t, RELAY)
 	defer rl.Close()
 
 	sub, err := rl.Subscribe(context.Background(), Filters{
 		{Kinds: []int{KindTextNote}, Limit: 2},
 	})
-	if err != nil {
-		t.Errorf("subscription failed: %v", err)
-		return
-	}
+	assert.NoError(t, err)
 
 	timeout := time.After(3 * time.Second)
 	n := 0
@@ -25,15 +24,11 @@ func TestEOSEMadness(t *testing.T) {
 	for {
 		select {
 		case event := <-sub.Events:
-			if event == nil {
-				t.Fatalf("event is nil: %v", event)
-			}
+			assert.NotNil(t, event)
 			n++
 		case <-sub.EndOfStoredEvents:
 			e++
-			if e > 1 {
-				t.Fatalf("eose infinite loop")
-			}
+			assert.Less(t, e, 1, "eose infinite loop")
 			continue
 		case <-rl.Context().Done():
 			t.Fatalf("connection closed: %v", rl.Context().Err())
@@ -43,10 +38,6 @@ func TestEOSEMadness(t *testing.T) {
 	}
 
 end:
-	if e != 1 {
-		t.Fatalf("didn't get an eose")
-	}
-	if n < 2 {
-		t.Fatalf("didn't get events")
-	}
+	assert.Equal(t, 1, e)
+	assert.Greater(t, n, 2)
 }

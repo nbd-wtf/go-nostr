@@ -47,7 +47,7 @@ func assertCryptPriv(t *testing.T, sk1 string, sk2 string, conversationKey strin
 	assert.Equal(t, decrypted, plaintext, "wrong decryption")
 }
 
-func assertDecryptFail(t *testing.T, conversationKey string, plaintext string, ciphertext string, msg string) {
+func assertDecryptFail(t *testing.T, conversationKey string, _ string, ciphertext string, msg string) {
 	var (
 		k1  []byte
 		ok  bool

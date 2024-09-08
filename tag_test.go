@@ -2,6 +2,8 @@ package nostr
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTagHelpers(t *testing.T) {
@@ -13,36 +15,14 @@ func TestTagHelpers(t *testing.T) {
 		Tag{"e", "ffffff"},
 	}
 
-	if tags.GetFirst([]string{"x"}) == nil {
-		t.Error("failed to get existing prefix")
-	}
-	if tags.GetFirst([]string{"x", ""}) != nil {
-		t.Error("got with wrong prefix")
-	}
-	if tags.GetFirst([]string{"p", "abcdef", "wss://"}) == nil {
-		t.Error("failed to get with existing prefix")
-	}
-	if tags.GetFirst([]string{"p", "abcdef", ""}) == nil {
-		t.Error("failed to get with existing prefix (blank last string)")
-	}
-	if (*(tags.GetLast([]string{"e"})))[1] != "ffffff" {
-		t.Error("failed to get last")
-	}
-
-	if len(tags.GetAll([]string{"e", ""})) != 2 {
-		t.Error("failed to get all")
-	}
-
-	if len(tags.AppendUnique(Tag{"e", "ffffff"})) != 5 {
-		t.Error("append unique changed the array size when existed")
-	}
-	if len(tags.AppendUnique(Tag{"e", "bbbbbb"})) != 6 {
-		t.Error("append unique failed to append when didn't exist")
-	}
-	if tags.AppendUnique(Tag{"e", "eeeeee"})[4][1] != "ffffff" {
-		t.Error("append unique changed the order")
-	}
-	if tags.AppendUnique(Tag{"e", "eeeeee"})[3][1] != "eeeeee" {
-		t.Error("append unique changed the order")
-	}
+	assert.NotNil(t, tags.GetFirst([]string{"x"}), "failed to get existing prefix")
+	assert.Nil(t, tags.GetFirst([]string{"x", ""}), "got with wrong prefix")
+	assert.NotNil(t, tags.GetFirst([]string{"p", "abcdef", "wss://"}), "failed to get with existing prefix")
+	assert.NotNil(t, tags.GetFirst([]string{"p", "abcdef", ""}), "failed to get with existing prefix (blank last string)")
+	assert.Equal(t, "ffffff", (*(tags.GetLast([]string{"e"})))[1], "failed to get last")
+	assert.Equal(t, 2, len(tags.GetAll([]string{"e", ""})), "failed to get all")
+	assert.Equal(t, 5, len(tags.AppendUnique(Tag{"e", "ffffff"})), "append unique changed the array size when existed")
+	assert.Equal(t, 6, len(tags.AppendUnique(Tag{"e", "bbbbbb"})), "append unique failed to append when didn't exist")
+	assert.Equal(t, "ffffff", tags.AppendUnique(Tag{"e", "eeeeee"})[4][1], "append unique changed the order")
+	assert.Equal(t, "eeeeee", tags.AppendUnique(Tag{"e", "eeeeee"})[3][1], "append unique changed the order")
 }

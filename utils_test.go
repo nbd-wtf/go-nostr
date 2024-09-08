@@ -2,6 +2,8 @@ package nostr
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsValidRelayURL(t *testing.T) {
@@ -15,14 +17,10 @@ func TestIsValidRelayURL(t *testing.T) {
 		{"wss://relay.nostr.com", true},
 		{"http://127.0.0.1", false},
 		{"127.0.0.1", false},
-		//{"wss://relay.nostr.com'", false},
-		//{"wss://relay.nostr.com'hiphop", true},
 	}
 
 	for _, test := range tests {
 		got := IsValidRelayURL(test.u)
-		if got != test.want {
-			t.Errorf("IsValidRelayURL want %v for %q but got %v", test.want, test.u, got)
-		}
+		assert.Equal(t, test.want, got)
 	}
 }

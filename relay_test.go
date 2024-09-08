@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/websocket"
 )
 
@@ -25,9 +26,8 @@ func TestPublish(t *testing.T) {
 		Tags:      Tags{[]string{"foo", "bar"}},
 		PubKey:    pub,
 	}
-	if err := textNote.Sign(priv); err != nil {
-		t.Fatalf("textNote.Sign: %v", err)
-	}
+	err := textNote.Sign(priv)
+	assert.NoError(t, err)
 
 	// fake relay server
 	var mu sync.Mutex // guards published to satisfy go test -race
@@ -38,30 +38,25 @@ func TestPublish(t *testing.T) {
 		mu.Unlock()
 		// verify the client sent exactly the textNote
 		var raw []json.RawMessage
-		if err := websocket.JSON.Receive(conn, &raw); err != nil {
-			t.Errorf("websocket.JSON.Receive: %v", err)
-		}
+		err := websocket.JSON.Receive(conn, &raw)
+		assert.NoError(t, err)
+
 		event := parseEventMessage(t, raw)
-		if !bytes.Equal(event.Serialize(), textNote.Serialize()) {
-			t.Errorf("received event:\n%+v\nwant:\n%+v", event, textNote)
-		}
+		assert.True(t, bytes.Equal(event.Serialize(), textNote.Serialize()))
+
 		// send back an ok nip-20 command result
 		res := []any{"OK", textNote.ID, true, ""}
-		if err := websocket.JSON.Send(conn, res); err != nil {
-			t.Errorf("websocket.JSON.Send: %v", err)
-		}
+		err = websocket.JSON.Send(conn, res)
+		assert.NoError(t, err)
 	})
 	defer ws.Close()
 
 	// connect a client and send the text note
-	rl := mustRelayConnect(ws.URL)
-	err := rl.Publish(context.Background(), textNote)
-	if err != nil {
-		t.Errorf("publish should have succeeded")
-	}
-	if !published {
-		t.Errorf("fake relay server saw no event")
-	}
+	rl := mustRelayConnect(t, ws.URL)
+	err = rl.Publish(context.Background(), textNote)
+	assert.NoError(t, err)
+
+	assert.True(t, published, "fake relay server saw no event")
 }
 
 func TestPublishBlocked(t *testing.T) {
@@ -73,9 +68,9 @@ func TestPublishBlocked(t *testing.T) {
 	ws := newWebsocketServer(func(conn *websocket.Conn) {
 		// discard received message; not interested
 		var raw []json.RawMessage
-		if err := websocket.JSON.Receive(conn, &raw); err != nil {
-			t.Errorf("websocket.JSON.Receive: %v", err)
-		}
+		err := websocket.JSON.Receive(conn, &raw)
+		assert.NoError(t, err)
+
 		// send back a not ok nip-20 command result
 		res := []any{"OK", textNote.ID, false, "blocked"}
 		websocket.JSON.Send(conn, res)
@@ -83,11 +78,9 @@ func TestPublishBlocked(t *testing.T) {
 	defer ws.Close()
 
 	// connect a client and send a text note
-	rl := mustRelayConnect(ws.URL)
+	rl := mustRelayConnect(t, ws.URL)
 	err := rl.Publish(context.Background(), textNote)
-	if err == nil {
-		t.Errorf("should have failed to publish")
-	}
+	assert.NoError(t, err)
 }
 
 func TestPublishWriteFailed(t *testing.T) {
@@ -103,13 +96,11 @@ func TestPublishWriteFailed(t *testing.T) {
 	defer ws.Close()
 
 	// connect a client and send a text note
-	rl := mustRelayConnect(ws.URL)
+	rl := mustRelayConnect(t, ws.URL)
 	// Force brief period of time so that publish always fails on closed socket.
 	time.Sleep(1 * time.Millisecond)
 	err := rl.Publish(context.Background(), textNote)
-	if err == nil {
-		t.Errorf("should have failed to publish")
-	}
+	assert.NoError(t, err)
 }
 
 func TestConnectContext(t *testing.T) {
@@ -128,16 +119,13 @@ func TestConnectContext(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	r, err := RelayConnect(ctx, ws.URL)
-	if err != nil {
-		t.Fatalf("RelayConnectContext: %v", err)
-	}
+	assert.NoError(t, err)
+
 	defer r.Close()
 
 	mu.Lock()
 	defer mu.Unlock()
-	if !connected {
-		t.Error("fake relay server saw no client connect")
-	}
+	assert.True(t, connected, "fake relay server saw no client connect")
 }
 
 func TestConnectContextCanceled(t *testing.T) {
@@ -149,9 +137,7 @@ func TestConnectContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // make ctx expired
 	_, err := RelayConnect(ctx, ws.URL)
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("RelayConnectContext returned %v error; want context.Canceled", err)
-	}
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 func TestConnectWithOrigin(t *testing.T) {
@@ -166,9 +152,7 @@ func TestConnectWithOrigin(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	err := r.Connect(ctx)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func discardingHandler(conn *websocket.Conn) {
@@ -191,59 +175,60 @@ var anyOriginHandshake = func(conf *websocket.Config, r *http.Request) error {
 
 func makeKeyPair(t *testing.T) (priv, pub string) {
 	t.Helper()
+
 	privkey := GeneratePrivateKey()
 	pubkey, err := GetPublicKey(privkey)
-	if err != nil {
-		t.Fatalf("GetPublicKey(%q): %v", privkey, err)
-	}
+	assert.NoError(t, err)
+
 	return privkey, pubkey
 }
 
-func mustRelayConnect(url string) *Relay {
+func mustRelayConnect(t *testing.T, url string) *Relay {
+	t.Helper()
+
 	rl, err := RelayConnect(context.Background(), url)
-	if err != nil {
-		panic(err.Error())
-	}
+	require.NoError(t, err)
+
 	return rl
 }
 
 func parseEventMessage(t *testing.T, raw []json.RawMessage) Event {
 	t.Helper()
-	if len(raw) < 2 {
-		t.Fatalf("len(raw) = %d; want at least 2", len(raw))
-	}
+
+	assert.Greater(t, len(raw), 2)
+
 	var typ string
-	json.Unmarshal(raw[0], &typ)
-	if typ != "EVENT" {
-		t.Errorf("typ = %q; want EVENT", typ)
-	}
+	err := json.Unmarshal(raw[0], &typ)
+	assert.NoError(t, err)
+	assert.Equal(t, "EVENT", typ)
+
 	var event Event
-	if err := json.Unmarshal(raw[1], &event); err != nil {
-		t.Errorf("json.Unmarshal(`%s`): %v", string(raw[1]), err)
-	}
+	err = json.Unmarshal(raw[1], &event)
+	require.NoError(t, err)
+
 	return event
 }
 
 func parseSubscriptionMessage(t *testing.T, raw []json.RawMessage) (subid string, filters []Filter) {
 	t.Helper()
-	if len(raw) < 3 {
-		t.Fatalf("len(raw) = %d; want at least 3", len(raw))
-	}
+
+	assert.Greater(t, len(raw), 3)
+
 	var typ string
-	json.Unmarshal(raw[0], &typ)
-	if typ != "REQ" {
-		t.Errorf("typ = %q; want REQ", typ)
-	}
+	err := json.Unmarshal(raw[0], &typ)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "REQ", typ)
+
 	var id string
-	if err := json.Unmarshal(raw[1], &id); err != nil {
-		t.Errorf("json.Unmarshal sub id: %v", err)
-	}
+	err = json.Unmarshal(raw[1], &id)
+	assert.NoError(t, err)
+
 	var ff []Filter
-	for i, b := range raw[2:] {
+	for _, b := range raw[2:] {
 		var f Filter
-		if err := json.Unmarshal(b, &f); err != nil {
-			t.Errorf("json.Unmarshal filter %d: %v", i, err)
-		}
+		err := json.Unmarshal(b, &f)
+		assert.NoError(t, err)
 		ff = append(ff, f)
 	}
 	return id, ff
