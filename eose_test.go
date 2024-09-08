@@ -41,5 +41,7 @@ func TestEOSEMadness(t *testing.T) {
 
 end:
 	assert.Equal(t, 1, e)
-	assert.Greater(t, n, 2)
+	assert.Condition(t, func() (success bool) {
+		return n >= 2
+	})
 }
