@@ -46,14 +46,6 @@ func BenchmarkBinaryEncoding(b *testing.B) {
 			}
 		}
 	})
-
-	b.Run("binary.MarshalBinary", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, bevt := range binaryEvents {
-				MarshalBinary(bevt)
-			}
-		}
-	})
 }
 
 func BenchmarkBinaryDecoding(b *testing.B) {
@@ -98,18 +90,6 @@ func BenchmarkBinaryDecoding(b *testing.B) {
 			for _, bevt := range events {
 				evt := &nostr.Event{}
 				err := Unmarshal(bevt, evt)
-				if err != nil {
-					b.Fatalf("failed to unmarshal: %s", err)
-				}
-			}
-		}
-	})
-
-	b.Run("binary.UnmarshalBinary", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, bevt := range events {
-				evt := &Event{}
-				err := UnmarshalBinary(bevt, evt)
 				if err != nil {
 					b.Fatalf("failed to unmarshal: %s", err)
 				}
