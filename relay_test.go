@@ -80,7 +80,7 @@ func TestPublishBlocked(t *testing.T) {
 	// connect a client and send a text note
 	rl := mustRelayConnect(t, ws.URL)
 	err := rl.Publish(context.Background(), textNote)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
 
 func TestPublishWriteFailed(t *testing.T) {
@@ -100,7 +100,7 @@ func TestPublishWriteFailed(t *testing.T) {
 	// Force brief period of time so that publish always fails on closed socket.
 	time.Sleep(1 * time.Millisecond)
 	err := rl.Publish(context.Background(), textNote)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
 
 func TestConnectContext(t *testing.T) {
@@ -195,7 +195,9 @@ func mustRelayConnect(t *testing.T, url string) *Relay {
 func parseEventMessage(t *testing.T, raw []json.RawMessage) Event {
 	t.Helper()
 
-	assert.Greater(t, len(raw), 2)
+	assert.Condition(t, func() (success bool) {
+		return len(raw) >= 2
+	})
 
 	var typ string
 	err := json.Unmarshal(raw[0], &typ)

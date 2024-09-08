@@ -33,7 +33,7 @@ func TestNoticeEnvelopeEncodingAndDecoding(t *testing.T) {
 	var env NoticeEnvelope
 	err := json.Unmarshal([]byte(noticeEnv), &env)
 	assert.NoError(t, err)
-	assert.Equal(t, "kjasbdlasvdluiasvd\"kjasbdksab\\d", env)
+	assert.Equal(t, "kjasbdlasvdluiasvd\"kjasbdksab\\d", string(env))
 
 	res, err := json.Marshal(env)
 	assert.NoError(t, err)
@@ -45,7 +45,7 @@ func TestEoseEnvelopeEncodingAndDecoding(t *testing.T) {
 	var env EOSEEnvelope
 	err := json.Unmarshal([]byte(eoseEnv), &env)
 	assert.NoError(t, err)
-	assert.Equal(t, "kjasbdlasvdluiasvd\"kjasbdksab\\d", env)
+	assert.Equal(t, "kjasbdlasvdluiasvd\"kjasbdksab\\d", string(env))
 
 	res, err := json.Marshal(env)
 	assert.NoError(t, err)
@@ -57,7 +57,7 @@ func TestCountEnvelopeEncodingAndDecoding(t *testing.T) {
 	var env CountEnvelope
 	err := json.Unmarshal([]byte(countEnv), &env)
 	assert.NoError(t, err)
-	assert.Equal(t, 12, *env.Count)
+	assert.Equal(t, int64(12), *env.Count)
 
 	res, err := json.Marshal(env)
 	assert.NoError(t, err)

@@ -28,7 +28,9 @@ func TestEOSEMadness(t *testing.T) {
 			n++
 		case <-sub.EndOfStoredEvents:
 			e++
-			assert.Less(t, e, 1, "eose infinite loop")
+			assert.Condition(t, func() (success bool) {
+				return !(e > 1)
+			}, "eose infinite loop")
 			continue
 		case <-rl.Context().Done():
 			t.Fatalf("connection closed: %v", rl.Context().Err())
