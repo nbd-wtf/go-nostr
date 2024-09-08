@@ -127,6 +127,12 @@ var nsonTestEvents = []string{
 	`{"id":"ec9345e2af4225aada296964fa6025a1666dcac8dba154f5591a81f7dee1f84a","pubkey":"79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798","sig":"49f4b9edd7eff9e127b70077daff9a66da8c1ad974e5e6f47c094e8cc0c553071ff61c07b69d3db80c25f36248237ba6021038f5eb6b569ce79e3b024e8e358d","created_at":1688572819,"nson":"0401000400","kind":1,"content":"x\ty","tags":[]}`,
 }
 
+var (
+	EncodedEventEasyJson []byte
+	EncodedEventNSON     string
+	DecodedEvent         *nostr.Event
+)
+
 func BenchmarkNSONEncoding(b *testing.B) {
 	events := make([]*nostr.Event, len(test_common.NormalEvents))
 	for i, jevt := range test_common.NormalEvents {
@@ -135,20 +141,26 @@ func BenchmarkNSONEncoding(b *testing.B) {
 		events[i] = evt
 	}
 
+	b.ResetTimer()
+
 	b.Run("easyjson.Marshal", func(b *testing.B) {
+		var encodedEvent []byte
 		for i := 0; i < b.N; i++ {
 			for _, evt := range events {
-				easyjson.Marshal(evt)
+				encodedEvent, _ = easyjson.Marshal(evt)
 			}
 		}
+		EncodedEventEasyJson = encodedEvent
 	})
 
 	b.Run("nson.Marshal", func(b *testing.B) {
+		var encodedEvent string
 		for i := 0; i < b.N; i++ {
 			for _, evt := range events {
-				Marshal(evt)
+				encodedEvent, _ = Marshal(evt)
 			}
 		}
+		EncodedEventNSON = encodedEvent
 	})
 }
 
@@ -161,34 +173,38 @@ func BenchmarkNSONDecoding(b *testing.B) {
 		events[i] = nevt
 	}
 
+	b.ResetTimer()
+
 	b.Run("easyjson.Unmarshal", func(b *testing.B) {
+		evt := &nostr.Event{}
 		for i := 0; i < b.N; i++ {
 			for _, nevt := range events {
-				evt := &nostr.Event{}
 				err := easyjson.Unmarshal([]byte(nevt), evt)
 				if err != nil {
 					b.Fatalf("failed to unmarshal: %s", err)
 				}
 			}
 		}
+		DecodedEvent = evt
 	})
 
 	b.Run("nson.Unmarshal", func(b *testing.B) {
+		evt := &nostr.Event{}
 		for i := 0; i < b.N; i++ {
 			for _, nevt := range events {
-				evt := &nostr.Event{}
 				err := Unmarshal(nevt, evt)
 				if err != nil {
 					b.Fatalf("failed to unmarshal: %s", err)
 				}
 			}
 		}
+		DecodedEvent = evt
 	})
 
 	b.Run("easyjson.Unmarshal+sig", func(b *testing.B) {
+		evt := &nostr.Event{}
 		for i := 0; i < b.N; i++ {
 			for _, nevt := range events {
-				evt := &nostr.Event{}
 				err := easyjson.Unmarshal([]byte(nevt), evt)
 				if err != nil {
 					b.Fatalf("failed to unmarshal: %s", err)
@@ -196,12 +212,13 @@ func BenchmarkNSONDecoding(b *testing.B) {
 				evt.CheckSignature()
 			}
 		}
+		DecodedEvent = evt
 	})
 
 	b.Run("nson.Unmarshal+sig", func(b *testing.B) {
+		evt := &nostr.Event{}
 		for i := 0; i < b.N; i++ {
 			for _, nevt := range events {
-				evt := &nostr.Event{}
 				err := Unmarshal(nevt, evt)
 				if err != nil {
 					b.Fatalf("failed to unmarshal: %s", err)
@@ -209,5 +226,6 @@ func BenchmarkNSONDecoding(b *testing.B) {
 				evt.CheckSignature()
 			}
 		}
+		DecodedEvent = evt
 	})
 }

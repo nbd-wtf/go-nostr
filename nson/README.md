@@ -11,15 +11,15 @@ Some benchmarks:
 goos: linux
 goarch: amd64
 pkg: github.com/nbd-wtf/go-nostr/nson
-cpu: AMD Ryzen 3 3200G with Radeon Vega Graphics
-BenchmarkNSONEncoding/json.Marshal-4                6214            230680 ns/op
-BenchmarkNSONEncoding/nson.Marshal-4                4520            319058 ns/op
-BenchmarkNSONDecoding/json.Unmarshal-4              3741            280641 ns/op
-BenchmarkNSONDecoding/nson.Unmarshal-4             46519             23762 ns/op
-BenchmarkNSONDecoding/json.Unmarshal_+_sig_verification-4                    352           3218583 ns/op
-BenchmarkNSONDecoding/nson.Unmarshal_+_sig_verification-4                    451           2739238 ns/op
+cpu: 13th Gen Intel(R) Core(TM) i7-13620H
+BenchmarkNSONEncoding/easyjson.Marshal-16                  18795             61397 ns/op
+BenchmarkNSONEncoding/nson.Marshal-16                       5985            205112 ns/op
+BenchmarkNSONDecoding/easyjson.Unmarshal-16                14928             83890 ns/op
+BenchmarkNSONDecoding/nson.Unmarshal-16                    24982             50527 ns/op
+BenchmarkNSONDecoding/easyjson.Unmarshal+sig-16              196           5898287 ns/op
+BenchmarkNSONDecoding/nson.Unmarshal+sig-16                  205           5802747 ns/op
 PASS
-ok      github.com/nbd-wtf/go-nostr/nson        8.291s
+ok      github.com/nbd-wtf/go-nostr/nson        10.227s
 ```
 
 It takes a little while more to encode (although it's probably possible to optimize that), but decodes at 10x the
