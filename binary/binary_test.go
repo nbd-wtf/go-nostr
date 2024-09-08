@@ -1,13 +1,16 @@
 package binary
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/test_common"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBinaryPartialGet(t *testing.T) {
@@ -40,22 +43,44 @@ func TestBinaryPartialGet(t *testing.T) {
 	}
 }
 
+func TestBinaryEncodeBackwardsCompatible(t *testing.T) {
+	for i, jevt := range test_common.NormalEvents {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			b64bevt := test_common.BinaryEventsBase64[i]
+			bevt, err := base64.StdEncoding.DecodeString(b64bevt)
+			require.NoError(t, err)
+
+			pevt := &nostr.Event{}
+			err = json.Unmarshal([]byte(jevt), pevt)
+			require.NoError(t, err)
+
+			encoded, err := Marshal(pevt)
+			require.NoError(t, err)
+
+			require.Equal(t, bevt, encoded)
+		})
+	}
+}
+
 func TestBinaryEncode(t *testing.T) {
-	for _, jevt := range test_common.NormalEvents {
-		pevt := &nostr.Event{}
-		if err := json.Unmarshal([]byte(jevt), pevt); err != nil {
-			t.Fatalf("failed to decode normal json: %s", err)
-		}
-		bevt, err := Marshal(pevt)
-		if err != nil {
-			t.Fatalf("failed to encode binary: %s", err)
-		}
-		evt := &nostr.Event{}
-		if err := Unmarshal(bevt, evt); err != nil {
-			t.Fatalf("error unmarshalling binary: %s", err)
-		}
-		checkParsedCorrectly(t, pevt, jevt)
-		checkParsedCorrectly(t, evt, jevt)
+	for i, jevt := range test_common.NormalEvents {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			pevt := &nostr.Event{}
+			if err := json.Unmarshal([]byte(jevt), pevt); err != nil {
+				t.Fatalf("failed to decode normal json: %s", err)
+			}
+			bevt, err := Marshal(pevt)
+			if err != nil {
+				t.Fatalf("failed to encode binary: %s", err)
+			}
+			evt := &nostr.Event{}
+			if err := Unmarshal(bevt, evt); err != nil {
+				t.Fatalf("error unmarshalling binary: %s", err)
+			}
+
+			checkParsedCorrectly(t, pevt, jevt)
+			checkParsedCorrectly(t, evt, jevt)
+		})
 	}
 }
 

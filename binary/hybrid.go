@@ -74,35 +74,30 @@ func Marshal(evt *nostr.Event) ([]byte, error) {
 	}
 	copy(buf[136:], content)
 
-	curr := 136 + len(content)
-
 	if tagCount := len(evt.Tags); tagCount > MaxTagCount {
 		return nil, fmt.Errorf("can't encode too many tags: %d, max is %d", tagCount, MaxTagCount)
 	} else {
-		binary.BigEndian.PutUint16(buf[curr:curr+2], uint16(tagCount))
+		binary.BigEndian.PutUint16(buf[136+len(content):136+len(content)+2], uint16(tagCount))
 	}
-	curr++
+
+	buf = buf[0 : 136+len(content)+2]
 
 	for _, tag := range evt.Tags {
-		curr++
 		if itemCount := len(tag); itemCount > MaxTagItemCount {
 			return nil, fmt.Errorf("can't encode a tag with so many items: %d, max is %d", itemCount, MaxTagItemCount)
 		} else {
-			buf[curr] = uint8(itemCount)
+			buf = append(buf, uint8(itemCount))
 		}
 		for _, item := range tag {
-			curr++
 			itemb := []byte(item)
 			itemSize := len(itemb)
 			if itemSize > MaxTagItemSize {
 				return nil, fmt.Errorf("tag item is too large: %d, max is %d", itemSize, MaxTagItemSize)
 			}
-			binary.BigEndian.PutUint16(buf[curr:curr+2], uint16(itemSize))
-			itemEnd := curr + 2 + itemSize
-			copy(buf[curr+2:itemEnd], itemb)
-			curr = itemEnd
+			buf = binary.BigEndian.AppendUint16(buf, uint16(itemSize))
+			buf = append(buf, itemb...)
+			buf = append(buf, 0)
 		}
 	}
-	buf = buf[0 : curr+1]
 	return buf, nil
 }
