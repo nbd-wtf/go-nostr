@@ -3,6 +3,8 @@ package nostr
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEventEnvelopeEncodingAndDecoding(t *testing.T) {
@@ -13,67 +15,53 @@ func TestEventEnvelopeEncodingAndDecoding(t *testing.T) {
 
 	for _, raw := range eventEnvelopes {
 		var env EventEnvelope
-		if err := json.Unmarshal([]byte(raw), &env); err != nil {
-			t.Errorf("failed to parse event envelope json: %v", err)
-		}
+		err := json.Unmarshal([]byte(raw), &env)
+		assert.NoError(t, err)
+		assert.Equal(t, env.GetID(), env.ID)
 
-		if env.GetID() != env.ID {
-			t.Errorf("error serializing event id: %s != %s", env.GetID(), env.ID)
-		}
+		ok, _ := env.CheckSignature()
+		assert.True(t, ok)
 
-		if ok, _ := env.CheckSignature(); !ok {
-			t.Error("signature verification failed when it should have succeeded")
-		}
-
-		asjson, err := json.Marshal(env)
-		if err != nil {
-			t.Errorf("failed to re marshal event as json: %v", err)
-		}
-
-		if string(asjson) != raw {
-			t.Log(string(asjson))
-			t.Error("json serialization broken")
-		}
+		asJSON, err := json.Marshal(env)
+		assert.NoError(t, err)
+		assert.Equal(t, raw, string(asJSON))
 	}
 }
 
 func TestNoticeEnvelopeEncodingAndDecoding(t *testing.T) {
-	src := `["NOTICE","kjasbdlasvdluiasvd\"kjasbdksab\\d"]`
+	noticeEnv := `["NOTICE","kjasbdlasvdluiasvd\"kjasbdksab\\d"]`
 	var env NoticeEnvelope
-	json.Unmarshal([]byte(src), &env)
-	if env != "kjasbdlasvdluiasvd\"kjasbdksab\\d" {
-		t.Error("failed to decode NOTICE")
-	}
+	err := json.Unmarshal([]byte(noticeEnv), &env)
+	assert.NoError(t, err)
+	assert.Equal(t, "kjasbdlasvdluiasvd\"kjasbdksab\\d", string(env))
 
-	if res, _ := json.Marshal(env); string(res) != src {
-		t.Errorf("failed to encode NOTICE: expected '%s', got '%s'", src, string(res))
-	}
+	res, err := json.Marshal(env)
+	assert.NoError(t, err)
+	assert.Equal(t, noticeEnv, string(res))
 }
 
 func TestEoseEnvelopeEncodingAndDecoding(t *testing.T) {
-	src := `["EOSE","kjasbdlasvdluiasvd\"kjasbdksab\\d"]`
+	eoseEnv := `["EOSE","kjasbdlasvdluiasvd\"kjasbdksab\\d"]`
 	var env EOSEEnvelope
-	json.Unmarshal([]byte(src), &env)
-	if env != "kjasbdlasvdluiasvd\"kjasbdksab\\d" {
-		t.Error("failed to decode EOSE")
-	}
+	err := json.Unmarshal([]byte(eoseEnv), &env)
+	assert.NoError(t, err)
+	assert.Equal(t, "kjasbdlasvdluiasvd\"kjasbdksab\\d", string(env))
 
-	if res, _ := json.Marshal(env); string(res) != src {
-		t.Errorf("failed to encode EOSE: expected '%s', got '%s'", src, string(res))
-	}
+	res, err := json.Marshal(env)
+	assert.NoError(t, err)
+	assert.Equal(t, eoseEnv, string(res))
 }
 
 func TestCountEnvelopeEncodingAndDecoding(t *testing.T) {
-	src := `["COUNT","z",{"count":12}]`
+	countEnv := `["COUNT","z",{"count":12}]`
 	var env CountEnvelope
-	json.Unmarshal([]byte(src), &env)
-	if *env.Count != 12 {
-		t.Error("failed to decode COUNT")
-	}
+	err := json.Unmarshal([]byte(countEnv), &env)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(12), *env.Count)
 
-	if res, _ := json.Marshal(env); string(res) != src {
-		t.Errorf("failed to encode COUNT: expected '%s', got '%s'", src, string(res))
-	}
+	res, err := json.Marshal(env)
+	assert.NoError(t, err)
+	assert.Equal(t, countEnv, string(res))
 }
 
 func TestOKEnvelopeEncodingAndDecoding(t *testing.T) {
@@ -84,35 +72,35 @@ func TestOKEnvelopeEncodingAndDecoding(t *testing.T) {
 
 	for _, raw := range okEnvelopes {
 		var env OKEnvelope
-		if err := json.Unmarshal([]byte(raw), &env); err != nil {
-			t.Errorf("failed to parse ok envelope json: %v", err)
-		}
+		err := json.Unmarshal([]byte(raw), &env)
+		assert.NoError(t, err)
 
-		asjson, err := json.Marshal(env)
-		if err != nil {
-			t.Errorf("failed to re marshal ok as json: %v", err)
-		}
-
-		if string(asjson) != raw {
-			t.Log(string(asjson))
-			t.Error("json serialization broken")
-		}
+		asJSON, err := json.Marshal(env)
+		assert.NoError(t, err)
+		assert.Equal(t, raw, string(asJSON))
 	}
 }
 
 func TestClosedEnvelopeEncodingAndDecoding(t *testing.T) {
-	for _, src := range []string{
+	closeEnvelopes := []string{
 		`["CLOSED","_","error: something went wrong"]`,
 		`["CLOSED",":1","auth-required: take a selfie and send it to the CIA"]`,
-	} {
+	}
+
+	for _, raw := range closeEnvelopes {
 		var env ClosedEnvelope
-		json.Unmarshal([]byte(src), &env)
-		if env.SubscriptionID != "_" && env.SubscriptionID != ":1" {
-			t.Error("failed to decode CLOSED")
-		}
-		if res, _ := json.Marshal(env); string(res) != src {
-			t.Errorf("failed to encode CLOSED: expected '%s', got '%s'", src, string(res))
-		}
+		err := json.Unmarshal([]byte(raw), &env)
+		assert.NoError(t, err)
+		assert.Condition(t, func() (success bool) {
+			if env.SubscriptionID != "_" && env.SubscriptionID != ":1" {
+				return false
+			}
+			return true
+		})
+
+		res, err := json.Marshal(env)
+		assert.NoError(t, err)
+		assert.Equal(t, raw, string(res))
 	}
 }
 
@@ -124,19 +112,12 @@ func TestAuthEnvelopeEncodingAndDecoding(t *testing.T) {
 
 	for _, raw := range authEnvelopes {
 		var env AuthEnvelope
-		if err := json.Unmarshal([]byte(raw), &env); err != nil {
-			t.Errorf("failed to parse auth envelope json: %v", err)
-		}
+		err := json.Unmarshal([]byte(raw), &env)
+		assert.NoError(t, err)
 
-		asjson, err := json.Marshal(env)
-		if err != nil {
-			t.Errorf("failed to re marshal auth as json: %v", err)
-		}
-
-		if string(asjson) != raw {
-			t.Log(string(asjson))
-			t.Error("json serialization broken")
-		}
+		asJSON, err := json.Marshal(env)
+		assert.NoError(t, err)
+		assert.Equal(t, raw, string(asJSON))
 	}
 }
 
@@ -184,12 +165,12 @@ func TestParseMessage(t *testing.T) {
 			if testCase.ExpectedEnvelope == nil && envelope == nil {
 				return
 			}
-			if testCase.ExpectedEnvelope == nil && envelope != nil {
-				t.Fatalf("expected nil but got %v\n", envelope)
+
+			if testCase.ExpectedEnvelope == nil {
+				assert.NotNil(t, envelope, "expected nil but got %v\n", envelope)
 			}
-			if testCase.ExpectedEnvelope.String() != envelope.String() {
-				t.Fatalf("unexpected output:\n     %s\n  != %s", testCase.ExpectedEnvelope, envelope)
-			}
+
+			assert.Equal(t, testCase.ExpectedEnvelope.String(), envelope.String())
 		})
 	}
 }

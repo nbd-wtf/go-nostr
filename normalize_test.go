@@ -2,6 +2,8 @@ package nostr
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type urlTest struct {
@@ -29,8 +31,7 @@ var urlTests = []urlTest{
 
 func TestNormalizeURL(t *testing.T) {
 	for _, test := range urlTests {
-		if output := NormalizeURL(test.url); output != test.expected {
-			t.Errorf("Output '%s' not equal to expected '%s'", output, test.expected)
-		}
+		output := NormalizeURL(test.url)
+		assert.Equal(t, test.expected, output)
 	}
 }

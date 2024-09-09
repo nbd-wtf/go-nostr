@@ -5,17 +5,15 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDecryptKeyFromNIPText(t *testing.T) {
 	ncrypt := "ncryptsec1qgg9947rlpvqu76pj5ecreduf9jxhselq2nae2kghhvd5g7dgjtcxfqtd67p9m0w57lspw8gsq6yphnm8623nsl8xn9j4jdzz84zm3frztj3z7s35vpzmqf6ksu8r89qk5z2zxfmu5gv8th8wclt0h4p"
 	secretKey, err := Decrypt(ncrypt, "nostr")
-	if err != nil {
-		t.Fatalf("failed to decrypt: %s", err)
-	}
-	if secretKey != "3501454135014541350145413501453fefb02227e449e57cf4d3a3ce05378683" {
-		t.Fatalf("decrypted wrongly: %s", secretKey)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "3501454135014541350145413501453fefb02227e449e57cf4d3a3ce05378683", secretKey)
 }
 
 func TestEncryptAndDecrypt(t *testing.T) {
@@ -38,20 +36,13 @@ func TestEncryptAndDecrypt(t *testing.T) {
 		{"ÅΩṩ", "11b25a101667dd9208db93c0827c6bdad66729a5b521156a7e9d3b22b3ae8944", 9, 0x01},
 	} {
 		bech32code, err := Encrypt(f.secretkey, f.password, f.logn, f.ksb)
-		if err != nil {
-			t.Fatalf("failed to encrypt %d: %s", i, err)
-		}
-		if !strings.HasPrefix(bech32code, "ncryptsec1") || len(bech32code) != 162 {
-			t.Fatalf("bech32 code is wrong %d: %s", i, bech32code)
-		}
+		assert.NoError(t, err)
+		assert.True(t, strings.HasPrefix(bech32code, "ncryptsec1"), "bech32 code is wrong %d: %s", i, bech32code)
+		assert.Equal(t, 162, len(bech32code), "bech32 code is wrong %d: %s", i, bech32code)
 
 		secretKey, err := Decrypt(bech32code, f.password)
-		if err != nil {
-			t.Fatalf("failed to decrypt %d: %s", i, err)
-		}
-		if secretKey != f.secretkey {
-			t.Fatalf("decrypted to the wrong value %d: %s", i, secretKey)
-		}
+		assert.NoError(t, err)
+		assert.Equal(t, f.secretkey, secretKey)
 	}
 }
 
@@ -62,13 +53,9 @@ func TestNormalization(t *testing.T) {
 	key2, err2 := getKey(string([]byte{0xC3, 0x85, 0xCE, 0xA9, 0xE1, 0xB9, 0xA9}), nonce, n)
 	key3, err3 := getKey("ÅΩẛ̣", nonce, n)
 	key4, err4 := getKey("ÅΩẛ̣", nonce, n)
-	if merr := errors.Join(err1, err2, err3, err4); merr != nil {
-		t.Fatalf("getKey errored: %s", merr)
-		return
-	}
-
-	if !slices.Equal(key1, key2) || !slices.Equal(key2, key3) || !slices.Equal(key3, key4) {
-		t.Fatalf("normalization failed")
-		return
-	}
+	err := errors.Join(err1, err2, err3, err4)
+	assert.NoError(t, err)
+	assert.True(t, slices.Equal(key1, key2), "normalization failed")
+	assert.True(t, slices.Equal(key2, key3), "normalization failed")
+	assert.True(t, slices.Equal(key3, key4), "normalization failed")
 }

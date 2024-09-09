@@ -3,6 +3,8 @@ package nostr
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEventParsingAndVerifying(t *testing.T) {
@@ -15,27 +17,17 @@ func TestEventParsingAndVerifying(t *testing.T) {
 
 	for _, raw := range rawEvents {
 		var ev Event
-		if err := json.Unmarshal([]byte(raw), &ev); err != nil {
-			t.Errorf("failed to parse event json: %v", err)
-		}
+		err := json.Unmarshal([]byte(raw), &ev)
+		assert.NoError(t, err)
 
-		if ev.GetID() != ev.ID {
-			t.Errorf("error serializing event id: %s != %s", ev.GetID(), ev.ID)
-		}
+		assert.Equal(t, ev.ID, ev.GetID())
 
-		if ok, _ := ev.CheckSignature(); !ok {
-			t.Error("signature verification failed when it should have succeeded")
-		}
+		ok, _ := ev.CheckSignature()
+		assert.True(t, ok, "signature verification failed when it should have succeeded")
 
-		asjson, err := json.Marshal(ev)
-		if err != nil {
-			t.Errorf("failed to re marshal event as json: %v", err)
-		}
-
-		if string(asjson) != raw {
-			t.Log(string(asjson))
-			t.Error("json serialization broken")
-		}
+		asJSON, err := json.Marshal(ev)
+		assert.NoError(t, err)
+		assert.Equal(t, raw, string(asJSON))
 	}
 }
 
@@ -54,33 +46,26 @@ func TestEventSerialization(t *testing.T) {
 
 	for _, evt := range events {
 		b, err := json.Marshal(evt)
-		if err != nil {
-			t.Log(evt)
-			t.Error("failed to serialize this event")
-		}
+		assert.NoError(t, err)
 
 		var re Event
-		if err := json.Unmarshal(b, &re); err != nil {
-			t.Log(string(b))
-			t.Error("failed to re parse event just serialized")
-		}
+		err = json.Unmarshal(b, &re)
+		assert.NoError(t, err)
 
-		if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
-			evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
-			len(evt.Tags) != len(re.Tags) {
-			t.Error("reparsed event differs from original")
-		}
+		assert.Condition(t, func() (success bool) {
+			if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
+				evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
+				len(evt.Tags) != len(re.Tags) {
+				return false
+			}
+			return true
+		}, "re-parsed event differs from original")
 
 		for i := range evt.Tags {
-			if len(evt.Tags[i]) != len(re.Tags[i]) {
-				t.Errorf("reparsed tags %d length differ from original", i)
-				continue
-			}
+			assert.Equal(t, len(evt.Tags[i]), len(re.Tags[i]), "re-parsed tags %d length differ from original", i)
 
 			for j := range evt.Tags[i] {
-				if evt.Tags[i][j] != re.Tags[i][j] {
-					t.Errorf("reparsed tag content %d %d length differ from original", i, j)
-				}
+				assert.Equal(t, re.Tags[i][j], evt.Tags[i][j], "re-parsed tag content %d %d length differ from original", i, j)
 			}
 		}
 	}
@@ -101,39 +86,44 @@ func TestEventSerializationWithExtraFields(t *testing.T) {
 	evt.SetExtra("malf", "hello")
 
 	b, err := json.Marshal(evt)
-	if err != nil {
-		t.Log(evt)
-		t.Error("failed to serialize this event")
-	}
+	assert.NoError(t, err)
 
 	var re Event
-	if err := json.Unmarshal(b, &re); err != nil {
-		t.Log(string(b))
-		t.Error("failed to re parse event just serialized")
-	}
+	err = json.Unmarshal(b, &re)
+	assert.NoError(t, err)
 
-	if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
-		evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
-		len(evt.Tags) != len(re.Tags) {
-		t.Error("reparsed event differs from original")
-	}
+	assert.Condition(t, func() (success bool) {
+		if evt.ID != re.ID || evt.PubKey != re.PubKey || evt.Content != re.Content ||
+			evt.CreatedAt != re.CreatedAt || evt.Sig != re.Sig ||
+			len(evt.Tags) != len(re.Tags) {
+			return false
+		}
+		return true
+	}, "reparsed event differs from original")
 
-	if evt.GetExtra("malf").(string) != evt.GetExtraString("malf") || evt.GetExtraString("malf") != "hello" {
-		t.Errorf("failed to parse extra string")
-	}
+	assert.Condition(t, func() (success bool) {
+		if evt.GetExtra("malf").(string) != evt.GetExtraString("malf") || evt.GetExtraString("malf") != "hello" {
+			return false
+		}
+		return true
+	}, "failed to parse extra string")
 
-	if float64(evt.GetExtra("elet").(int)) != evt.GetExtraNumber("elet") || evt.GetExtraNumber("elet") != 77 {
-		t.Logf("number: %v == %v", evt.GetExtra("elet"), evt.GetExtraNumber("elet"))
-		t.Errorf("failed to parse extra number")
-	}
+	assert.Condition(t, func() (success bool) {
+		if float64(evt.GetExtra("elet").(int)) != evt.GetExtraNumber("elet") || evt.GetExtraNumber("elet") != 77 {
+			return false
+		}
+		return true
+	}, "failed to parse extra number")
 
-	if evt.GetExtra("glub").(bool) != evt.GetExtraBoolean("glub") || evt.GetExtraBoolean("glub") != true {
-		t.Errorf("failed to parse extra boolean")
-	}
+	assert.Condition(t, func() (success bool) {
+		if evt.GetExtra("glub").(bool) != evt.GetExtraBoolean("glub") || evt.GetExtraBoolean("glub") != true {
 
-	if evt.GetExtra("plik") != nil {
-		t.Errorf("failed to parse extra null")
-	}
+			return false
+		}
+		return true
+	}, "failed to parse extra boolean")
+
+	assert.Nil(t, evt.GetExtra("plik"))
 }
 
 func mustSignEvent(t *testing.T, privkey string, event *Event) {

@@ -7,7 +7,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-// Deprecated: use DoWork()
+// Deprecated: use DoWork() instead.
 func Generate(event *nostr.Event, targetDifficulty int, timeout time.Duration) (*nostr.Event, error) {
 	if event.PubKey == "" {
 		return nil, ErrMissingPubKey

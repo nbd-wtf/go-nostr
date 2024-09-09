@@ -26,30 +26,35 @@ func TestAddSupportedNIP(t *testing.T) {
 	info.AddSupportedNIP(18)
 
 	for i, v := range []int{0, 1, 2, 12, 13, 17, 18, 19, 44} {
-		if info.SupportedNIPs[i] != v {
-			t.Errorf("expected info.SupportedNIPs[%d] to equal %v, got %v",
-				i, v, info.SupportedNIPs)
-			return
-		}
+		assert.Equal(t, v, info.SupportedNIPs[i], "expected info.SupportedNIPs[%d] to equal %v, got %v",
+			i, v, info.SupportedNIPs)
 	}
 }
 
 func TestFetch(t *testing.T) {
-	res, err := Fetch(context.Background(), "wss://relay.nostr.bg")
-	assert.Equal(t, res.URL, "wss://relay.nostr.bg")
-	assert.Nil(t, err, "failed to fetch from wss")
-	assert.NotEmpty(t, res.Name)
+	tests := []struct {
+		inputURL     string
+		expectError  bool
+		expectedName string
+		expectedURL  string
+	}{
+		{"wss://relay.nostr.bg", false, "", "wss://relay.nostr.bg"},
+		{"https://relay.nostr.bg", false, "", "wss://relay.nostr.bg"},
+		{"relay.nostr.bg", false, "", "wss://relay.nostr.bg"},
+		{"wlenwqkeqwe.asjdaskd", true, "", "wss://wlenwqkeqwe.asjdaskd"},
+	}
 
-	res, err = Fetch(context.Background(), "https://relay.nostr.bg")
-	assert.Nil(t, err, "failed to fetch from https")
-	assert.NotEmpty(t, res.Name)
+	for _, test := range tests {
+		res, err := Fetch(context.Background(), test.inputURL)
 
-	res, err = Fetch(context.Background(), "relay.nostr.bg")
-	assert.Nil(t, err, "failed to fetch without protocol")
-	assert.NotEmpty(t, res.Name)
-
-	res, err = Fetch(context.Background(), "wlenwqkeqwe.asjdaskd")
-	assert.Error(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, res.URL, "wss://wlenwqkeqwe.asjdaskd")
+		if test.expectError {
+			assert.Error(t, err, "expected error for URL: %s", test.inputURL)
+			assert.NotNil(t, res, "expected result not to be nil for URL: %s", test.inputURL)
+			assert.Equal(t, test.expectedURL, res.URL, "expected URL to be %s for input: %s", test.expectedURL, test.inputURL)
+		} else {
+			assert.Nil(t, err, "unexpect error for URL: %s", test.inputURL)
+			assert.NotEmpty(t, res.Name, "expected non-empty name for URL: %s", test.inputURL)
+			assert.Equal(t, test.expectedURL, res.URL, "expected URL to be %s for input: %s", test.expectedURL, test.inputURL)
+		}
+	}
 }

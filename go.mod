@@ -1,6 +1,6 @@
 module github.com/nbd-wtf/go-nostr
 
-go 1.21
+go 1.22.5
 
 require (
 	github.com/bluekeyes/go-gitdiff v0.7.1
@@ -10,7 +10,7 @@ require (
 	github.com/gobwas/ws v1.2.0
 	github.com/mailru/easyjson v0.7.7
 	github.com/puzpuzpuz/xsync/v3 v3.0.2
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.14.4
 	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/tyler-smith/go-bip39 v1.1.0
