@@ -120,7 +120,7 @@ func Decode(bech32string string) (prefix string, value any, err error) {
 				}
 				result.PublicKey = hex.EncodeToString(v)
 			case TLVKind:
-				result.Kind = int(binary.BigEndian.Uint32(v))
+				result.Kind = nostr.Kind(binary.BigEndian.Uint32(v))
 			default:
 				// ignore
 			}
@@ -218,7 +218,7 @@ func EncodeEvent(eventIDHex string, relays []string, author string) (string, err
 	return bech32.Encode("nevent", bits5)
 }
 
-func EncodeEntity(publicKey string, kind int, identifier string, relays []string) (string, error) {
+func EncodeEntity(publicKey string, kind nostr.Kind, identifier string, relays []string) (string, error) {
 	buf := &bytes.Buffer{}
 
 	writeTLVEntry(buf, TLVDefault, []byte(identifier))

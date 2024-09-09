@@ -14,7 +14,7 @@ type EventPointer struct {
 
 type EntityPointer struct {
 	PublicKey  string   `json:"pubkey"`
-	Kind       int      `json:"kind,omitempty"`
+	Kind       Kind     `json:"kind,omitempty"`
 	Identifier string   `json:"identifier,omitempty"`
 	Relays     []string `json:"relays,omitempty"`
 }

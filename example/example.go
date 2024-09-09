@@ -41,7 +41,7 @@ func main() {
 		// this filters for messages tagged with the user, mainly replies.
 		t["p"] = []string{v.(string)}
 		filters = []nostr.Filter{{
-			Kinds: []int{nostr.KindTextNote},
+			Kinds: []nostr.Kind{nostr.KindTextNote},
 			Tags:  t,
 			// limit = 3, get the three most recent notes
 			Limit: 3,

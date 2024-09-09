@@ -28,7 +28,7 @@ func TestFilterUnmarshal(t *testing.T) {
 func TestFilterMarshal(t *testing.T) {
 	until := Timestamp(12345678)
 	filterj, err := json.Marshal(Filter{
-		Kinds: []int{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
+		Kinds: []Kind{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
 		Tags:  TagMap{"fruit": {"banana", "mango"}},
 		Until: &until,
 	})
@@ -60,7 +60,7 @@ func TestFilterUnmarshalWithLimitZero(t *testing.T) {
 func TestFilterMarshalWithLimitZero(t *testing.T) {
 	until := Timestamp(12345678)
 	filterj, err := json.Marshal(Filter{
-		Kinds:     []int{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
+		Kinds:     []Kind{KindTextNote, KindRecommendServer, KindEncryptedDirectMessage},
 		Tags:      TagMap{"fruit": {"banana", "mango"}},
 		Until:     &until,
 		LimitZero: true,
@@ -83,25 +83,25 @@ func TestFilterMatchingLive(t *testing.T) {
 
 func TestFilterEquality(t *testing.T) {
 	assert.True(t, FilterEqual(
-		Filter{Kinds: []int{KindEncryptedDirectMessage, KindDeletion}},
-		Filter{Kinds: []int{KindEncryptedDirectMessage, KindDeletion}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}},
 	), "kinds filters should be equal")
 
 	assert.True(t, FilterEqual(
-		Filter{Kinds: []int{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"a", "b"}}},
-		Filter{Kinds: []int{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"b", "a"}}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"a", "b"}}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion}, Tags: TagMap{"letter": {"b", "a"}}},
 	), "kind+tags filters should be equal")
 
 	tm := Now()
 	assert.True(t, FilterEqual(
 		Filter{
-			Kinds: []int{KindEncryptedDirectMessage, KindDeletion},
+			Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion},
 			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 			Since: &tm,
 			IDs:   []string{"aaaa", "bbbb"},
 		},
 		Filter{
-			Kinds: []int{KindDeletion, KindEncryptedDirectMessage},
+			Kinds: []Kind{KindDeletion, KindEncryptedDirectMessage},
 			Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 			Since: &tm,
 			IDs:   []string{"aaaa", "bbbb"},
@@ -109,15 +109,15 @@ func TestFilterEquality(t *testing.T) {
 	), "kind+2tags+since+ids filters should be equal")
 
 	assert.False(t, FilterEqual(
-		Filter{Kinds: []int{KindTextNote, KindEncryptedDirectMessage, KindDeletion}},
-		Filter{Kinds: []int{KindEncryptedDirectMessage, KindDeletion, KindRepost}},
+		Filter{Kinds: []Kind{KindTextNote, KindEncryptedDirectMessage, KindDeletion}},
+		Filter{Kinds: []Kind{KindEncryptedDirectMessage, KindDeletion, KindRepost}},
 	), "kinds filters shouldn't be equal")
 }
 
 func TestFilterClone(t *testing.T) {
 	ts := Now() - 60*60
 	flt := Filter{
-		Kinds: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		Kinds: []Kind{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 		Tags:  TagMap{"letter": {"a", "b"}, "fruit": {"banana"}},
 		Since: &ts,
 		IDs:   []string{"9894b4b5cb5166d23ee8899a4151cf0c66aec00bde101982a13b8e8ceb972df9"},

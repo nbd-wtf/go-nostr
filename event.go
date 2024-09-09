@@ -14,7 +14,7 @@ type Event struct {
 	ID        string
 	PubKey    string
 	CreatedAt Timestamp
-	Kind      int
+	Kind      Kind
 	Tags      Tags
 	Content   string
 	Sig       string

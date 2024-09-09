@@ -11,7 +11,7 @@ type Filters []Filter
 
 type Filter struct {
 	IDs     []string
-	Kinds   []int
+	Kinds   []Kind
 	Authors []string
 	Tags    TagMap
 	Since   *Timestamp

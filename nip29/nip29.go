@@ -24,7 +24,7 @@ const (
 	PermDeleteGroupStatus Permission = "delete-group-status"
 )
 
-type KindRange []int
+type KindRange []nostr.Kind
 
 var ModerationEventKinds = KindRange{
 	nostr.KindSimpleGroupAddUser,
@@ -44,7 +44,7 @@ var MetadataEventKinds = KindRange{
 	nostr.KindSimpleGroupMembers,
 }
 
-func (kr KindRange) Includes(kind int) bool {
+func (kr KindRange) Includes(kind nostr.Kind) bool {
 	_, ok := slices.BinarySearch(kr, kind)
 	return ok
 }

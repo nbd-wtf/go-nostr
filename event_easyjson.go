@@ -43,7 +43,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 		case "created_at":
 			out.CreatedAt = Timestamp(in.Int64())
 		case "kind":
-			out.Kind = in.Int()
+			out.Kind = Kind(in.Uint16())
 		case "tags":
 			if in.IsNull() {
 				in.Skip()
@@ -72,8 +72,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 							v1 = Tag{}
 						}
 						for !in.IsDelim(']') {
-							var v2 string
-							v2 = string(in.String())
+							v2 := string(in.String())
 							v1 = append(v1, v2)
 							in.WantComma()
 						}
@@ -106,7 +105,7 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 	{
 		const prefix string = "\"kind\":"
 		out.RawString(prefix)
-		out.Int(in.Kind)
+		out.Int(int(in.Kind))
 	}
 	{
 		if in.ID != "" {
