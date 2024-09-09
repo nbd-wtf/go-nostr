@@ -1,6 +1,10 @@
 package nip11
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/nbd-wtf/go-nostr"
+)
 
 type RelayInformationDocument struct {
 	URL string `json:"-"`
@@ -59,8 +63,8 @@ type RelayFeesDocument struct {
 		Period int    `json:"period"`
 	} `json:"subscription,omitempty"`
 	Publication []struct {
-		Kinds  []int  `json:"kinds"`
-		Amount int    `json:"amount"`
-		Unit   string `json:"unit"`
+		Kinds  []nostr.Kind `json:"kinds"`
+		Amount int          `json:"amount"`
+		Unit   string       `json:"unit"`
 	} `json:"publication,omitempty"`
 }

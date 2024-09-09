@@ -9,7 +9,7 @@ type EventPointer struct {
 	ID     string   `json:"id"`
 	Relays []string `json:"relays,omitempty"`
 	Author string   `json:"author,omitempty"`
-	Kind   int      `json:"kind,omitempty"`
+	Kind   Kind     `json:"kind,omitempty"`
 }
 
 type EntityPointer struct {

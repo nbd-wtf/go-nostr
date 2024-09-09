@@ -7,7 +7,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-type CalendarEventKind int
+type CalendarEventKind nostr.Kind
 
 const (
 	TimeBased = 31923
