@@ -72,6 +72,8 @@ func ListenForMessages(
 	ch := make(chan nostr.Event)
 
 	go func() {
+		defer close(ch)
+
 		for ie := range pool.SubMany(ctx, relays, nostr.Filters{
 			{
 				Kinds: []int{1059},
