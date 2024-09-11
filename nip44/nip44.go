@@ -7,12 +7,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 
-	"github.com/nbd-wtf/go-nostr/nip04"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/hkdf"
 )
@@ -41,7 +43,7 @@ func WithCustomNonce(salt []byte) func(opts *encryptOptions) {
 	}
 }
 
-func Encrypt(plaintext string, conversationKey []byte, applyOptions ...func(opts *encryptOptions)) (string, error) {
+func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(opts *encryptOptions)) (string, error) {
 	opts := encryptOptions{}
 	for _, apply := range applyOptions {
 		apply(&opts)
@@ -94,7 +96,7 @@ func Encrypt(plaintext string, conversationKey []byte, applyOptions ...func(opts
 	return base64.StdEncoding.EncodeToString(concat), nil
 }
 
-func Decrypt(b64ciphertextWrapped string, conversationKey []byte) (string, error) {
+func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, error) {
 	cLen := len(b64ciphertextWrapped)
 	if cLen < 132 || cLen > 87472 {
 		return "", errors.New(fmt.Sprintf("invalid payload length: %d", cLen))
@@ -151,16 +153,22 @@ func Decrypt(b64ciphertextWrapped string, conversationKey []byte) (string, error
 	return string(unpadded), nil
 }
 
-func GenerateConversationKey(pub string, sk string) ([]byte, error) {
+func GenerateConversationKey(pub string, sk string) ([32]byte, error) {
+	var ck [32]byte
+
 	if sk >= "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141" || sk == "0000000000000000000000000000000000000000000000000000000000000000" {
-		return nil, fmt.Errorf("invalid private key: x coordinate %s is not on the secp256k1 curve", sk)
+		return ck, fmt.Errorf("invalid private key: x coordinate %s is not on the secp256k1 curve", sk)
 	}
 
-	shared, err := nip04.ComputeSharedSecret(pub, sk)
+	shared, err := computeSharedSecret(pub, sk)
 	if err != nil {
-		return nil, err
+		return ck, err
 	}
-	return hkdf.Extract(sha256.New, shared, []byte("nip44-v2")), nil
+
+	buf := hkdf.Extract(sha256.New, shared[:], []byte("nip44-v2"))
+	copy(ck[:], buf)
+
+	return ck, nil
 }
 
 func chacha(key []byte, nonce []byte, message []byte) ([]byte, error) {
@@ -184,15 +192,12 @@ func sha256Hmac(key []byte, ciphertext []byte, nonce []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-func messageKeys(conversationKey []byte, nonce []byte) ([]byte, []byte, []byte, error) {
-	if len(conversationKey) != 32 {
-		return nil, nil, nil, errors.New("conversation key must be 32 bytes")
-	}
+func messageKeys(conversationKey [32]byte, nonce []byte) ([]byte, []byte, []byte, error) {
 	if len(nonce) != 32 {
 		return nil, nil, nil, errors.New("nonce must be 32 bytes")
 	}
 
-	r := hkdf.Expand(sha256.New, conversationKey, nonce)
+	r := hkdf.Expand(sha256.New, conversationKey[:], nonce)
 	enc := make([]byte, 32)
 	if _, err := io.ReadFull(r, enc); err != nil {
 		return nil, nil, nil, err
@@ -218,4 +223,30 @@ func calcPadding(sLen int) int {
 	nextPower := 1 << int(math.Floor(math.Log2(float64(sLen-1)))+1)
 	chunk := int(math.Max(32, float64(nextPower/8)))
 	return chunk * int(math.Floor(float64((sLen-1)/chunk))+1)
+}
+
+func computeSharedSecret(pub string, sk string) (sharedSecret [32]byte, err error) {
+	privKeyBytes, err := hex.DecodeString(sk)
+	if err != nil {
+		return sharedSecret, fmt.Errorf("error decoding sender private key: %w", err)
+	}
+	privKey, _ := btcec.PrivKeyFromBytes(privKeyBytes)
+
+	// adding 02 to signal that this is a compressed public key (33 bytes)
+	pubKeyBytes, err := hex.DecodeString("02" + pub)
+	if err != nil {
+		return sharedSecret, fmt.Errorf("error decoding hex string of receiver public key '%s': %w", "02"+pub, err)
+	}
+	pubKey, err := btcec.ParsePubKey(pubKeyBytes)
+	if err != nil {
+		return sharedSecret, fmt.Errorf("error parsing receiver public key '%s': %w", "02"+pub, err)
+	}
+
+	var point, result secp256k1.JacobianPoint
+	pubKey.AsJacobian(&point)
+	secp256k1.ScalarMultNonConst(&privKey.Key, &point, &result)
+	result.ToAffine()
+
+	result.X.PutBytesUnchecked(sharedSecret[:])
+	return sharedSecret, nil
 }

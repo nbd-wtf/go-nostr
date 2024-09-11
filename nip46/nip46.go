@@ -30,8 +30,8 @@ type Signer interface {
 }
 
 type Session struct {
-	SharedKey       []byte // nip04
-	ConversationKey []byte // nip44
+	SharedKey       []byte   // nip04
+	ConversationKey [32]byte // nip44
 }
 
 type RelayReadWrite struct {

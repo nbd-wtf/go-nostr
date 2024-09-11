@@ -15,14 +15,14 @@ import (
 
 func assertCryptPriv(t *testing.T, sk1 string, sk2 string, conversationKey string, salt string, plaintext string, expected string) {
 	var (
-		k1        []byte
+		k1        [32]byte
 		s         []byte
 		actual    string
 		decrypted string
 		ok        bool
 		err       error
 	)
-	k1, err = hex.DecodeString(conversationKey)
+	k1, err = hexDecode32Array(conversationKey)
 	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
 		return
 	}
@@ -49,11 +49,11 @@ func assertCryptPriv(t *testing.T, sk1 string, sk2 string, conversationKey strin
 
 func assertDecryptFail(t *testing.T, conversationKey string, _ string, ciphertext string, msg string) {
 	var (
-		k1  []byte
+		k1  [32]byte
 		ok  bool
 		err error
 	)
-	k1, err = hex.DecodeString(conversationKey)
+	k1, err = hexDecode32Array(conversationKey)
 	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
 		return
 	}
@@ -68,12 +68,12 @@ func assertConversationKeyFail(t *testing.T, priv string, pub string, msg string
 
 func assertConversationKeyGeneration(t *testing.T, priv string, pub string, conversationKey string) bool {
 	var (
-		actualConversationKey   []byte
-		expectedConversationKey []byte
+		actualConversationKey   [32]byte
+		expectedConversationKey [32]byte
 		ok                      bool
 		err                     error
 	)
-	expectedConversationKey, err = hex.DecodeString(conversationKey)
+	expectedConversationKey, err = hexDecode32Array(conversationKey)
 	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
 		return false
 	}
@@ -101,7 +101,7 @@ func assertConversationKeyGenerationPub(t *testing.T, sk string, pub string, con
 
 func assertMessageKeyGeneration(t *testing.T, conversationKey string, salt string, chachaKey string, chachaSalt string, hmacKey string) bool {
 	var (
-		convKey             []byte
+		convKey             [32]byte
 		convSalt            []byte
 		actualChaChaKey     []byte
 		expectedChaChaKey   []byte
@@ -112,7 +112,7 @@ func assertMessageKeyGeneration(t *testing.T, conversationKey string, salt strin
 		ok                  bool
 		err                 error
 	)
-	convKey, err = hex.DecodeString(conversationKey)
+	convKey, err = hexDecode32Array(conversationKey)
 	if ok = assert.NoErrorf(t, err, "hex decode failed for convKey: %v", err); !ok {
 		return false
 	}
@@ -150,7 +150,7 @@ func assertMessageKeyGeneration(t *testing.T, conversationKey string, salt strin
 
 func assertCryptLong(t *testing.T, conversationKey string, salt string, pattern string, repeat int, plaintextSha256 string, payloadSha256 string) {
 	var (
-		convKey               []byte
+		convKey               [32]byte
 		convSalt              []byte
 		plaintext             string
 		actualPlaintextSha256 string
@@ -160,7 +160,7 @@ func assertCryptLong(t *testing.T, conversationKey string, salt string, pattern 
 		ok                    bool
 		err                   error
 	)
-	convKey, err = hex.DecodeString(conversationKey)
+	convKey, err = hexDecode32Array(conversationKey)
 	if ok = assert.NoErrorf(t, err, "hex decode failed for convKey: %v", err); !ok {
 		return
 	}
@@ -1164,14 +1164,14 @@ func TestMaxLength(t *testing.T) {
 
 func assertCryptPub(t *testing.T, sk1 string, pub2 string, conversationKey string, salt string, plaintext string, expected string) {
 	var (
-		k1        []byte
+		k1        [32]byte
 		s         []byte
 		actual    string
 		decrypted string
 		ok        bool
 		err       error
 	)
-	k1, err = hex.DecodeString(conversationKey)
+	k1, err = hexDecode32Array(conversationKey)
 	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
 		return
 	}
@@ -1194,4 +1194,9 @@ func assertCryptPub(t *testing.T, sk1 string, pub2 string, conversationKey strin
 		return
 	}
 	assert.Equal(t, decrypted, plaintext, "wrong decryption")
+}
+
+func hexDecode32Array(hexString string) (res [32]byte, err error) {
+	_, err = hex.Decode(res[:], []byte(hexString))
+	return res, err
 }
