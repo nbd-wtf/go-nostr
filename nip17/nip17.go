@@ -2,9 +2,9 @@ package nip17
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/keyer"
 	"github.com/nbd-wtf/go-nostr/nip59"
 )
 
@@ -31,11 +31,10 @@ func GetDMRelays(ctx context.Context, pubkey string, pool *nostr.SimplePool, rel
 }
 
 func PrepareMessage(
+	ctx context.Context,
 	content string,
 	tags nostr.Tags,
-	ourPubkey string,
-	encrypt func(string) (string, error),
-	finalizeAndSign func(*nostr.Event) error,
+	kr keyer.Keyer,
 	recipientPubKey string,
 	modify func(*nostr.Event),
 ) (nostr.Event, error) {
@@ -44,52 +43,45 @@ func PrepareMessage(
 		Content:   content,
 		Tags:      tags,
 		CreatedAt: nostr.Now(),
-		PubKey:    ourPubkey,
+		PubKey:    kr.GetPublicKey(ctx),
 	}
 	rumor.ID = rumor.GetID()
 
-	seal, err := nip59.Seal(rumor, encrypt)
-	if err != nil {
-		return nostr.Event{}, fmt.Errorf("failed to seal: %w", err)
-	}
-
-	if err := finalizeAndSign(&seal); err != nil {
-		return nostr.Event{}, fmt.Errorf("finalizeAndSign failed: %w", err)
-	}
-
-	return nip59.GiftWrap(seal, recipientPubKey, modify)
+	return nip59.GiftWrap(
+		rumor,
+		recipientPubKey,
+		func(s string) (string, error) { return kr.Encrypt(ctx, s, recipientPubKey) },
+		func(e *nostr.Event) error { return kr.SignEvent(ctx, e) },
+		modify,
+	)
 }
 
 // ListenForMessages returns a channel with the rumors already decrypted and checked
 func ListenForMessages(
 	ctx context.Context,
 	pool *nostr.SimplePool,
-	relays []string,
-	ourPubkey string,
+	kr keyer.Keyer,
+	ourRelays []string,
 	since nostr.Timestamp,
-	decrypt func(string) (string, error),
 ) chan nostr.Event {
 	ch := make(chan nostr.Event)
 
 	go func() {
 		defer close(ch)
 
-		for ie := range pool.SubMany(ctx, relays, nostr.Filters{
+		for ie := range pool.SubMany(ctx, ourRelays, nostr.Filters{
 			{
 				Kinds: []int{1059},
-				Tags:  nostr.TagMap{"p": []string{ourPubkey}},
+				Tags:  nostr.TagMap{"p": []string{kr.GetPublicKey(ctx)}},
 				Since: &since,
 			},
 		}) {
-			seal, err := nip59.GiftUnwrap(*ie.Event, decrypt)
+			rumor, err := nip59.GiftUnwrap(
+				*ie.Event,
+				func(otherpubkey, ciphertext string) (string, error) { return kr.Decrypt(ctx, ciphertext, otherpubkey) },
+			)
 			if err != nil {
 				nostr.InfoLogger.Printf("[nip17] failed to unwrap received message: %s\n", err)
-				continue
-			}
-
-			rumor, err := nip59.Unseal(seal, decrypt)
-			if err != nil {
-				nostr.InfoLogger.Printf("[nip17] failed to unseal received message: %s\n", err)
 				continue
 			}
 

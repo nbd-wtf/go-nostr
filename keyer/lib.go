@@ -1,4 +1,4 @@
-package keyring
+package keyer
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip49"
 )
 
-type Keyring interface {
+type Keyer interface {
 	Signer
 	Cipher
 }
@@ -43,7 +43,7 @@ type SignerOptions struct {
 	Password string
 }
 
-func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *SignerOptions) (Keyring, error) {
+func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *SignerOptions) (Keyer, error) {
 	if opts == nil {
 		opts = &SignerOptions{}
 	}
