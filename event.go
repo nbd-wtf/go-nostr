@@ -67,6 +67,14 @@ func (evt *Event) Serialize() []byte {
 // (which is a hash of the serialized event content).
 // returns an error if the signature itself is invalid.
 func (evt Event) CheckSignature() (bool, error) {
+
+	id := sha256.Sum256(evt.Serialize())
+
+	hexID := hex.EncodeToString(id[:])
+	if hexID != evt.ID {
+		return false, fmt.Errorf("event id is invalid, must be: %s", hexID)
+	}
+
 	// read and check pubkey
 	pk, err := hex.DecodeString(evt.PubKey)
 	if err != nil {
@@ -89,8 +97,7 @@ func (evt Event) CheckSignature() (bool, error) {
 	}
 
 	// check signature
-	hash := sha256.Sum256(evt.Serialize())
-	return sig.Verify(hash[:], pubkey), nil
+	return sig.Verify(id[:], pubkey), nil
 }
 
 // Sign signs an event with a given privateKey.
