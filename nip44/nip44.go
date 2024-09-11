@@ -225,6 +225,7 @@ func calcPadding(sLen int) int {
 	return chunk * int(math.Floor(float64((sLen-1)/chunk))+1)
 }
 
+// code adapted from nip04.ComputeSharedSecret()
 func computeSharedSecret(pub string, sk string) (sharedSecret [32]byte, err error) {
 	privKeyBytes, err := hex.DecodeString(sk)
 	if err != nil {
@@ -232,7 +233,6 @@ func computeSharedSecret(pub string, sk string) (sharedSecret [32]byte, err erro
 	}
 	privKey, _ := btcec.PrivKeyFromBytes(privKeyBytes)
 
-	// adding 02 to signal that this is a compressed public key (33 bytes)
 	pubKeyBytes, err := hex.DecodeString("02" + pub)
 	if err != nil {
 		return sharedSecret, fmt.Errorf("error decoding hex string of receiver public key '%s': %w", "02"+pub, err)
