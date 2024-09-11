@@ -231,8 +231,8 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 				case hasWorked <- struct{}{}:
 				default:
 				}
+				relay.Publish(ctx, evt)
 			}
-			relay.Publish(ctx, evt)
 		}(url)
 	}
 
