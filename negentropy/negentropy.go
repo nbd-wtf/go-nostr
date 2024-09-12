@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"slices"
 	"unsafe"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -26,15 +25,16 @@ type Negentropy struct {
 	isInitiator      bool
 	lastTimestampIn  nostr.Timestamp
 	lastTimestampOut nostr.Timestamp
-	haveIds          []string
-	needIds          []string
+
+	Haves    chan string
+	HaveNots chan string
 }
 
-func NewNegentropy(storage Storage, frameSizeLimit int) (*Negentropy, error) {
+func NewNegentropy(storage Storage, frameSizeLimit int) *Negentropy {
 	return &Negentropy{
 		storage:        storage,
 		frameSizeLimit: frameSizeLimit,
-	}, nil
+	}
 }
 
 func (n *Negentropy) Insert(evt *nostr.Event) {
@@ -55,8 +55,8 @@ func (n *Negentropy) Initiate() []byte {
 	n.seal()
 	n.isInitiator = true
 
-	n.haveIds = make([]string, 0, n.storage.Size()/2)
-	n.needIds = make([]string, 0, n.storage.Size()/2)
+	n.Haves = make(chan string, n.storage.Size()/2)
+	n.HaveNots = make(chan string, n.storage.Size()/2)
 
 	output := bytes.NewBuffer(make([]byte, 0, 1+n.storage.Size()*32))
 	output.WriteByte(protocolVersion)
@@ -65,22 +65,22 @@ func (n *Negentropy) Initiate() []byte {
 	return output.Bytes()
 }
 
-func (n *Negentropy) Reconcile(step int, query []byte) (output []byte, haveIds []string, needIds []string, err error) {
+func (n *Negentropy) Reconcile(step int, query []byte) (output []byte, err error) {
 	n.seal()
 	reader := bytes.NewReader(query)
 
 	output, err = n.reconcileAux(step, reader)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	if len(output) == 1 && n.isInitiator {
-		slices.Sort(n.haveIds)
-		slices.Sort(n.needIds)
-		return nil, n.haveIds, n.needIds, nil
+		close(n.Haves)
+		close(n.HaveNots)
+		return nil, nil
 	}
 
-	return output, nil, nil, nil
+	return output, nil
 }
 
 func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error) {
@@ -178,7 +178,7 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 				id := item.ID
 				if _, exists := theirElems[id]; !exists {
 					if n.isInitiator {
-						n.haveIds = append(n.haveIds, id)
+						n.Haves <- id
 					}
 				} else {
 					delete(theirElems, id)
@@ -189,7 +189,7 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 			if n.isInitiator {
 				skip = true
 				for id := range theirElems {
-					n.needIds = append(n.needIds, id)
+					n.HaveNots <- id
 				}
 			} else {
 				doSkip()

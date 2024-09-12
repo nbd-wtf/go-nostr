@@ -3,7 +3,9 @@ package negentropy
 import (
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -73,7 +75,7 @@ func runTestWith(t *testing.T,
 	}
 
 	{
-		n1, _ = NewNegentropy(NewVector(), 1<<16)
+		n1 = NewNegentropy(NewVector(), 1<<16)
 		for _, r := range n1Ranges {
 			for i := r[0]; i < r[1]; i++ {
 				n1.Insert(events[i])
@@ -84,14 +86,14 @@ func runTestWith(t *testing.T,
 	}
 
 	{
-		n2, _ = NewNegentropy(NewVector(), 1<<16)
+		n2 = NewNegentropy(NewVector(), 1<<16)
 		for _, r := range n2Ranges {
 			for i := r[0]; i < r[1]; i++ {
 				n2.Insert(events[i])
 			}
 		}
 
-		q, _, _, err = n2.Reconcile(1, q)
+		q, err = n2.Reconcile(1, q)
 		if err != nil {
 			t.Fatal(err)
 			return
@@ -103,36 +105,64 @@ func runTestWith(t *testing.T,
 		n2: n1,
 	}
 	i := 1
-	for n := n1; q != nil; n = invert[n] {
-		i++
-		var have []string
-		var need []string
 
-		q, have, need, err = n.Reconcile(i, q)
-		if err != nil {
-			t.Fatal(err)
-			return
-		}
+	wg := sync.WaitGroup{}
+	wg.Add(3)
 
-		if q == nil {
-			expectedNeed := make([]string, 0, 100)
-			for _, r := range expectedN1NeedRanges {
-				for i := r[0]; i < r[1]; i++ {
-					expectedNeed = append(expectedNeed, events[i].ID)
-				}
+	go func() {
+		wg.Done()
+		for n := n1; q != nil; n = invert[n] {
+			i++
+
+			q, err = n.Reconcile(i, q)
+			if err != nil {
+				t.Fatal(err)
+				return
 			}
 
-			expectedHave := make([]string, 0, 100)
-			for _, r := range expectedN1HaveRanges {
-				for i := r[0]; i < r[1]; i++ {
-					expectedHave = append(expectedHave, events[i].ID)
-				}
+			if q == nil {
+				return
 			}
-
-			require.ElementsMatch(t, expectedNeed, need, "wrong need")
-			require.ElementsMatch(t, expectedHave, have, "wrong have")
 		}
-	}
+	}()
+
+	go func() {
+		defer wg.Done()
+		expectedHave := make([]string, 0, 100)
+		for _, r := range expectedN1HaveRanges {
+			for i := r[0]; i < r[1]; i++ {
+				expectedHave = append(expectedHave, events[i].ID)
+			}
+		}
+		haves := make([]string, 0, 100)
+		for item := range n1.Haves {
+			if slices.Contains(haves, item) {
+				continue
+			}
+			haves = append(haves, item)
+		}
+		require.ElementsMatch(t, expectedHave, haves, "wrong have")
+	}()
+
+	go func() {
+		defer wg.Done()
+		expectedNeed := make([]string, 0, 100)
+		for _, r := range expectedN1NeedRanges {
+			for i := r[0]; i < r[1]; i++ {
+				expectedNeed = append(expectedNeed, events[i].ID)
+			}
+		}
+		havenots := make([]string, 0, 100)
+		for item := range n1.HaveNots {
+			if slices.Contains(havenots, item) {
+				continue
+			}
+			havenots = append(havenots, item)
+		}
+		require.ElementsMatch(t, expectedNeed, havenots, "wrong need")
+	}()
+
+	wg.Wait()
 }
 
 func hexedBytes(o []byte) string {
