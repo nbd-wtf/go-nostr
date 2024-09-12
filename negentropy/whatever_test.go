@@ -81,9 +81,6 @@ func runTestWith(t *testing.T,
 		}
 
 		q = n1.Initiate()
-
-		fmt.Println("[n1]:", len(q)) //, hexedBytes(q))
-		fmt.Println("")
 	}
 
 	{
@@ -99,8 +96,6 @@ func runTestWith(t *testing.T,
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("[n2]:", len(q)) // , hexedBytes(q))
-		fmt.Println("")
 	}
 
 	invert := map[*Negentropy]*Negentropy{
@@ -118,14 +113,8 @@ func runTestWith(t *testing.T,
 			t.Fatal(err)
 			return
 		}
-		fmt.Println("[n-]:", len(q)) //, hexedBytes(q))
-		fmt.Println("")
 
 		if q == nil {
-			fmt.Println("")
-			// fmt.Println("<need>", need)
-			// fmt.Println("<have>", have)
-
 			expectedNeed := make([]string, 0, 100)
 			for _, r := range expectedN1NeedRanges {
 				for i := r[0]; i < r[1]; i++ {
@@ -139,9 +128,6 @@ func runTestWith(t *testing.T,
 					expectedHave = append(expectedHave, events[i].ID)
 				}
 			}
-
-			// fmt.Println("<e-need>", expectedNeed)
-			// fmt.Println("<e-have>", expectedHave)
 
 			require.ElementsMatch(t, expectedNeed, need, "wrong need")
 			require.ElementsMatch(t, expectedHave, have, "wrong have")

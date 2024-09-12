@@ -116,7 +116,6 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 			if skip {
 				skip = false
 				encodedBound := n.encodeBound(prevBound)
-				fmt.Println(n.Name(), step, "~>      skip", prevBound)
 				partialOutput.Write(encodedBound)
 				partialOutput.WriteByte(SkipMode)
 			}
@@ -126,7 +125,6 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(n.Name(), step, "<~ read bound", currBound)
 		modeVal, err := decodeVarInt(reader)
 		if err != nil {
 			return nil, err
@@ -135,17 +133,12 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 
 		lower := prevIndex
 		upper := n.storage.FindLowerBound(prevIndex, n.storage.Size(), currBound)
-		fmt.Println(n.Name(), step, "<~ [", lower, n.storage.GetBound(lower), "---", n.storage.GetBound(upper), upper, "]")
 
 		switch mode {
 		case SkipMode:
-			fmt.Println(n.Name(), step, "<~  skip")
-			fmt.Println(n.Name(), step, "~>    will be skipped")
 			skip = true
 
 		case FingerprintMode:
-			fmt.Println(n.Name(), step, "<~  fingerprint")
-
 			var theirFingerprint [FingerprintSize]byte
 			_, err := reader.Read(theirFingerprint[:])
 			if err != nil {
@@ -156,9 +149,6 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 				return nil, err
 			}
 
-			fmt.Println(n.Name(), step, "<~    ours", hex.EncodeToString(ourFingerprint[:]))
-			fmt.Println(n.Name(), step, "<~    thrs", hex.EncodeToString(theirFingerprint[:]))
-
 			if theirFingerprint == ourFingerprint {
 				skip = true
 			} else {
@@ -167,39 +157,28 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 			}
 
 		case IdListMode:
-			fmt.Print(n.Name(), " ", step, " <~  idlist")
 			numIds, err := decodeVarInt(reader)
 			if err != nil {
 				return nil, err
 			}
-			fmt.Printf(" (%d)", numIds)
 
 			theirElems := make(map[string]struct{})
 			var idb [32]byte
 
-			firstid := "()"
-			lastid := "()"
 			for i := 0; i < numIds; i++ {
 				_, err := reader.Read(idb[:])
 				if err != nil {
 					return nil, err
 				}
-				// fmt.Println(n.Name(), step, "<~    id", hex.EncodeToString(idb))
 				id := hex.EncodeToString(idb[:])
-				if firstid == "()" {
-					firstid = id
-				}
 				theirElems[id] = struct{}{}
-				lastid = id
 			}
-			fmt.Println("", firstid, "---", lastid)
 
 			n.storage.Iterate(lower, upper, func(item Item, _ int) bool {
 				id := item.ID
 				if _, exists := theirElems[id]; !exists {
 					if n.isInitiator {
 						n.haveIds = append(n.haveIds, id)
-						// fmt.Println(n.Name(), step, "<~      have", id)
 					}
 				} else {
 					delete(theirElems, id)
@@ -209,40 +188,26 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 
 			if n.isInitiator {
 				skip = true
-				fmt.Println(n.Name(), step, "~>        will be skipped")
-
 				for id := range theirElems {
 					n.needIds = append(n.needIds, id)
-					// fmt.Println(n.Name(), step, "<~      need", id)
 				}
 			} else {
 				doSkip()
 
 				responseIds := make([]byte, 0, 32*n.storage.Size())
 				endBound := currBound
-				fmt.Print(n.Name(), " ", step, " ~>      idlist")
 
-				firstid := "()"
-				lastid := "()"
 				n.storage.Iterate(lower, upper, func(item Item, index int) bool {
-					if firstid == "()" {
-						firstid = item.ID
-					}
-
 					if n.frameSizeLimit-200 < fullOutput.Len()+len(responseIds) {
-						fmt.Println(" ###")
 						endBound = Bound{item}
 						upper = index
 						return false
 					}
 
-					lastid = item.ID
 					id, _ := hex.DecodeString(item.ID)
-					// fmt.Println(n.Name(), step, "~>      id", item.ID)
 					responseIds = append(responseIds, id...)
 					return true
 				})
-				fmt.Println(endBound, firstid, "---", lastid)
 
 				encodedBound := n.encodeBound(endBound)
 
@@ -260,7 +225,6 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 		}
 
 		if n.frameSizeLimit-200 < fullOutput.Len()+partialOutput.Len() {
-			fmt.Println(" #####")
 			// frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint, err := n.storage.Fingerprint(upper, n.storage.Size())
 			if err != nil {
@@ -270,7 +234,6 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 			fullOutput.Write(n.encodeBound(infiniteBound))
 			fullOutput.WriteByte(FingerprintMode)
 			fullOutput.Write(remainingFingerprint[:])
-			fmt.Println(n.Name(), step, "~>   last fingerprint", infiniteBound)
 
 			break // stop processing further
 		} else {
@@ -289,8 +252,6 @@ func (n *Negentropy) SplitRange(step int, lower, upper int, upperBound Bound, ou
 	numElems := upper - lower
 	const buckets = 16
 
-	fmt.Println(n.Name(), step, "~> splitting range", lower, n.storage.GetBound(lower), "---", n.storage.GetBound(upper), upper)
-
 	if numElems < buckets*2 {
 		// we just send the full ids here
 		boundEncoded := n.encodeBound(upperBound)
@@ -298,21 +259,11 @@ func (n *Negentropy) SplitRange(step int, lower, upper int, upperBound Bound, ou
 		output.WriteByte(IdListMode)
 		output.Write(encodeVarInt(numElems))
 
-		fmt.Print(n.Name(), " ", step, " ~>   idlist ", upperBound)
-
-		firstid := "()"
-		lastid := "()"
 		n.storage.Iterate(lower, upper, func(item Item, _ int) bool {
-			if firstid == "()" {
-				firstid = item.ID
-			}
-			lastid = item.ID
-			// fmt.Println(n.Name(), step, "~>    ", item.ID)
 			id, _ := hex.DecodeString(item.ID)
 			output.Write(id)
 			return true
 		})
-		fmt.Println("", firstid, "---", lastid)
 	} else {
 		itemsPerBucket := numElems / buckets
 		bucketsWithExtra := numElems % buckets
@@ -350,7 +301,6 @@ func (n *Negentropy) SplitRange(step int, lower, upper int, upperBound Bound, ou
 				nextBound = minBound
 			}
 
-			fmt.Println(n.Name(), step, "~>   bound and fingerprint", nextBound, hex.EncodeToString(ourFingerprint[:]))
 			boundEncoded := n.encodeBound(nextBound)
 			output.Write(boundEncoded)
 			output.WriteByte(FingerprintMode)

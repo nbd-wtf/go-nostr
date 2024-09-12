@@ -95,17 +95,6 @@ func (acc *Accumulator) AddBytes(other []byte) {
 	}
 }
 
-func (acc *Accumulator) Negate() {
-	for i := range acc.Buf {
-		acc.Buf[i] = ^acc.Buf[i]
-	}
-
-	var one []byte
-	one[0] = 1 // Assuming little-endian; if big-endian, use one[len(one)-1] = 1
-
-	acc.AddBytes(one)
-}
-
 func (acc *Accumulator) SV() []byte {
 	return acc.Buf[:]
 }
