@@ -269,6 +269,7 @@ func (pool *SimplePool) subMany(ctx context.Context, urls []string, filters Filt
 						select {
 						case events <- ie:
 						case <-ctx.Done():
+							return
 						}
 					case <-ticker.C:
 						if eose {
