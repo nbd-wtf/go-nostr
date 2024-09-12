@@ -35,6 +35,7 @@ type Relay struct {
 
 	challenge                     string       // NIP-42 challenge, we only keep the last
 	noticeHandler                 func(string) // NIP-01 NOTICEs
+	customHandler                 func([]byte) // nonstandard unparseable messages
 	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
@@ -92,6 +93,7 @@ type RelayOption interface {
 var (
 	_ RelayOption = (WithNoticeHandler)(nil)
 	_ RelayOption = (WithSignatureChecker)(nil)
+	_ RelayOption = (WithCustomHandler)(nil)
 )
 
 // WithNoticeHandler just takes notices and is expected to do something with them.
@@ -108,6 +110,14 @@ type WithSignatureChecker func(Event) bool
 
 func (sc WithSignatureChecker) ApplyRelayOption(r *Relay) {
 	r.signatureChecker = sc
+}
+
+// WithCustomHandler must be a function that handles any relay message that couldn't be
+// parsed as a standard envelope.
+type WithCustomHandler func(data []byte)
+
+func (ch WithCustomHandler) ApplyRelayOption(r *Relay) {
+	r.customHandler = ch
 }
 
 // String just returns the relay URL.
