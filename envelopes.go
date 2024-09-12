@@ -58,11 +58,6 @@ type Envelope interface {
 	String() string
 }
 
-type EventEnvelope struct {
-	SubscriptionID *string
-	Event
-}
-
 var (
 	_ Envelope = (*EventEnvelope)(nil)
 	_ Envelope = (*ReqEnvelope)(nil)
@@ -73,6 +68,11 @@ var (
 	_ Envelope = (*OKEnvelope)(nil)
 	_ Envelope = (*AuthEnvelope)(nil)
 )
+
+type EventEnvelope struct {
+	SubscriptionID *string
+	Event
+}
 
 func (_ EventEnvelope) Label() string { return "EVENT" }
 
@@ -96,7 +96,7 @@ func (v EventEnvelope) MarshalJSON() ([]byte, error) {
 	if v.SubscriptionID != nil {
 		w.RawString(`"` + *v.SubscriptionID + `",`)
 	}
-	v.MarshalEasyJSON(&w)
+	v.Event.MarshalEasyJSON(&w)
 	w.RawString(`]`)
 	return w.BuildBytes()
 }

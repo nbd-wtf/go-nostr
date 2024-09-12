@@ -60,16 +60,16 @@ func (n *Negentropy) Initiate() []byte {
 
 	output := bytes.NewBuffer(make([]byte, 0, 1+n.storage.Size()*32))
 	output.WriteByte(protocolVersion)
-	n.SplitRange(0, 0, n.storage.Size(), infiniteBound, output)
+	n.SplitRange(0, n.storage.Size(), infiniteBound, output)
 
 	return output.Bytes()
 }
 
-func (n *Negentropy) Reconcile(step int, query []byte) (output []byte, err error) {
+func (n *Negentropy) Reconcile(msg []byte) (output []byte, err error) {
 	n.seal()
-	reader := bytes.NewReader(query)
+	reader := bytes.NewReader(msg)
 
-	output, err = n.reconcileAux(step, reader)
+	output, err = n.reconcileAux(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (n *Negentropy) Reconcile(step int, query []byte) (output []byte, err error
 	return output, nil
 }
 
-func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error) {
+func (n *Negentropy) reconcileAux(reader *bytes.Reader) ([]byte, error) {
 	n.lastTimestampIn, n.lastTimestampOut = 0, 0 // reset for each message
 
 	fullOutput := bytes.NewBuffer(make([]byte, 0, 5000))
@@ -153,7 +153,7 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 				skip = true
 			} else {
 				doSkip()
-				n.SplitRange(step, lower, upper, currBound, partialOutput)
+				n.SplitRange(lower, upper, currBound, partialOutput)
 			}
 
 		case IdListMode:
@@ -248,7 +248,7 @@ func (n *Negentropy) reconcileAux(step int, reader *bytes.Reader) ([]byte, error
 	return fullOutput.Bytes(), nil
 }
 
-func (n *Negentropy) SplitRange(step int, lower, upper int, upperBound Bound, output *bytes.Buffer) {
+func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *bytes.Buffer) {
 	numElems := upper - lower
 	const buckets = 16
 

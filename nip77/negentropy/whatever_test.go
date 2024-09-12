@@ -93,7 +93,7 @@ func runTestWith(t *testing.T,
 			}
 		}
 
-		q, err = n2.Reconcile(1, q)
+		q, err = n2.Reconcile(q)
 		if err != nil {
 			t.Fatal(err)
 			return
@@ -114,7 +114,7 @@ func runTestWith(t *testing.T,
 		for n := n1; q != nil; n = invert[n] {
 			i++
 
-			q, err = n.Reconcile(i, q)
+			q, err = n.Reconcile(q)
 			if err != nil {
 				t.Fatal(err)
 				return
