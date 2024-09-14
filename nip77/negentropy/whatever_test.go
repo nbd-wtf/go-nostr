@@ -144,7 +144,7 @@ func runTestWith(t *testing.T,
 			haves = append(haves, item)
 		}
 		slices.Sort(haves)
-		require.ElementsMatch(t, expectedHave, haves, "wrong have")
+		require.Equal(t, expectedHave, haves, "wrong have")
 	}()
 
 	go func() {
@@ -163,7 +163,7 @@ func runTestWith(t *testing.T,
 			havenots = append(havenots, item)
 		}
 		slices.Sort(havenots)
-		require.ElementsMatch(t, expectedNeed, havenots, "wrong need")
+		require.Equal(t, expectedNeed, havenots, "wrong need")
 	}()
 
 	wg.Wait()
