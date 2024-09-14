@@ -2,9 +2,12 @@ package nostr
 
 import (
 	"encoding/json"
+	"fmt"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEventParsingAndVerifying(t *testing.T) {
@@ -117,7 +120,6 @@ func TestEventSerializationWithExtraFields(t *testing.T) {
 
 	assert.Condition(t, func() (success bool) {
 		if evt.GetExtra("glub").(bool) != evt.GetExtraBoolean("glub") || evt.GetExtraBoolean("glub") != true {
-
 			return false
 		}
 		return true
@@ -131,4 +133,40 @@ func mustSignEvent(t *testing.T, privkey string, event *Event) {
 	if err := event.Sign(privkey); err != nil {
 		t.Fatalf("event.Sign: %v", err)
 	}
+}
+
+func TestIDCheck(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		evt := Event{
+			CreatedAt: Timestamp(rand.Int64N(9999999)),
+			Content:   fmt.Sprintf("hello %d", i),
+			Tags:      Tags{},
+		}
+		evt.Sign(GeneratePrivateKey())
+		require.True(t, evt.CheckID())
+
+		evt.Content += "!"
+		require.False(t, evt.CheckID())
+	}
+}
+
+func BenchmarkIDCheck(b *testing.B) {
+	evt := Event{
+		CreatedAt: Timestamp(rand.Int64N(9999999)),
+		Content:   fmt.Sprintf("hello"),
+		Tags:      Tags{},
+	}
+	evt.Sign(GeneratePrivateKey())
+
+	b.Run("naïve", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = evt.GetID() == evt.ID
+		}
+	})
+
+	b.Run("big brain", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = evt.CheckID()
+		}
+	})
 }

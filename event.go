@@ -35,6 +35,28 @@ func (evt *Event) GetID() string {
 	return hex.EncodeToString(h[:])
 }
 
+// CheckID checks if the implied ID matches the given ID
+func (evt *Event) CheckID() bool {
+	ser := evt.Serialize()
+	h := sha256.Sum256(ser)
+
+	const hextable = "0123456789abcdef"
+
+	for i := 0; i < 32; i++ {
+		b := hextable[h[i]>>4]
+		if b != evt.ID[i*2] {
+			return false
+		}
+
+		b = hextable[h[i]&0x0f]
+		if b != evt.ID[i*2+1] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Serialize outputs a byte array that can be hashed/signed to identify/authenticate.
 // JSON encoding as defined in RFC4627.
 func (evt *Event) Serialize() []byte {
