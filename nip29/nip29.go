@@ -14,14 +14,14 @@ type Role struct {
 type Permission string
 
 const (
-	PermAddUser           Permission = "add-user"
-	PermEditMetadata      Permission = "edit-metadata"
-	PermDeleteEvent       Permission = "delete-event"
-	PermRemoveUser        Permission = "remove-user"
-	PermAddPermission     Permission = "add-permission"
-	PermRemovePermission  Permission = "remove-permission"
-	PermEditGroupStatus   Permission = "edit-group-status"
-	PermDeleteGroupStatus Permission = "delete-group-status"
+	PermAddUser          Permission = "add-user"
+	PermEditMetadata     Permission = "edit-metadata"
+	PermDeleteEvent      Permission = "delete-event"
+	PermRemoveUser       Permission = "remove-user"
+	PermAddPermission    Permission = "add-permission"
+	PermRemovePermission Permission = "remove-permission"
+	PermEditGroupStatus  Permission = "edit-group-status"
+	PermDeleteGroup      Permission = "delete-group"
 )
 
 type KindRange []int
