@@ -2,7 +2,6 @@ package nip77
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -41,20 +40,14 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 			result <- fmt.Errorf("relay returned a %s: %s", env.Label(), env.Reason)
 			return
 		case *MessageEnvelope:
-			msg, err := hex.DecodeString(env.Message)
-			if err != nil {
-				result <- fmt.Errorf("relay sent invalid message: %w", err)
-				return
-			}
-
-			nextmsg, err := neg.Reconcile(msg)
+			nextmsg, err := neg.Reconcile(env.Message)
 			if err != nil {
 				result <- fmt.Errorf("failed to reconcile: %w", err)
 				return
 			}
 
-			if len(nextmsg) != 0 {
-				msgb, _ := MessageEnvelope{id, hex.EncodeToString(nextmsg)}.MarshalJSON()
+			if nextmsg != "" {
+				msgb, _ := MessageEnvelope{id, nextmsg}.MarshalJSON()
 				r.Write(msgb)
 			}
 		}
@@ -64,7 +57,7 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 	}
 
 	msg := neg.Initiate()
-	open, _ := OpenEnvelope{id, filter, hex.EncodeToString(msg)}.MarshalJSON()
+	open, _ := OpenEnvelope{id, filter, msg}.MarshalJSON()
 	err = <-r.Write(open)
 	if err != nil {
 		return fmt.Errorf("failed to write to relay: %w", err)
