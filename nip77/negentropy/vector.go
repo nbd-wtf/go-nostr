@@ -1,0 +1,74 @@
+package negentropy
+
+import (
+	"fmt"
+	"slices"
+
+	"github.com/nbd-wtf/go-nostr"
+)
+
+type Vector struct {
+	items  []Item
+	sealed bool
+}
+
+func NewVector() *Vector {
+	return &Vector{
+		items: make([]Item, 0, 30),
+	}
+}
+
+func (v *Vector) Insert(createdAt nostr.Timestamp, id string) error {
+	if len(id)/2 != 32 {
+		return fmt.Errorf("bad id size for added item: expected %d, got %d", 32, len(id)/2)
+	}
+
+	item := Item{createdAt, id}
+	v.items = append(v.items, item)
+	return nil
+}
+
+func (v *Vector) Size() int { return len(v.items) }
+
+func (v *Vector) Seal() {
+	if v.sealed {
+		panic("trying to seal an already sealed vector")
+	}
+	v.sealed = true
+	slices.SortFunc(v.items, itemCompare)
+}
+
+func (v *Vector) GetBound(idx int) Bound {
+	if idx < len(v.items) {
+		return Bound{v.items[idx]}
+	}
+	return infiniteBound
+}
+
+func (v *Vector) Iterate(begin, end int, cb func(Item, int) bool) error {
+	for i := begin; i < end; i++ {
+		if !cb(v.items[i], i) {
+			break
+		}
+	}
+	return nil
+}
+
+func (v *Vector) FindLowerBound(begin, end int, bound Bound) int {
+	idx, _ := slices.BinarySearchFunc(v.items[begin:end], bound.Item, itemCompare)
+	return begin + idx
+}
+
+func (v *Vector) Fingerprint(begin, end int) ([FingerprintSize]byte, error) {
+	var out Accumulator
+	out.SetToZero()
+
+	if err := v.Iterate(begin, end, func(item Item, _ int) bool {
+		out.Add(item.ID)
+		return true
+	}); err != nil {
+		return [FingerprintSize]byte{}, err
+	}
+
+	return out.GetFingerprint(end - begin), nil
+}

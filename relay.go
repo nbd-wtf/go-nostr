@@ -35,6 +35,7 @@ type Relay struct {
 
 	challenge                     string       // NIP-42 challenge, we only keep the last
 	noticeHandler                 func(string) // NIP-01 NOTICEs
+	customHandler                 func([]byte) // nonstandard unparseable messages
 	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
@@ -92,6 +93,7 @@ type RelayOption interface {
 var (
 	_ RelayOption = (WithNoticeHandler)(nil)
 	_ RelayOption = (WithSignatureChecker)(nil)
+	_ RelayOption = (WithCustomHandler)(nil)
 )
 
 // WithNoticeHandler just takes notices and is expected to do something with them.
@@ -108,6 +110,14 @@ type WithSignatureChecker func(Event) bool
 
 func (sc WithSignatureChecker) ApplyRelayOption(r *Relay) {
 	r.signatureChecker = sc
+}
+
+// WithCustomHandler must be a function that handles any relay message that couldn't be
+// parsed as a standard envelope.
+type WithCustomHandler func(data []byte)
+
+func (ch WithCustomHandler) ApplyRelayOption(r *Relay) {
+	r.customHandler = ch
 }
 
 // String just returns the relay URL.
@@ -185,6 +195,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				}
 			case writeRequest := <-r.writeQueue:
 				// all write requests will go through this to prevent races
+				debugLogf("{%s} sending %v\n", r.URL, string(writeRequest.msg))
 				if err := r.Connection.WriteMessage(r.connectionContext, writeRequest.msg); err != nil {
 					writeRequest.answer <- err
 				}
@@ -212,6 +223,9 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			debugLogf("{%s} %v\n", r.URL, message)
 			envelope := ParseMessage(message)
 			if envelope == nil {
+				if r.customHandler != nil {
+					r.customHandler(message)
+				}
 				continue
 			}
 
@@ -340,7 +354,6 @@ func (r *Relay) publish(ctx context.Context, id string, env Envelope) error {
 
 	// publish event
 	envb, _ := env.MarshalJSON()
-	debugLogf("{%s} sending %v\n", r.URL, envb)
 	if err := <-r.Write(envb); err != nil {
 		return err
 	}
@@ -416,14 +429,28 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	return sub
 }
 
-func (r *Relay) QuerySync(ctx context.Context, filter Filter, opts ...SubscriptionOption) ([]*Event, error) {
-	sub, err := r.Subscribe(ctx, Filters{filter}, opts...)
+func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan *Event, error) {
+	sub, err := r.Subscribe(ctx, Filters{filter})
 	if err != nil {
 		return nil, err
 	}
 
-	defer sub.Unsub()
+	go func() {
+		for {
+			select {
+			case <-sub.ClosedReason:
+			case <-sub.EndOfStoredEvents:
+			case <-ctx.Done():
+			case <-r.Context().Done():
+			}
+			sub.Unsub()
+		}
+	}()
 
+	return sub.Events, nil
+}
+
+func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
@@ -431,21 +458,17 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter, opts ...Subscripti
 		defer cancel()
 	}
 
-	var events []*Event
-	for {
-		select {
-		case evt := <-sub.Events:
-			if evt == nil {
-				// channel is closed
-				return events, nil
-			}
-			events = append(events, evt)
-		case <-sub.EndOfStoredEvents:
-			return events, nil
-		case <-ctx.Done():
-			return events, nil
-		}
+	events := make([]*Event, 0, max(filter.Limit, 250))
+	ch, err := r.QueryEvents(ctx, filter)
+	if err != nil {
+		return nil, err
 	}
+
+	for evt := range ch {
+		events = append(events, evt)
+	}
+
+	return events, nil
 }
 
 func (r *Relay) Count(ctx context.Context, filters Filters, opts ...SubscriptionOption) (int64, error) {
