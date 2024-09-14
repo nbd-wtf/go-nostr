@@ -1,10 +1,9 @@
 package negentropy
 
 import (
-	"encoding/hex"
 	"fmt"
+	"log"
 	"slices"
-	"strings"
 	"sync"
 	"testing"
 
@@ -60,7 +59,7 @@ func runTestWith(t *testing.T,
 	expectedN1NeedRanges [][]int, expectedN1HaveRanges [][]int,
 ) {
 	var err error
-	var q []byte
+	var q string
 	var n1 *Negentropy
 	var n2 *Negentropy
 
@@ -109,18 +108,21 @@ func runTestWith(t *testing.T,
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 
+	var fatal error
+
 	go func() {
-		wg.Done()
-		for n := n1; q != nil; n = invert[n] {
+		defer wg.Done()
+		for n := n1; q != ""; n = invert[n] {
 			i++
 
+			fmt.Println("processing reconcile", n)
 			q, err = n.Reconcile(q)
 			if err != nil {
-				t.Fatal(err)
+				fatal = err
 				return
 			}
 
-			if q == nil {
+			if q == "" {
 				return
 			}
 		}
@@ -141,6 +143,7 @@ func runTestWith(t *testing.T,
 			}
 			haves = append(haves, item)
 		}
+		slices.Sort(haves)
 		require.ElementsMatch(t, expectedHave, haves, "wrong have")
 	}()
 
@@ -159,22 +162,12 @@ func runTestWith(t *testing.T,
 			}
 			havenots = append(havenots, item)
 		}
+		slices.Sort(havenots)
 		require.ElementsMatch(t, expectedNeed, havenots, "wrong need")
 	}()
 
 	wg.Wait()
-}
-
-func hexedBytes(o []byte) string {
-	s := strings.Builder{}
-	s.Grow(2 + 1 + len(o)*5)
-	s.WriteString("[ ")
-	for _, b := range o {
-		x := hex.EncodeToString([]byte{b})
-		s.WriteString("0x")
-		s.WriteString(x)
-		s.WriteString(" ")
+	if fatal != nil {
+		log.Fatal(fatal)
 	}
-	s.WriteString("]")
-	return s.String()
 }

@@ -1,7 +1,9 @@
 package negentropy
 
 import (
+	"encoding/hex"
 	"fmt"
+	"iter"
 	"slices"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -45,13 +47,14 @@ func (v *Vector) GetBound(idx int) Bound {
 	return infiniteBound
 }
 
-func (v *Vector) Iterate(begin, end int, cb func(Item, int) bool) error {
-	for i := begin; i < end; i++ {
-		if !cb(v.items[i], i) {
-			break
+func (v *Vector) Range(begin, end int) iter.Seq2[int, Item] {
+	return func(yield func(int, Item) bool) {
+		for i := begin; i < end; i++ {
+			if !yield(i, v.items[i]) {
+				break
+			}
 		}
 	}
-	return nil
 }
 
 func (v *Vector) FindLowerBound(begin, end int, bound Bound) int {
@@ -59,16 +62,15 @@ func (v *Vector) FindLowerBound(begin, end int, bound Bound) int {
 	return begin + idx
 }
 
-func (v *Vector) Fingerprint(begin, end int) ([FingerprintSize]byte, error) {
+func (v *Vector) Fingerprint(begin, end int) [FingerprintSize]byte {
 	var out Accumulator
 	out.SetToZero()
 
-	if err := v.Iterate(begin, end, func(item Item, _ int) bool {
-		out.Add(item.ID)
-		return true
-	}); err != nil {
-		return [FingerprintSize]byte{}, err
+	tmp := make([]byte, 32)
+	for _, item := range v.Range(begin, end) {
+		hex.Decode(tmp, []byte(item.ID))
+		out.AddBytes(tmp)
 	}
 
-	return out.GetFingerprint(end - begin), nil
+	return out.GetFingerprint(end - begin)
 }

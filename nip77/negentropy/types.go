@@ -1,10 +1,11 @@
 package negentropy
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -12,22 +13,35 @@ import (
 
 const FingerprintSize = 16
 
-type Mode int
+type Mode uint8
 
 const (
-	SkipMode        = 0
-	FingerprintMode = 1
-	IdListMode      = 2
+	SkipMode        Mode = 0
+	FingerprintMode Mode = 1
+	IdListMode      Mode = 2
 )
+
+func (v Mode) String() string {
+	switch v {
+	case SkipMode:
+		return "SKIP"
+	case FingerprintMode:
+		return "FINGERPRINT"
+	case IdListMode:
+		return "IDLIST"
+	default:
+		return "<UNKNOWN-ERROR>"
+	}
+}
 
 type Storage interface {
 	Insert(nostr.Timestamp, string) error
 	Seal()
 	Size() int
-	Iterate(begin, end int, cb func(item Item, i int) bool) error
+	Range(begin, end int) iter.Seq2[int, Item]
 	FindLowerBound(begin, end int, value Bound) int
 	GetBound(idx int) Bound
-	Fingerprint(begin, end int) ([FingerprintSize]byte, error)
+	Fingerprint(begin, end int) [FingerprintSize]byte
 }
 
 type Item struct {
@@ -36,10 +50,10 @@ type Item struct {
 }
 
 func itemCompare(a, b Item) int {
-	if a.Timestamp != b.Timestamp {
-		return int(a.Timestamp - b.Timestamp)
+	if a.Timestamp == b.Timestamp {
+		return strings.Compare(a.ID, b.ID)
 	}
-	return strings.Compare(a.ID, b.ID)
+	return cmp.Compare(a.Timestamp, b.Timestamp)
 }
 
 func (i Item) String() string { return fmt.Sprintf("Item<%d:%s>", i.Timestamp, i.ID) }
@@ -59,11 +73,6 @@ type Accumulator struct {
 
 func (acc *Accumulator) SetToZero() {
 	acc.Buf = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-}
-
-func (acc *Accumulator) Add(id string) {
-	b, _ := hex.DecodeString(id)
-	acc.AddBytes(b)
 }
 
 func (acc *Accumulator) AddAccumulator(other Accumulator) {
@@ -95,12 +104,8 @@ func (acc *Accumulator) AddBytes(other []byte) {
 	}
 }
 
-func (acc *Accumulator) SV() []byte {
-	return acc.Buf[:]
-}
-
 func (acc *Accumulator) GetFingerprint(n int) [FingerprintSize]byte {
-	input := acc.SV()
+	input := acc.Buf[:]
 	input = append(input, encodeVarInt(n)...)
 
 	hash := sha256.Sum256(input)

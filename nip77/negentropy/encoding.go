@@ -1,13 +1,12 @@
 package negentropy
 
 import (
-	"bytes"
-	"encoding/hex"
+	"fmt"
 
 	"github.com/nbd-wtf/go-nostr"
 )
 
-func (n *Negentropy) DecodeTimestampIn(reader *bytes.Reader) (nostr.Timestamp, error) {
+func (n *Negentropy) DecodeTimestampIn(reader *StringHexReader) (nostr.Timestamp, error) {
 	t, err := decodeVarInt(reader)
 	if err != nil {
 		return 0, err
@@ -28,47 +27,42 @@ func (n *Negentropy) DecodeTimestampIn(reader *bytes.Reader) (nostr.Timestamp, e
 	return timestamp, nil
 }
 
-func (n *Negentropy) DecodeBound(reader *bytes.Reader) (Bound, error) {
+func (n *Negentropy) DecodeBound(reader *StringHexReader) (Bound, error) {
 	timestamp, err := n.DecodeTimestampIn(reader)
 	if err != nil {
-		return Bound{}, err
+		return Bound{}, fmt.Errorf("failed to decode bound timestamp: %w", err)
 	}
 
 	length, err := decodeVarInt(reader)
 	if err != nil {
-		return Bound{}, err
+		return Bound{}, fmt.Errorf("failed to decode bound length: %w", err)
 	}
 
-	id := make([]byte, length)
-	if _, err = reader.Read(id); err != nil {
-		return Bound{}, err
+	id, err := reader.ReadString(length * 2)
+	if err != nil {
+		return Bound{}, fmt.Errorf("failed to read bound id: %w", err)
 	}
 
-	return Bound{Item{timestamp, hex.EncodeToString(id)}}, nil
+	return Bound{Item{timestamp, id}}, nil
 }
 
-func (n *Negentropy) encodeTimestampOut(timestamp nostr.Timestamp) []byte {
+func (n *Negentropy) encodeTimestampOut(w *StringHexWriter, timestamp nostr.Timestamp) {
 	if timestamp == maxTimestamp {
 		n.lastTimestampOut = maxTimestamp
-		return encodeVarInt(0)
+		encodeVarIntToHex(w, 0)
+		return
 	}
 	temp := timestamp
 	timestamp -= n.lastTimestampOut
 	n.lastTimestampOut = temp
-	return encodeVarInt(int(timestamp + 1))
+	encodeVarIntToHex(w, int(timestamp+1))
+	return
 }
 
-func (n *Negentropy) encodeBound(bound Bound) []byte {
-	var output []byte
-
-	t := n.encodeTimestampOut(bound.Timestamp)
-	idlen := encodeVarInt(len(bound.ID) / 2)
-	output = append(output, t...)
-	output = append(output, idlen...)
-	id, _ := hex.DecodeString(bound.Item.ID)
-
-	output = append(output, id...)
-	return output
+func (n *Negentropy) encodeBound(w *StringHexWriter, bound Bound) {
+	n.encodeTimestampOut(w, bound.Timestamp)
+	encodeVarIntToHex(w, len(bound.ID)/2)
+	w.WriteHex(bound.Item.ID)
 }
 
 func getMinimalBound(prev, curr Item) Bound {
@@ -89,11 +83,11 @@ func getMinimalBound(prev, curr Item) Bound {
 	return Bound{Item{curr.Timestamp, curr.ID[:(sharedPrefixBytes+1)*2]}}
 }
 
-func decodeVarInt(reader *bytes.Reader) (int, error) {
+func decodeVarInt(reader *StringHexReader) (int, error) {
 	var res int = 0
 
 	for {
-		b, err := reader.ReadByte()
+		b, err := reader.ReadHexByte()
 		if err != nil {
 			return 0, err
 		}
@@ -123,4 +117,22 @@ func encodeVarInt(n int) []byte {
 	}
 
 	return o
+}
+
+func encodeVarIntToHex(w *StringHexWriter, n int) {
+	if n == 0 {
+		w.WriteByte(0)
+	}
+
+	var o []byte
+	for n != 0 {
+		o = append([]byte{byte(n & 0x7F)}, o...)
+		n >>= 7
+	}
+
+	for i := 0; i < len(o)-1; i++ {
+		o[i] |= 0x80
+	}
+
+	w.WriteBytes(o)
 }
