@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"cmp"
 	"encoding/hex"
 	"net/url"
 	"strings"
@@ -26,4 +27,11 @@ func IsValid32ByteHex(thing string) bool {
 	}
 	_, err := hex.DecodeString(thing)
 	return err == nil
+}
+
+func CompareEvent(a, b Event) int {
+	if a.CreatedAt == b.CreatedAt {
+		return strings.Compare(a.ID, b.ID)
+	}
+	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }
