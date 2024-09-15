@@ -43,7 +43,7 @@ func PrepareMessage(
 	rumor := nostr.Event{
 		Kind:      14,
 		Content:   content,
-		Tags:      tags,
+		Tags:      append(tags, nostr.Tag{"p", recipientPubKey}),
 		CreatedAt: nostr.Now(),
 		PubKey:    ourPubkey,
 	}
