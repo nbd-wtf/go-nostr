@@ -2,6 +2,7 @@ package keyer
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -81,7 +82,8 @@ func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *Signer
 		sec := parsed.(string)
 		pk, _ := nostr.GetPublicKey(sec)
 		return KeySigner{sec, pk, make(map[string][32]byte)}, nil
-	} else if nostr.IsValid32ByteHex(input) {
+	} else if _, err := hex.DecodeString(input); err == nil && len(input) < 64 {
+		input = strings.Repeat("0", 64-len(input)) + input // if the key is like '01', fill all the left zeroes
 		pk, _ := nostr.GetPublicKey(input)
 		return KeySigner{input, pk, make(map[string][32]byte)}, nil
 	}
