@@ -9,19 +9,20 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip44"
 )
 
-// Seal takes a 'rumor', encrypts it with our own key, making a 'seal', then encrypts that with a nonce key and
+// GiftWrap takes a 'rumor', encrypts it with our own key, making a 'seal', then encrypts that with a nonce key and
 // signs that (after potentially applying a modify function, which can be nil otherwise), yielding a 'gift-wrap'.
 func GiftWrap(
 	rumor nostr.Event,
-	recipients []string, // return one giftwrap addressed to each of these
+	recipient string,
 	encrypt func(plaintext string) (string, error),
 	sign func(*nostr.Event) error,
 	modify func(*nostr.Event),
-) ([]nostr.Event, error) {
+) (nostr.Event, error) {
 	rumor.Sig = ""
+
 	rumorCiphertext, err := encrypt(rumor.String())
 	if err != nil {
-		return nil, err
+		return nostr.Event{}, err
 	}
 
 	seal := nostr.Event{
@@ -31,39 +32,36 @@ func GiftWrap(
 		Tags:      make(nostr.Tags, 0),
 	}
 	if err := sign(&seal); err != nil {
-		return nil, err
+		return nostr.Event{}, err
 	}
 
-	results := make([]nostr.Event, len(recipients))
-	for i, recipient := range recipients {
-		nonceKey := nostr.GeneratePrivateKey()
-		temporaryConversationKey, err := nip44.GenerateConversationKey(recipient, nonceKey)
-		if err != nil {
-			return nil, err
-		}
-		sealCiphertext, err := nip44.Encrypt(seal.String(), temporaryConversationKey)
-		if err != nil {
-			return nil, err
-		}
-
-		gw := nostr.Event{
-			Kind:      1059,
-			Content:   sealCiphertext,
-			CreatedAt: nostr.Now() - nostr.Timestamp(60*rand.Int63n(600) /* up to 6 hours in the past */),
-			Tags: nostr.Tags{
-				nostr.Tag{"p", recipient},
-			},
-		}
-		if modify != nil {
-			modify(&gw)
-		}
-		if err := gw.Sign(nonceKey); err != nil {
-			return nil, err
-		}
-		results[i] = gw
+	nonceKey := nostr.GeneratePrivateKey()
+	temporaryConversationKey, err := nip44.GenerateConversationKey(recipient, nonceKey)
+	if err != nil {
+		return nostr.Event{}, err
 	}
 
-	return results, nil
+	sealCiphertext, err := nip44.Encrypt(seal.String(), temporaryConversationKey)
+	if err != nil {
+		return nostr.Event{}, err
+	}
+
+	gw := nostr.Event{
+		Kind:      1059,
+		Content:   sealCiphertext,
+		CreatedAt: nostr.Now() - nostr.Timestamp(60*rand.Int63n(600) /* up to 6 hours in the past */),
+		Tags: nostr.Tags{
+			nostr.Tag{"p", recipient},
+		},
+	}
+	if modify != nil {
+		modify(&gw)
+	}
+	if err := gw.Sign(nonceKey); err != nil {
+		return nostr.Event{}, err
+	}
+
+	return gw, nil
 }
 
 func GiftUnwrap(

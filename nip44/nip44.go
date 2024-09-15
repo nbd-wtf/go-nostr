@@ -58,7 +58,7 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 		}
 	}
 
-	enc, cc20nonce, auth, err := messageKeys(conversationKey, nonce)
+	cc20key, cc20nonce, hmackey, err := messageKeys(conversationKey, nonce)
 	if err != nil {
 		return "", err
 	}
@@ -74,12 +74,12 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 	binary.BigEndian.PutUint16(padded, uint16(size))
 	copy(padded[2:], plain)
 
-	ciphertext, err := chacha(enc, cc20nonce, []byte(padded))
+	ciphertext, err := chacha(cc20key, cc20nonce, []byte(padded))
 	if err != nil {
 		return "", err
 	}
 
-	mac, err := sha256Hmac(auth, ciphertext, nonce)
+	mac, err := sha256Hmac(hmackey, ciphertext, nonce)
 	if err != nil {
 		return "", err
 	}
@@ -120,12 +120,12 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 	copy(nonce[:], decoded[1:33])
 	ciphertext := decoded[33 : dLen-32]
 	givenMac := decoded[dLen-32:]
-	enc, cc20nonce, auth, err := messageKeys(conversationKey, nonce)
+	cc20key, cc20nonce, hmackey, err := messageKeys(conversationKey, nonce)
 	if err != nil {
 		return "", err
 	}
 
-	expectedMac, err := sha256Hmac(auth, ciphertext, nonce)
+	expectedMac, err := sha256Hmac(hmackey, ciphertext, nonce)
 	if err != nil {
 		return "", err
 	}
@@ -134,7 +134,7 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 		return "", fmt.Errorf("invalid hmac")
 	}
 
-	padded, err := chacha(enc, cc20nonce, ciphertext)
+	padded, err := chacha(cc20key, cc20nonce, ciphertext)
 	if err != nil {
 		return "", err
 	}
@@ -191,8 +191,9 @@ func sha256Hmac(key []byte, ciphertext []byte, nonce [32]byte) ([]byte, error) {
 
 func messageKeys(conversationKey [32]byte, nonce [32]byte) ([]byte, []byte, []byte, error) {
 	r := hkdf.Expand(sha256.New, conversationKey[:], nonce[:])
-	enc := make([]byte, 32)
-	if _, err := io.ReadFull(r, enc); err != nil {
+
+	cc20key := make([]byte, 32)
+	if _, err := io.ReadFull(r, cc20key); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -201,12 +202,12 @@ func messageKeys(conversationKey [32]byte, nonce [32]byte) ([]byte, []byte, []by
 		return nil, nil, nil, err
 	}
 
-	auth := make([]byte, 32)
-	if _, err := io.ReadFull(r, auth); err != nil {
+	hmacKey := make([]byte, 32)
+	if _, err := io.ReadFull(r, hmacKey); err != nil {
 		return nil, nil, nil, err
 	}
 
-	return enc, cc20nonce, auth, nil
+	return cc20key, cc20nonce, hmacKey, nil
 }
 
 func calcPadding(sLen int) int {

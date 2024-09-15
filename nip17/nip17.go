@@ -49,9 +49,20 @@ func PrepareMessage(
 	}
 	rumor.ID = rumor.GetID()
 
-	wraps, err := nip59.GiftWrap(
+	toUs, err = nip59.GiftWrap(
 		rumor,
-		[]string{ourPubkey, recipientPubKey},
+		ourPubkey,
+		func(s string) (string, error) { return kr.Encrypt(ctx, s, ourPubkey) },
+		func(e *nostr.Event) error { return kr.SignEvent(ctx, e) },
+		modify,
+	)
+	if err != nil {
+		return nostr.Event{}, nostr.Event{}, err
+	}
+
+	toThem, err = nip59.GiftWrap(
+		rumor,
+		recipientPubKey,
 		func(s string) (string, error) { return kr.Encrypt(ctx, s, recipientPubKey) },
 		func(e *nostr.Event) error { return kr.SignEvent(ctx, e) },
 		modify,
@@ -60,7 +71,7 @@ func PrepareMessage(
 		return nostr.Event{}, nostr.Event{}, err
 	}
 
-	return wraps[0], wraps[1], nil
+	return toUs, toThem, nil
 }
 
 // ListenForMessages returns a channel with the rumors already decrypted and checked
