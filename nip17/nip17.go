@@ -81,7 +81,7 @@ func ListenForMessages(
 				func(otherpubkey, ciphertext string) (string, error) { return kr.Decrypt(ctx, ciphertext, otherpubkey) },
 			)
 			if err != nil {
-				nostr.InfoLogger.Printf("[nip17] failed to unwrap received message: %s\n", err)
+				nostr.InfoLogger.Printf("[nip17] failed to unwrap received message '%s' from %s: %s\n", ie.Event, ie.Relay.URL, err)
 				continue
 			}
 

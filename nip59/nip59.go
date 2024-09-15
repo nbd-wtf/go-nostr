@@ -39,7 +39,7 @@ func GiftWrap(
 	if err != nil {
 		return nostr.Event{}, err
 	}
-	sealCiphertext, err := nip44.Encrypt(seal.String(), temporaryConversationKey, nil)
+	sealCiphertext, err := nip44.Encrypt(seal.String(), temporaryConversationKey)
 	if err != nil {
 		return nostr.Event{}, err
 	}
@@ -57,8 +57,8 @@ func GiftWrap(
 		modify(&gw)
 	}
 
-	if err := seal.Sign(nonceKey); err != nil {
-		return seal, err
+	if err := gw.Sign(nonceKey); err != nil {
+		return gw, err
 	}
 
 	return gw, nil
