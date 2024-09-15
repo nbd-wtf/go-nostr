@@ -18,9 +18,10 @@ type KeySigner struct {
 func (ks KeySigner) SignEvent(ctx context.Context, evt *nostr.Event) error { return evt.Sign(ks.sk) }
 func (ks KeySigner) GetPublicKey(ctx context.Context) string               { return ks.pk }
 
-func (ks KeySigner) Encrypt(ctx context.Context, plaintext string, recipient string) (c64 string, err error) {
+func (ks KeySigner) Encrypt(ctx context.Context, plaintext string, recipient string) (string, error) {
 	ck, ok := ks.conversationKeys[recipient]
 	if !ok {
+		var err error
 		ck, err = nip44.GenerateConversationKey(recipient, ks.sk)
 		if err != nil {
 			return "", err
@@ -30,7 +31,7 @@ func (ks KeySigner) Encrypt(ctx context.Context, plaintext string, recipient str
 	return nip44.Encrypt(plaintext, ck)
 }
 
-func (ks KeySigner) Decrypt(ctx context.Context, base64ciphertext string, sender string) (plaintext string, err error) {
+func (ks KeySigner) Decrypt(ctx context.Context, base64ciphertext string, sender string) (string, error) {
 	ck, ok := ks.conversationKeys[sender]
 	if !ok {
 		var err error
@@ -40,5 +41,5 @@ func (ks KeySigner) Decrypt(ctx context.Context, base64ciphertext string, sender
 		}
 		ks.conversationKeys[sender] = ck
 	}
-	return nip44.Encrypt(plaintext, ck)
+	return nip44.Decrypt(base64ciphertext, ck)
 }

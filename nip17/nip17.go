@@ -37,23 +37,30 @@ func PrepareMessage(
 	kr keyer.Keyer,
 	recipientPubKey string,
 	modify func(*nostr.Event),
-) (nostr.Event, error) {
+) (toUs nostr.Event, toThem nostr.Event, err error) {
+	ourPubkey := kr.GetPublicKey(ctx)
+
 	rumor := nostr.Event{
 		Kind:      14,
 		Content:   content,
 		Tags:      tags,
 		CreatedAt: nostr.Now(),
-		PubKey:    kr.GetPublicKey(ctx),
+		PubKey:    ourPubkey,
 	}
 	rumor.ID = rumor.GetID()
 
-	return nip59.GiftWrap(
+	wraps, err := nip59.GiftWrap(
 		rumor,
-		recipientPubKey,
+		[]string{ourPubkey, recipientPubKey},
 		func(s string) (string, error) { return kr.Encrypt(ctx, s, recipientPubKey) },
 		func(e *nostr.Event) error { return kr.SignEvent(ctx, e) },
 		modify,
 	)
+	if err != nil {
+		return nostr.Event{}, nostr.Event{}, err
+	}
+
+	return wraps[0], wraps[1], nil
 }
 
 // ListenForMessages returns a channel with the rumors already decrypted and checked

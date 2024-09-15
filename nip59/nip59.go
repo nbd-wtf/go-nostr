@@ -13,15 +13,15 @@ import (
 // signs that (after potentially applying a modify function, which can be nil otherwise), yielding a 'gift-wrap'.
 func GiftWrap(
 	rumor nostr.Event,
-	recipientPublicKey string,
+	recipients []string, // return one giftwrap addressed to each of these
 	encrypt func(plaintext string) (string, error),
 	sign func(*nostr.Event) error,
 	modify func(*nostr.Event),
-) (nostr.Event, error) {
+) ([]nostr.Event, error) {
 	rumor.Sig = ""
 	rumorCiphertext, err := encrypt(rumor.String())
 	if err != nil {
-		return nostr.Event{}, err
+		return nil, err
 	}
 
 	seal := nostr.Event{
@@ -31,37 +31,39 @@ func GiftWrap(
 		Tags:      make(nostr.Tags, 0),
 	}
 	if err := sign(&seal); err != nil {
-		return nostr.Event{}, err
+		return nil, err
 	}
 
-	nonceKey := nostr.GeneratePrivateKey()
-	temporaryConversationKey, err := nip44.GenerateConversationKey(recipientPublicKey, nonceKey)
-	if err != nil {
-		return nostr.Event{}, err
-	}
-	sealCiphertext, err := nip44.Encrypt(seal.String(), temporaryConversationKey)
-	if err != nil {
-		return nostr.Event{}, err
+	results := make([]nostr.Event, len(recipients))
+	for i, recipient := range recipients {
+		nonceKey := nostr.GeneratePrivateKey()
+		temporaryConversationKey, err := nip44.GenerateConversationKey(recipient, nonceKey)
+		if err != nil {
+			return nil, err
+		}
+		sealCiphertext, err := nip44.Encrypt(seal.String(), temporaryConversationKey)
+		if err != nil {
+			return nil, err
+		}
+
+		gw := nostr.Event{
+			Kind:      1059,
+			Content:   sealCiphertext,
+			CreatedAt: nostr.Now() - nostr.Timestamp(60*rand.Int63n(600) /* up to 6 hours in the past */),
+			Tags: nostr.Tags{
+				nostr.Tag{"p", recipient},
+			},
+		}
+		if modify != nil {
+			modify(&gw)
+		}
+		if err := gw.Sign(nonceKey); err != nil {
+			return nil, err
+		}
+		results[i] = gw
 	}
 
-	gw := nostr.Event{
-		Kind:      1059,
-		Content:   sealCiphertext,
-		CreatedAt: nostr.Now() - nostr.Timestamp(60*rand.Int63n(600) /* up to 6 hours in the past */),
-		Tags: nostr.Tags{
-			nostr.Tag{"p", recipientPublicKey},
-		},
-	}
-
-	if modify != nil {
-		modify(&gw)
-	}
-
-	if err := gw.Sign(nonceKey); err != nil {
-		return gw, err
-	}
-
-	return gw, nil
+	return results, nil
 }
 
 func GiftUnwrap(
@@ -70,13 +72,13 @@ func GiftUnwrap(
 ) (rumor nostr.Event, err error) {
 	jseal, err := decrypt(gw.PubKey, gw.Content)
 	if err != nil {
-		return rumor, err
+		return rumor, fmt.Errorf("failed to decrypt seal: %w", err)
 	}
 
 	var seal nostr.Event
 	err = easyjson.Unmarshal([]byte(jseal), &seal)
 	if err != nil {
-		return rumor, err
+		return rumor, fmt.Errorf("seal is invalid json: %w", err)
 	}
 
 	if ok, _ := seal.CheckSignature(); !ok {
@@ -85,12 +87,12 @@ func GiftUnwrap(
 
 	jrumor, err := decrypt(seal.PubKey, seal.Content)
 	if err != nil {
-		return rumor, err
+		return rumor, fmt.Errorf("failed to decrypt rumor: %w", err)
 	}
 
 	err = easyjson.Unmarshal([]byte(jrumor), &rumor)
 	if err != nil {
-		return rumor, err
+		return rumor, fmt.Errorf("rumor is invalid json: %w", err)
 	}
 
 	rumor.PubKey = seal.PubKey

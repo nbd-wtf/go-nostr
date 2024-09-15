@@ -5,189 +5,108 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"hash"
 	"strings"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func assertCryptPriv(t *testing.T, sk1 string, sk2 string, conversationKey string, salt string, plaintext string, expected string) {
-	var (
-		k1        [32]byte
-		s         []byte
-		actual    string
-		decrypted string
-		ok        bool
-		err       error
-	)
-	k1, err = hexDecode32Array(conversationKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
-		return
-	}
-	if ok = assertConversationKeyGenerationSec(t, sk1, sk2, conversationKey); !ok {
-		return
-	}
-	s, err = hex.DecodeString(salt)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for salt: %v", err); !ok {
-		return
-	}
-	actual, err = Encrypt(plaintext, k1, WithCustomNonce(s))
-	if ok = assert.NoError(t, err, "encryption failed: %v", err); !ok {
-		return
-	}
-	if ok = assert.Equalf(t, expected, actual, "wrong encryption"); !ok {
-		return
-	}
-	decrypted, err = Decrypt(expected, k1)
-	if ok = assert.NoErrorf(t, err, "decryption failed: %v", err); !ok {
-		return
-	}
-	assert.Equal(t, decrypted, plaintext, "wrong decryption")
+	k1, err := hexDecode32Array(conversationKey)
+	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
+	assertConversationKeyGenerationSec(t, sk1, sk2, conversationKey)
+
+	customNonce, err := hex.DecodeString(salt)
+	require.NoErrorf(t, err, "hex decode failed for salt: %v", err)
+
+	actual, err := Encrypt(plaintext, k1, WithCustomNonce(customNonce))
+	require.NoError(t, err, "encryption failed: %v", err)
+	require.Equalf(t, expected, actual, "wrong encryption")
+
+	decrypted, err := Decrypt(expected, k1)
+	require.NoErrorf(t, err, "decryption failed: %v", err)
+
+	require.Equal(t, decrypted, plaintext, "wrong decryption")
 }
 
 func assertDecryptFail(t *testing.T, conversationKey string, _ string, ciphertext string, msg string) {
-	var (
-		k1  [32]byte
-		ok  bool
-		err error
-	)
-	k1, err = hexDecode32Array(conversationKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
-		return
-	}
+	k1, err := hexDecode32Array(conversationKey)
+	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
+
 	_, err = Decrypt(ciphertext, k1)
-	assert.ErrorContains(t, err, msg)
+	require.ErrorContains(t, err, msg)
 }
 
 func assertConversationKeyFail(t *testing.T, priv string, pub string, msg string) {
 	_, err := GenerateConversationKey(pub, priv)
-	assert.ErrorContains(t, err, msg)
+	require.ErrorContains(t, err, msg)
 }
 
-func assertConversationKeyGeneration(t *testing.T, priv string, pub string, conversationKey string) bool {
-	var (
-		actualConversationKey   [32]byte
-		expectedConversationKey [32]byte
-		ok                      bool
-		err                     error
-	)
-	expectedConversationKey, err = hexDecode32Array(conversationKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
-		return false
-	}
-	actualConversationKey, err = GenerateConversationKey(pub, priv)
-	if ok = assert.NoErrorf(t, err, "conversation key generation failed: %v", err); !ok {
-		return false
-	}
-	if ok = assert.Equalf(t, expectedConversationKey, actualConversationKey, "wrong conversation key"); !ok {
-		return false
-	}
-	return true
+func assertConversationKeyGenerationPub(t *testing.T, priv string, pub string, conversationKey string) {
+	expectedConversationKey, err := hexDecode32Array(conversationKey)
+	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
+
+	actualConversationKey, err := GenerateConversationKey(pub, priv)
+	require.NoErrorf(t, err, "conversation key generation failed: %v", err)
+
+	require.Equalf(t, expectedConversationKey, actualConversationKey, "wrong conversation key")
 }
 
-func assertConversationKeyGenerationSec(t *testing.T, sk1 string, sk2 string, conversationKey string) bool {
+func assertConversationKeyGenerationSec(t *testing.T, sk1 string, sk2 string, conversationKey string) {
 	pub2, err := nostr.GetPublicKey(sk2)
-	if ok := assert.NoErrorf(t, err, "failed to derive pubkey from sk2: %v", err); !ok {
-		return false
-	}
-	return assertConversationKeyGeneration(t, sk1, pub2, conversationKey)
-}
-
-func assertConversationKeyGenerationPub(t *testing.T, sk string, pub string, conversationKey string) bool {
-	return assertConversationKeyGeneration(t, sk, pub, conversationKey)
+	require.NoErrorf(t, err, "failed to derive pubkey from sk2: %v", err)
+	assertConversationKeyGenerationPub(t, sk1, pub2, conversationKey)
 }
 
 func assertMessageKeyGeneration(t *testing.T, conversationKey string, salt string, chachaKey string, chachaSalt string, hmacKey string) bool {
-	var (
-		convKey             [32]byte
-		convSalt            []byte
-		actualChaChaKey     []byte
-		expectedChaChaKey   []byte
-		actualChaChaNonce   []byte
-		expectedChaChaNonce []byte
-		actualHmacKey       []byte
-		expectedHmacKey     []byte
-		ok                  bool
-		err                 error
-	)
-	convKey, err = hexDecode32Array(conversationKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for convKey: %v", err); !ok {
-		return false
-	}
-	convSalt, err = hex.DecodeString(salt)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for salt: %v", err); !ok {
-		return false
-	}
-	expectedChaChaKey, err = hex.DecodeString(chachaKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for chacha key: %v", err); !ok {
-		return false
-	}
-	expectedChaChaNonce, err = hex.DecodeString(chachaSalt)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for chacha nonce: %v", err); !ok {
-		return false
-	}
-	expectedHmacKey, err = hex.DecodeString(hmacKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for hmac key: %v", err); !ok {
-		return false
-	}
-	actualChaChaKey, actualChaChaNonce, actualHmacKey, err = messageKeys(convKey, convSalt)
-	if ok = assert.NoErrorf(t, err, "message key generation failed: %v", err); !ok {
-		return false
-	}
-	if ok = assert.Equalf(t, expectedChaChaKey, actualChaChaKey, "wrong chacha key"); !ok {
-		return false
-	}
-	if ok = assert.Equalf(t, expectedChaChaNonce, actualChaChaNonce, "wrong chacha nonce"); !ok {
-		return false
-	}
-	if ok = assert.Equalf(t, expectedHmacKey, actualHmacKey, "wrong hmac key"); !ok {
-		return false
-	}
+	convKey, err := hexDecode32Array(conversationKey)
+	require.NoErrorf(t, err, "hex decode failed for convKey: %v", err)
+
+	convNonce, err := hexDecode32Array(salt)
+	require.NoErrorf(t, err, "hex decode failed for nonce: %v", err)
+
+	expectedChaChaKey, err := hex.DecodeString(chachaKey)
+	require.NoErrorf(t, err, "hex decode failed for chacha key: %v", err)
+
+	expectedChaChaNonce, err := hex.DecodeString(chachaSalt)
+	require.NoErrorf(t, err, "hex decode failed for chacha nonce: %v", err)
+
+	expectedHmacKey, err := hex.DecodeString(hmacKey)
+	require.NoErrorf(t, err, "hex decode failed for hmac key: %v", err)
+
+	actualChaChaKey, actualChaChaNonce, actualHmacKey, err := messageKeys(convKey, convNonce)
+	require.NoErrorf(t, err, "message key generation failed: %v", err)
+
+	require.Equalf(t, expectedChaChaKey, actualChaChaKey, "wrong chacha key")
+	require.Equalf(t, expectedChaChaNonce, actualChaChaNonce, "wrong chacha nonce")
+	require.Equalf(t, expectedHmacKey, actualHmacKey, "wrong hmac key")
 	return true
 }
 
 func assertCryptLong(t *testing.T, conversationKey string, salt string, pattern string, repeat int, plaintextSha256 string, payloadSha256 string) {
-	var (
-		convKey               [32]byte
-		convSalt              []byte
-		plaintext             string
-		actualPlaintextSha256 string
-		actualPayload         string
-		actualPayloadSha256   string
-		h                     hash.Hash
-		ok                    bool
-		err                   error
-	)
-	convKey, err = hexDecode32Array(conversationKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for convKey: %v", err); !ok {
-		return
-	}
-	convSalt, err = hex.DecodeString(salt)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for salt: %v", err); !ok {
-		return
-	}
-	plaintext = ""
+	convKey, err := hexDecode32Array(conversationKey)
+	require.NoErrorf(t, err, "hex decode failed for convKey: %v", err)
+
+	customNonce, err := hex.DecodeString(salt)
+	require.NoErrorf(t, err, "hex decode failed for salt: %v", err)
+
+	plaintext := ""
 	for i := 0; i < repeat; i++ {
 		plaintext += pattern
 	}
-	h = sha256.New()
+	h := sha256.New()
 	h.Write([]byte(plaintext))
-	actualPlaintextSha256 = hex.EncodeToString(h.Sum(nil))
-	if ok = assert.Equalf(t, plaintextSha256, actualPlaintextSha256, "invalid plaintext sha256 hash: %v", err); !ok {
-		return
-	}
-	actualPayload, err = Encrypt(plaintext, convKey, WithCustomNonce(convSalt))
-	if ok = assert.NoErrorf(t, err, "encryption failed: %v", err); !ok {
-		return
-	}
+	actualPlaintextSha256 := hex.EncodeToString(h.Sum(nil))
+	require.Equalf(t, plaintextSha256, actualPlaintextSha256, "invalid plaintext sha256 hash: %v", err)
+
+	actualPayload, err := Encrypt(plaintext, convKey, WithCustomNonce(customNonce))
+	require.NoErrorf(t, err, "encryption failed: %v", err)
+
 	h.Reset()
 	h.Write([]byte(actualPayload))
-	actualPayloadSha256 = hex.EncodeToString(h.Sum(nil))
-	if ok = assert.Equalf(t, payloadSha256, actualPayloadSha256, "invalid payload sha256 hash: %v", err); !ok {
-		return
-	}
+	actualPayloadSha256 := hex.EncodeToString(h.Sum(nil))
+	require.Equalf(t, payloadSha256, actualPayloadSha256, "invalid payload sha256 hash: %v", err)
 }
 
 func TestCryptPriv001(t *testing.T) {
@@ -1162,38 +1081,23 @@ func TestMaxLength(t *testing.T) {
 	)
 }
 
-func assertCryptPub(t *testing.T, sk1 string, pub2 string, conversationKey string, salt string, plaintext string, expected string) {
-	var (
-		k1        [32]byte
-		s         []byte
-		actual    string
-		decrypted string
-		ok        bool
-		err       error
-	)
-	k1, err = hexDecode32Array(conversationKey)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for conversation key: %v", err); !ok {
-		return
-	}
-	if ok = assertConversationKeyGenerationPub(t, sk1, pub2, conversationKey); !ok {
-		return
-	}
-	s, err = hex.DecodeString(salt)
-	if ok = assert.NoErrorf(t, err, "hex decode failed for salt: %v", err); !ok {
-		return
-	}
-	actual, err = Encrypt(plaintext, k1, WithCustomNonce(s))
-	if ok = assert.NoError(t, err, "encryption failed: %v", err); !ok {
-		return
-	}
-	if ok = assert.Equalf(t, expected, actual, "wrong encryption"); !ok {
-		return
-	}
-	decrypted, err = Decrypt(expected, k1)
-	if ok = assert.NoErrorf(t, err, "decryption failed: %v", err); !ok {
-		return
-	}
-	assert.Equal(t, decrypted, plaintext, "wrong decryption")
+func assertCryptPub(t *testing.T, sk1 string, pub2 string, conversationKey string, customNonce string, plaintext string, expected string) {
+	k1, err := hexDecode32Array(conversationKey)
+	require.NoErrorf(t, err, "hex decode failed for conversation key: %v", err)
+
+	assertConversationKeyGenerationPub(t, sk1, pub2, conversationKey)
+
+	s, err := hex.DecodeString(customNonce)
+	require.NoErrorf(t, err, "hex decode failed for salt: %v", err)
+
+	actual, err := Encrypt(plaintext, k1, WithCustomNonce(s))
+	require.NoError(t, err, "encryption failed: %v", err)
+	require.Equalf(t, expected, actual, "wrong encryption")
+
+	decrypted, err := Decrypt(expected, k1)
+	require.NoErrorf(t, err, "decryption failed: %v", err)
+
+	require.Equal(t, decrypted, plaintext, "wrong decryption")
 }
 
 func hexDecode32Array(hexString string) (res [32]byte, err error) {
