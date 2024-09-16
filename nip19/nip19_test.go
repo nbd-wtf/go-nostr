@@ -5,6 +5,7 @@ import (
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncodeNpub(t *testing.T) {
@@ -138,4 +139,9 @@ func TestEncodeDecodeNEvent(t *testing.T) {
 	assert.Equal(t, "45326f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194", ep.ID)
 	assert.Equal(t, 1, len(ep.Relays), "wrong number of relays")
 	assert.Equal(t, "wss://banana.com", ep.Relays[0])
+}
+
+func TestFailDecodeBadlyFormattedPubkey(t *testing.T) {
+	_, _, err := Decode("nevent1qqsgaj0la08u0vl2ecmlmrg4xl0vjcz647yx7jgvgzfr566ael4hmjgpp4mhxue69uhhjctzw5hx6egzgqurswpc8qurswpexq6rjvm9xp3nvcfkv56xzv35v9jnxve389snqephve3n2wf4vdsnxepcv56kxct9xyunjdf5v5cnzveexqcrsepnk6yu5r")
+	require.Error(t, err, "should fail to decode this because the author is hex as bytes garbage")
 }
