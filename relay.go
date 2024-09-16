@@ -160,6 +160,13 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		defer cancel()
 	}
 
+	if r.RequestHeader == nil {
+		r.RequestHeader = make(http.Header, 1)
+	}
+	if r.RequestHeader.Get("User-Agent") == "" {
+		r.RequestHeader.Set("User-Agent", "github.com/nbd-wtf/go-nostr")
+	}
+
 	conn, err := NewConnection(ctx, r.URL, r.RequestHeader, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
