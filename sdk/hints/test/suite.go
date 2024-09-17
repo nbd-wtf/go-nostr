@@ -1,4 +1,4 @@
-package memory
+package test
 
 import (
 	"testing"
@@ -9,16 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRelayPicking(t *testing.T) {
-	hdb := NewHintDB()
-
+func runTestWith(t *testing.T, hdb hints.HintsDB) {
 	const key1 = "0000000000000000000000000000000000000000000000000000000000000001"
 	const key2 = "0000000000000000000000000000000000000000000000000000000000000002"
 	const key3 = "0000000000000000000000000000000000000000000000000000000000000003"
 	const key4 = "0000000000000000000000000000000000000000000000000000000000000004"
 	const relayA = "wss://aaa.com"
-	const relayB = "wss://bbb.online"
-	const relayC = "wss://ccc.technology"
+	const relayB = "wss://bbb.net"
+	const relayC = "wss://ccc.org"
 
 	hour := nostr.Timestamp((time.Hour).Seconds())
 	day := hour * 24

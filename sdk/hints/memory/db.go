@@ -27,13 +27,6 @@ func NewHintDB() *HintDB {
 }
 
 func (db *HintDB) Save(pubkey string, relay string, key hints.HintKey, ts nostr.Timestamp) {
-	now := nostr.Now()
-	// this is used for calculating what counts as a usable hint
-	threshold := (now - 60*60*24*180)
-	if threshold < 0 {
-		threshold = 0
-	}
-
 	relayIndex := slices.Index(db.RelayBySerial, relay)
 	if relayIndex == -1 {
 		relayIndex = len(db.RelayBySerial)
@@ -104,6 +97,9 @@ func (db *HintDB) PrintScores() {
 		fmt.Println("== relay scores for", pubkey)
 		for i, re := range rfpk.Entries {
 			fmt.Printf("  %3d :: %30s (%3d) ::> %12d\n", i, db.RelayBySerial[re.Relay], re.Relay, re.Sum())
+			// for i, ts := range re.Timestamps {
+			// 	fmt.Printf("                             %-10d %s\n", ts, hints.HintKey(i).String())
+			// }
 		}
 	}
 }
@@ -114,7 +110,7 @@ type RelaysForPubKey struct {
 
 type RelayEntry struct {
 	Relay      int
-	Timestamps [8]nostr.Timestamp
+	Timestamps [7]nostr.Timestamp
 }
 
 func (re RelayEntry) Sum() int64 {
@@ -125,18 +121,9 @@ func (re RelayEntry) Sum() int64 {
 			continue
 		}
 
-		hk := hints.HintKey(i)
-		divisor := int64(now - ts)
-		if divisor == 0 {
-			divisor = 1
-		} else {
-			divisor = int64(math.Pow(float64(divisor), 1.3))
-		}
-
-		multiplier := hk.BasePoints()
-		value := multiplier * 10000000000 / divisor
+		value := float64(hints.HintKey(i).BasePoints()) * 10000000000 / math.Pow(float64(max(now-ts, 1)), 1.3)
 		// fmt.Println("   ", i, "value:", value)
-		sum += value
+		sum += int64(value)
 	}
 	return sum
 }
