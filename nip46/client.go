@@ -193,6 +193,22 @@ func (bunker *BunkerClient) NIP44Decrypt(
 	return bunker.RPC(ctx, "nip44_decrypt", []string{targetPublicKey, ciphertext})
 }
 
+func (bunker *BunkerClient) NIP04Encrypt(
+	ctx context.Context,
+	targetPublicKey string,
+	plaintext string,
+) (string, error) {
+	return bunker.RPC(ctx, "nip04_encrypt", []string{targetPublicKey, plaintext})
+}
+
+func (bunker *BunkerClient) NIP04Decrypt(
+	ctx context.Context,
+	targetPublicKey string,
+	ciphertext string,
+) (string, error) {
+	return bunker.RPC(ctx, "nip04_decrypt", []string{targetPublicKey, ciphertext})
+}
+
 func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []string) (string, error) {
 	id := bunker.idPrefix + "-" + strconv.FormatUint(bunker.serial.Add(1), 10)
 	req, err := json.Marshal(Request{
