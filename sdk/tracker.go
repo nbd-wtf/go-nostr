@@ -11,6 +11,9 @@ func (sys *System) trackEventHints(ie nostr.IncomingEvent) {
 	if IsVirtualRelay(ie.Relay.URL) {
 		return
 	}
+	if ie.Kind < 30000 && ie.Kind >= 20000 {
+		return
+	}
 
 	switch ie.Kind {
 	case nostr.KindRelayListMetadata:
