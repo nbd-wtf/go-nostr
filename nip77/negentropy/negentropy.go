@@ -30,6 +30,12 @@ type Negentropy struct {
 }
 
 func NewNegentropy(storage Storage, frameSizeLimit int) *Negentropy {
+	if frameSizeLimit == 0 {
+		frameSizeLimit = math.MaxInt
+	} else if frameSizeLimit < 4096 {
+		panic(fmt.Errorf("frameSizeLimit can't be smaller than 4096, was %d", frameSizeLimit))
+	}
+
 	return &Negentropy{
 		storage:        storage,
 		frameSizeLimit: frameSizeLimit,
