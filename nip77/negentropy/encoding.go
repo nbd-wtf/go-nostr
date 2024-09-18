@@ -125,15 +125,19 @@ func encodeVarInt(n int) []byte {
 		return []byte{0}
 	}
 
-	var o []byte
+	result := make([]byte, 8)
+	idx := 7
+
 	for n != 0 {
-		o = append([]byte{byte(n & 0x7F)}, o...)
+		result[idx] = byte(n & 0x7F)
 		n >>= 7
+		idx--
 	}
 
-	for i := 0; i < len(o)-1; i++ {
-		o[i] |= 0x80
+	result = result[idx+1:]
+	for i := 0; i < len(result)-1; i++ {
+		result[i] |= 0x80
 	}
 
-	return o
+	return result
 }
