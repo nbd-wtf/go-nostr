@@ -125,16 +125,16 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			// end skip range, if necessary, so we can start a new bound that isn't a skip
 			if skipping {
 				skipping = false
-				n.encodeBound(partialOutput, prevBound)
+				n.writeBound(partialOutput, prevBound)
 				partialOutput.WriteByte(byte(SkipMode))
 			}
 		}
 
-		currBound, err := n.DecodeBound(reader)
+		currBound, err := n.readBound(reader)
 		if err != nil {
 			return "", fmt.Errorf("failed to decode bound: %w", err)
 		}
-		modeVal, err := decodeVarInt(reader)
+		modeVal, err := readVarInt(reader)
 		if err != nil {
 			return "", fmt.Errorf("failed to decode mode: %w", err)
 		}
@@ -162,7 +162,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			}
 
 		case IdListMode:
-			numIds, err := decodeVarInt(reader)
+			numIds, err := readVarInt(reader)
 			if err != nil {
 				return "", fmt.Errorf("failed to decode number of ids: %w", err)
 			}
@@ -222,9 +222,9 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 					responses++
 				}
 
-				n.encodeBound(partialOutput, endBound)
+				n.writeBound(partialOutput, endBound)
 				partialOutput.WriteByte(byte(IdListMode))
-				encodeVarIntToHex(partialOutput, responses)
+				writeVarInt(partialOutput, responses)
 				partialOutput.WriteHex(responseIds.String())
 
 				fullOutput.WriteHex(partialOutput.Hex())
@@ -238,7 +238,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 		if n.frameSizeLimit-200 < fullOutput.Len()+partialOutput.Len() {
 			// frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint := n.storage.Fingerprint(upper, n.storage.Size())
-			n.encodeBound(fullOutput, infiniteBound)
+			n.writeBound(fullOutput, infiniteBound)
 			fullOutput.WriteByte(byte(FingerprintMode))
 			fullOutput.WriteBytes(remainingFingerprint[:])
 
@@ -261,9 +261,9 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *Stri
 
 	if numElems < buckets*2 {
 		// we just send the full ids here
-		n.encodeBound(output, upperBound)
+		n.writeBound(output, upperBound)
 		output.WriteByte(byte(IdListMode))
-		encodeVarIntToHex(output, numElems)
+		writeVarInt(output, numElems)
 
 		for _, item := range n.storage.Range(lower, upper) {
 			output.WriteHex(item.ID)
@@ -299,7 +299,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *Stri
 				nextBound = minBound
 			}
 
-			n.encodeBound(output, nextBound)
+			n.writeBound(output, nextBound)
 			output.WriteByte(byte(FingerprintMode))
 			output.WriteBytes(ourFingerprint[:])
 		}

@@ -6,34 +6,38 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-func (n *Negentropy) DecodeTimestampIn(reader *StringHexReader) (nostr.Timestamp, error) {
-	t, err := decodeVarInt(reader)
+func (n *Negentropy) readTimestamp(reader *StringHexReader) (nostr.Timestamp, error) {
+	delta, err := readVarInt(reader)
 	if err != nil {
 		return 0, err
 	}
 
-	timestamp := nostr.Timestamp(t)
-	if timestamp == 0 {
-		timestamp = maxTimestamp
-	} else {
-		timestamp--
+	if delta == 0 {
+		// zeroes are infinite
+		timestamp := maxTimestamp
+		n.lastTimestampIn = timestamp
+		return timestamp, nil
 	}
 
-	timestamp += n.lastTimestampIn
-	if timestamp < n.lastTimestampIn { // Check for overflow
-		timestamp = maxTimestamp
-	}
+	// remove 1 as we always add 1 when encoding
+	delta--
+
+	// we add the previously cached timestamp to get the current
+	timestamp := n.lastTimestampIn + nostr.Timestamp(delta)
+
+	// cache this so we can apply it to the delta next time
 	n.lastTimestampIn = timestamp
+
 	return timestamp, nil
 }
 
-func (n *Negentropy) DecodeBound(reader *StringHexReader) (Bound, error) {
-	timestamp, err := n.DecodeTimestampIn(reader)
+func (n *Negentropy) readBound(reader *StringHexReader) (Bound, error) {
+	timestamp, err := n.readTimestamp(reader)
 	if err != nil {
 		return Bound{}, fmt.Errorf("failed to decode bound timestamp: %w", err)
 	}
 
-	length, err := decodeVarInt(reader)
+	length, err := readVarInt(reader)
 	if err != nil {
 		return Bound{}, fmt.Errorf("failed to decode bound length: %w", err)
 	}
@@ -46,22 +50,28 @@ func (n *Negentropy) DecodeBound(reader *StringHexReader) (Bound, error) {
 	return Bound{Item{timestamp, id}}, nil
 }
 
-func (n *Negentropy) encodeTimestampOut(w *StringHexWriter, timestamp nostr.Timestamp) {
+func (n *Negentropy) writeTimestamp(w *StringHexWriter, timestamp nostr.Timestamp) {
 	if timestamp == maxTimestamp {
-		n.lastTimestampOut = maxTimestamp
-		encodeVarIntToHex(w, 0)
+		// zeroes are infinite
+		n.lastTimestampOut = maxTimestamp // cache this (see below)
+		writeVarInt(w, 0)
 		return
 	}
-	temp := timestamp
-	timestamp -= n.lastTimestampOut
-	n.lastTimestampOut = temp
-	encodeVarIntToHex(w, int(timestamp+1))
+
+	// we will only encode the difference between this timestamp and the previous
+	delta := timestamp - n.lastTimestampOut
+
+	// we cache this here as the next timestamp we encode will be just a delta from this
+	n.lastTimestampOut = timestamp
+
+	// add 1 to prevent zeroes from being read as infinites
+	writeVarInt(w, int(delta+1))
 	return
 }
 
-func (n *Negentropy) encodeBound(w *StringHexWriter, bound Bound) {
-	n.encodeTimestampOut(w, bound.Timestamp)
-	encodeVarIntToHex(w, len(bound.ID)/2)
+func (n *Negentropy) writeBound(w *StringHexWriter, bound Bound) {
+	n.writeTimestamp(w, bound.Timestamp)
+	writeVarInt(w, len(bound.ID)/2)
 	w.WriteHex(bound.Item.ID)
 }
 
@@ -83,7 +93,7 @@ func getMinimalBound(prev, curr Item) Bound {
 	return Bound{Item{curr.Timestamp, curr.ID[:(sharedPrefixBytes+1)*2]}}
 }
 
-func decodeVarInt(reader *StringHexReader) (int, error) {
+func readVarInt(reader *StringHexReader) (int, error) {
 	var res int = 0
 
 	for {
@@ -99,6 +109,15 @@ func decodeVarInt(reader *StringHexReader) (int, error) {
 	}
 
 	return res, nil
+}
+
+func writeVarInt(w *StringHexWriter, n int) {
+	if n == 0 {
+		w.WriteByte(0)
+		return
+	}
+
+	w.WriteBytes(encodeVarInt(n))
 }
 
 func encodeVarInt(n int) []byte {
@@ -117,22 +136,4 @@ func encodeVarInt(n int) []byte {
 	}
 
 	return o
-}
-
-func encodeVarIntToHex(w *StringHexWriter, n int) {
-	if n == 0 {
-		w.WriteByte(0)
-	}
-
-	var o []byte
-	for n != 0 {
-		o = append([]byte{byte(n & 0x7F)}, o...)
-		n >>= 7
-	}
-
-	for i := 0; i < len(o)-1; i++ {
-		o[i] |= 0x80
-	}
-
-	w.WriteBytes(o)
 }

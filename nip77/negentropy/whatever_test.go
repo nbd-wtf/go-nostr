@@ -2,7 +2,6 @@ package negentropy
 
 import (
 	"fmt"
-	"log"
 	"slices"
 	"sync"
 	"testing"
@@ -106,27 +105,7 @@ func runTestWith(t *testing.T,
 	i := 1
 
 	wg := sync.WaitGroup{}
-	wg.Add(3)
-
-	var fatal error
-
-	go func() {
-		defer wg.Done()
-		for n := n1; q != ""; n = invert[n] {
-			i++
-
-			fmt.Println("processing reconcile", n)
-			q, err = n.Reconcile(q)
-			if err != nil {
-				fatal = err
-				return
-			}
-
-			if q == "" {
-				return
-			}
-		}
-	}()
+	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
@@ -166,8 +145,19 @@ func runTestWith(t *testing.T,
 		require.Equal(t, expectedNeed, havenots, "wrong need")
 	}()
 
-	wg.Wait()
-	if fatal != nil {
-		log.Fatal(fatal)
+	for n := n1; q != ""; n = invert[n] {
+		i++
+
+		fmt.Println("processing reconcile", n)
+		q, err = n.Reconcile(q)
+
+		if err != nil {
+			t.Fatalf("reconciliation failed: %s", err)
+		}
+
+		if q == "" {
+			wg.Wait()
+			return
+		}
 	}
 }
