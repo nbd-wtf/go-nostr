@@ -7,7 +7,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
-func (sys *System) trackEventHints(ie nostr.IncomingEvent) {
+func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 	if IsVirtualRelay(ie.Relay.URL) {
 		return
 	}

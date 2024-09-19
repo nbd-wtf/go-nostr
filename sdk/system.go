@@ -70,7 +70,7 @@ func NewSystem(mods ...SystemModifier) *System {
 	}
 
 	sys.Pool = nostr.NewSimplePool(context.Background(),
-		nostr.WithEventMiddleware(sys.trackEventHints),
+		nostr.WithEventMiddleware(sys.TrackEventHints),
 		nostr.WithPenaltyBox(),
 	)
 
