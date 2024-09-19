@@ -17,11 +17,14 @@ func NewBunkerSignerFromBunkerClient(bc *nip46.BunkerClient) BunkerSigner {
 	return BunkerSigner{bc}
 }
 
-func (bs BunkerSigner) GetPublicKey(ctx context.Context) string {
+func (bs BunkerSigner) GetPublicKey(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
-	pk, _ := bs.bunker.GetPublicKey(ctx)
-	return pk
+	pk, err := bs.bunker.GetPublicKey(ctx)
+	if err != nil {
+		return "", err
+	}
+	return pk, nil
 }
 
 func (bs BunkerSigner) SignEvent(ctx context.Context, evt *nostr.Event) error {

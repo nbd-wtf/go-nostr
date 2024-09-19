@@ -16,18 +16,21 @@ type EncryptedKeySigner struct {
 	callback  func(context.Context) string
 }
 
-func (es *EncryptedKeySigner) GetPublicKey(ctx context.Context) string {
+func (es *EncryptedKeySigner) GetPublicKey(ctx context.Context) (string, error) {
 	if es.pk != "" {
-		return es.pk
+		return es.pk, nil
 	}
 	password := es.callback(ctx)
 	key, err := nip49.Decrypt(es.ncryptsec, password)
 	if err != nil {
-		return ""
+		return "", err
 	}
-	pk, _ := nostr.GetPublicKey(key)
+	pk, err := nostr.GetPublicKey(key)
+	if err != nil {
+		return "", err
+	}
 	es.pk = pk
-	return pk
+	return pk, nil
 }
 
 func (es *EncryptedKeySigner) SignEvent(ctx context.Context, evt *nostr.Event) error {

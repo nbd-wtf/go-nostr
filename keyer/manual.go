@@ -10,7 +10,7 @@ import (
 // It can be used when an app for some reason wants to ask the user to manually provide a signed event
 // by copy-and-paste, for example.
 type ManualSigner struct {
-	ManualGetPublicKey func(context.Context) string
+	ManualGetPublicKey func(context.Context) (string, error)
 	ManualSignEvent    func(context.Context, *nostr.Event) error
 	ManualEncrypt      func(ctx context.Context, plaintext string, recipientPublicKey string) (base64ciphertext string, err error)
 	ManualDecrypt      func(ctx context.Context, base64ciphertext string, senderPublicKey string) (plaintext string, err error)
@@ -20,7 +20,7 @@ func (ms ManualSigner) SignEvent(ctx context.Context, evt *nostr.Event) error {
 	return ms.ManualSignEvent(ctx, evt)
 }
 
-func (ms ManualSigner) GetPublicKey(ctx context.Context) string {
+func (ms ManualSigner) GetPublicKey(ctx context.Context) (string, error) {
 	return ms.ManualGetPublicKey(ctx)
 }
 
