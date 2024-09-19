@@ -51,6 +51,7 @@ type FileMetadata struct {
 	TorrentInfoHash string
 	Blurhash        string
 	Thumb           string
+	Content         string
 }
 
 func (fm FileMetadata) IsVideo() bool { return strings.Split(fm.M, "/")[0] == "video" }
