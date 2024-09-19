@@ -25,7 +25,7 @@ func (sys *System) trackEventHints(ie nostr.IncomingEvent) {
 				sys.Hints.Save(ie.PubKey, tag[1], hints.LastInRelayList, ie.CreatedAt)
 			}
 		}
-	case nostr.KindContactList:
+	case nostr.KindFollowList:
 		sys.Hints.Save(ie.PubKey, ie.Relay.URL, hints.MostRecentEventFetched, ie.CreatedAt)
 
 		for _, tag := range ie.Tags {
