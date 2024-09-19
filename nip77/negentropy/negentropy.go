@@ -13,6 +13,7 @@ import (
 const (
 	protocolVersion byte = 0x61 // version 1
 	maxTimestamp         = nostr.Timestamp(math.MaxInt64)
+	buckets              = 16
 )
 
 var infiniteBound = Bound{Item: Item{Timestamp: maxTimestamp}}
@@ -39,6 +40,8 @@ func NewNegentropy(storage Storage, frameSizeLimit int) *Negentropy {
 	return &Negentropy{
 		storage:        storage,
 		frameSizeLimit: frameSizeLimit,
+		Haves:          make(chan string, buckets*4),
+		HaveNots:       make(chan string, buckets*4),
 	}
 }
 
@@ -70,9 +73,6 @@ func (n *Negentropy) seal() {
 func (n *Negentropy) Initiate() string {
 	n.seal()
 	n.isClient = true
-
-	n.Haves = make(chan string, n.storage.Size()/2)
-	n.HaveNots = make(chan string, n.storage.Size()/2)
 
 	output := NewStringHexWriter(make([]byte, 0, 1+n.storage.Size()*64))
 	output.WriteByte(protocolVersion)
@@ -257,7 +257,6 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 
 func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *StringHexWriter) {
 	numElems := upper - lower
-	const buckets = 16
 
 	if numElems < buckets*2 {
 		// we just send the full ids here
