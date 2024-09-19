@@ -16,6 +16,9 @@ type UploadRequest struct {
 	// SK is a private key used to sign the NIP-98 Auth header. If not set
 	// the auth header will not be included in the upload.
 	SK string
+	// Optional signing of payload (file) as described in NIP-98, if enabled
+	// includes `payload` tag with file's sha256 in signed event / auth header.
+	SignPayload bool
 
 	// File is the file to upload.
 	File io.Reader
@@ -64,6 +67,7 @@ type UploadResponse struct {
 	Message       string `json:"message"`
 	ProcessingURL string `json:"processing_url"`
 	Nip94Event    struct {
-		Tags nostr.Tags `json:"tags"`
+		Tags    nostr.Tags `json:"tags"`
+		Content string     `json:"content"`
 	} `json:"nip94_event"`
 }

@@ -22,6 +22,7 @@ func TestUpload(t *testing.T) {
 		//Host:        "https://nostrcheck.me/api/v2/media",
 		//Host:        "https://nostrage.com/api/v2/media",
 		SK:          nostr.GeneratePrivateKey(),
+		SignPayload: true,
 		File:        img,
 		Filename:    "ostrich.png",
 		Caption:     "nostr ostrich",

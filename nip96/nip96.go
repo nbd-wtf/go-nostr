@@ -3,9 +3,12 @@ package nip96
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -26,6 +29,7 @@ func Upload(ctx context.Context, req UploadRequest) (*UploadResponse, error) {
 	}
 
 	var requestBody bytes.Buffer
+	fileHash := sha256.New()
 	writer := multipart.NewWriter(&requestBody)
 	{
 		// Add the file
@@ -33,7 +37,7 @@ func Upload(ctx context.Context, req UploadRequest) (*UploadResponse, error) {
 		if err != nil {
 			return nil, fmt.Errorf("multipartWriter.CreateFormFile: %w", err)
 		}
-		if _, err := io.Copy(fileWriter, req.File); err != nil {
+		if _, err := io.Copy(fileWriter, io.TeeReader(req.File, fileHash)); err != nil {
 			return nil, fmt.Errorf("io.Copy: %w", err)
 		}
 
@@ -61,7 +65,10 @@ func Upload(ctx context.Context, req UploadRequest) (*UploadResponse, error) {
 	uploadReq.Header.Set("Content-Type", writer.FormDataContentType())
 
 	if req.SK != "" {
-		auth, err := generateAuthHeader(req.SK, req.Host)
+		if !req.SignPayload {
+			fileHash = nil
+		}
+		auth, err := generateAuthHeader(req.SK, req.Host, fileHash)
 		if err != nil {
 			return nil, fmt.Errorf("generateAuthHeader: %w", err)
 		}
@@ -99,7 +106,7 @@ func Upload(ctx context.Context, req UploadRequest) (*UploadResponse, error) {
 	}
 }
 
-func generateAuthHeader(sk, host string) (string, error) {
+func generateAuthHeader(sk, host string, fileHash hash.Hash) (string, error) {
 	pk, err := nostr.GetPublicKey(sk)
 	if err != nil {
 		return "", fmt.Errorf("nostr.GetPublicKey: %w", err)
@@ -113,6 +120,9 @@ func generateAuthHeader(sk, host string) (string, error) {
 			nostr.Tag{"u", host},
 			nostr.Tag{"method", "POST"},
 		},
+	}
+	if fileHash != nil {
+		event.Tags = append(event.Tags, nostr.Tag{"payload", hex.EncodeToString(fileHash.Sum(nil))})
 	}
 	event.Sign(sk)
 
