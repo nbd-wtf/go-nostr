@@ -59,7 +59,7 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 		return err
 	}
 
-	msg := neg.Initiate()
+	msg := neg.Start()
 	open, _ := OpenEnvelope{id, filter, msg}.MarshalJSON()
 	err = <-r.Write(open)
 	if err != nil {

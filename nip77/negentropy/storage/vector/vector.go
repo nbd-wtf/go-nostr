@@ -22,8 +22,8 @@ func New() *Vector {
 }
 
 func (v *Vector) Insert(createdAt nostr.Timestamp, id string) error {
-	if len(id)/2 != 32 {
-		return fmt.Errorf("bad id size for added item: expected %d, got %d", 32, len(id)/2)
+	if len(id) != 64 {
+		return fmt.Errorf("bad id size for added item: expected %d bytes, got %d", 32, len(id)/2)
 	}
 
 	item := negentropy.Item{Timestamp: createdAt, ID: id}

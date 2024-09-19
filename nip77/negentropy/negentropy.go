@@ -56,7 +56,7 @@ func (n *Negentropy) String() string {
 	return fmt.Sprintf("<Negentropy %s with %d items>", label, n.storage.Size())
 }
 
-func (n *Negentropy) Initiate() string {
+func (n *Negentropy) Start() string {
 	n.initialized = true
 	n.isClient = true
 
