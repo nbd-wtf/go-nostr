@@ -2,6 +2,8 @@ package nip17
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/keyer"
@@ -28,6 +30,62 @@ func GetDMRelays(ctx context.Context, pubkey string, pool *nostr.SimplePool, rel
 	}
 
 	return res
+}
+
+func PublishMessage(
+	ctx context.Context,
+	content string,
+	tags nostr.Tags,
+	pool *nostr.SimplePool,
+	ourRelays []string,
+	theirRelays []string,
+	kr keyer.Keyer,
+	recipientPubKey string,
+	modify func(*nostr.Event),
+) error {
+	toUs, toThem, err := PrepareMessage(ctx, content, tags, kr, recipientPubKey, modify)
+	if err != nil {
+		return fmt.Errorf("failed to prepare message: %w", err)
+	}
+
+	sendErr := fmt.Errorf("failed to send event to ourselves in any of %v", ourRelays)
+	publishOrAuth := func(ctx context.Context, url string, event nostr.Event) {
+		r, err := pool.EnsureRelay(url)
+		if err != nil {
+			return
+		}
+
+		err = r.Publish(ctx, event)
+		if strings.HasPrefix(err.Error(), "auth-required:") {
+			authErr := r.Auth(ctx, func(ae *nostr.Event) error { return kr.SignEvent(ctx, ae) })
+			if authErr == nil {
+				err = r.Publish(ctx, event)
+			}
+		}
+
+		if err != nil {
+			return
+		}
+
+		sendErr = nil
+	}
+
+	// send to ourselves
+	for _, url := range ourRelays {
+		publishOrAuth(ctx, url, toUs)
+	}
+
+	if sendErr != nil {
+		return sendErr
+	}
+
+	// send to them
+	sendErr = fmt.Errorf("failed to send event to them in any of %v", theirRelays)
+	for _, url := range theirRelays {
+		publishOrAuth(ctx, url, toThem)
+	}
+
+	return sendErr
 }
 
 func PrepareMessage(
