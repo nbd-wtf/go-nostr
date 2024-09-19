@@ -16,13 +16,16 @@ type KeySigner struct {
 	conversationKeys *xsync.MapOf[string, [32]byte]
 }
 
-func NewPlainKeySigner(sec string) KeySigner {
-	pk, _ := nostr.GetPublicKey(sec)
-	return KeySigner{sec, pk, xsync.NewMapOf[string, [32]byte]()}
+func NewPlainKeySigner(sec string) (KeySigner, error) {
+	pk, err := nostr.GetPublicKey(sec)
+	if err != nil {
+		return KeySigner{}, err
+	}
+	return KeySigner{sec, pk, xsync.NewMapOf[string, [32]byte]()}, nil
 }
 
 func (ks KeySigner) SignEvent(ctx context.Context, evt *nostr.Event) error { return evt.Sign(ks.sk) }
-func (ks KeySigner) GetPublicKey(ctx context.Context) string               { return ks.pk }
+func (ks KeySigner) GetPublicKey(ctx context.Context) (string, error)      { return ks.pk, nil }
 
 func (ks KeySigner) Encrypt(ctx context.Context, plaintext string, recipient string) (string, error) {
 	ck, ok := ks.conversationKeys.Load(recipient)

@@ -22,7 +22,7 @@ type Keyer interface {
 
 // A Signer provides basic public key signing methods.
 type Signer interface {
-	GetPublicKey(context.Context) string
+	GetPublicKey(context.Context) (string, error)
 	SignEvent(context.Context, *nostr.Event) error
 }
 

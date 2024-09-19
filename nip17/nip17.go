@@ -38,7 +38,10 @@ func PrepareMessage(
 	recipientPubKey string,
 	modify func(*nostr.Event),
 ) (toUs nostr.Event, toThem nostr.Event, err error) {
-	ourPubkey := kr.GetPublicKey(ctx)
+	ourPubkey, err := kr.GetPublicKey(ctx)
+	if err != nil {
+		return nostr.Event{}, nostr.Event{}, err
+	}
 
 	rumor := nostr.Event{
 		Kind:      14,
@@ -87,10 +90,16 @@ func ListenForMessages(
 	go func() {
 		defer close(ch)
 
+		pk, err := kr.GetPublicKey(ctx)
+		if err != nil {
+			nostr.InfoLogger.Printf("[nip17] failed to get public key from Keyer: %s\n", err)
+			return
+		}
+
 		for ie := range pool.SubMany(ctx, ourRelays, nostr.Filters{
 			{
 				Kinds: []int{1059},
-				Tags:  nostr.TagMap{"p": []string{kr.GetPublicKey(ctx)}},
+				Tags:  nostr.TagMap{"p": []string{pk}},
 				Since: &since,
 			},
 		}) {
