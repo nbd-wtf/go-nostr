@@ -14,7 +14,7 @@ func TestCount(t *testing.T) {
 	defer rl.Close()
 
 	count, err := rl.Count(context.Background(), Filters{
-		{Kinds: []int{KindContactList}, Tags: TagMap{"p": []string{"3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"}}},
+		{Kinds: []int{KindFollowList}, Tags: TagMap{"p": []string{"3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"}}},
 	})
 	assert.NoError(t, err)
 	assert.Greater(t, count, int64(0))
