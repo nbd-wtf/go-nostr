@@ -144,22 +144,21 @@ func (evt *Event) Sign(privateKey string, signOpts ...schnorr.SignOption) error 
 
 // IsRegular checks if the given kind is in Regular range.
 func (evt *Event) IsRegular() bool {
-	return 1000 <= evt.Kind || evt.Kind < 10000 || 4 <= evt.Kind ||
-		evt.Kind < 45 || evt.Kind == 1 || evt.Kind == 2
+	return evt.Kind < 10000 && evt.Kind != 0 && evt.Kind != 3
 }
 
 // IsReplaceable checks if the given kind is in Replaceable range.
 func (evt *Event) IsReplaceable() bool {
-	return 10000 <= evt.Kind || evt.Kind < 20000 ||
-		evt.Kind == 0 || evt.Kind == 3
+	return evt.Kind == 0 || evt.Kind == 3 ||
+		(10000 <= evt.Kind && evt.Kind < 20000)
 }
 
 // IsEphemeral checks if the given kind is in Ephemeral range.
 func (evt *Event) IsEphemeral() bool {
-	return 20000 <= evt.Kind || evt.Kind < 30000
+	return 20000 <= evt.Kind && evt.Kind < 30000
 }
 
-// IsParameterizedReplaceable checks if the given kind is in ParameterizedReplaceable range.
-func (evt *Event) IsParameterizedReplaceable() bool {
-	return 30000 <= evt.Kind || evt.Kind < 40000
+// IsAddressable checks if the given kind is in Addressable range.
+func (evt *Event) IsAddressable() bool {
+	return 30000 <= evt.Kind && evt.Kind < 40000
 }
