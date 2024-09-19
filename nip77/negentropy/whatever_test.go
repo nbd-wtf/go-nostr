@@ -1,4 +1,4 @@
-package negentropy
+package negentropy_test
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
+	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,8 +61,8 @@ func runTestWith(t *testing.T,
 ) {
 	var err error
 	var q string
-	var n1 *Negentropy
-	var n2 *Negentropy
+	var n1 *negentropy.Negentropy
+	var n2 *negentropy.Negentropy
 
 	events := make([]*nostr.Event, totalEvents)
 	for i := range events {
@@ -73,23 +75,27 @@ func runTestWith(t *testing.T,
 	}
 
 	{
-		n1 = NewNegentropy(NewVector(), 1<<16)
+		n1s := vector.New()
+		n1 = negentropy.New(n1s, 1<<16)
 		for _, r := range n1Ranges {
 			for i := r[0]; i < r[1]; i++ {
-				n1.Insert(events[i])
+				n1s.Insert(events[i].CreatedAt, events[1].ID)
 			}
 		}
+		n1s.Seal()
 
 		q = n1.Initiate()
 	}
 
 	{
-		n2 = NewNegentropy(NewVector(), 1<<16)
+		n2s := vector.New()
+		n2 = negentropy.New(n2s, 1<<16)
 		for _, r := range n2Ranges {
 			for i := r[0]; i < r[1]; i++ {
-				n2.Insert(events[i])
+				n2s.Insert(events[i].CreatedAt, events[1].ID)
 			}
 		}
+		n2s.Seal()
 
 		q, err = n2.Reconcile(q)
 		if err != nil {
@@ -98,7 +104,7 @@ func runTestWith(t *testing.T,
 		}
 	}
 
-	invert := map[*Negentropy]*Negentropy{
+	invert := map[*negentropy.Negentropy]*negentropy.Negentropy{
 		n1: n2,
 		n2: n1,
 	}
@@ -148,9 +154,7 @@ func runTestWith(t *testing.T,
 	for n := n1; q != ""; n = invert[n] {
 		i++
 
-		fmt.Println("processing reconcile", n)
 		q, err = n.Reconcile(q)
-
 		if err != nil {
 			t.Fatalf("reconciliation failed: %s", err)
 		}

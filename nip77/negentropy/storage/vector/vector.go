@@ -1,4 +1,4 @@
-package negentropy
+package vector
 
 import (
 	"encoding/hex"
@@ -7,16 +7,17 @@ import (
 	"slices"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
 )
 
 type Vector struct {
-	items  []Item
+	items  []negentropy.Item
 	sealed bool
 }
 
-func NewVector() *Vector {
+func New() *Vector {
 	return &Vector{
-		items: make([]Item, 0, 30),
+		items: make([]negentropy.Item, 0, 30),
 	}
 }
 
@@ -25,7 +26,7 @@ func (v *Vector) Insert(createdAt nostr.Timestamp, id string) error {
 		return fmt.Errorf("bad id size for added item: expected %d, got %d", 32, len(id)/2)
 	}
 
-	item := Item{createdAt, id}
+	item := negentropy.Item{Timestamp: createdAt, ID: id}
 	v.items = append(v.items, item)
 	return nil
 }
@@ -37,18 +38,18 @@ func (v *Vector) Seal() {
 		panic("trying to seal an already sealed vector")
 	}
 	v.sealed = true
-	slices.SortFunc(v.items, itemCompare)
+	slices.SortFunc(v.items, negentropy.ItemCompare)
 }
 
-func (v *Vector) GetBound(idx int) Bound {
+func (v *Vector) GetBound(idx int) negentropy.Bound {
 	if idx < len(v.items) {
-		return Bound{v.items[idx]}
+		return negentropy.Bound{Item: v.items[idx]}
 	}
-	return infiniteBound
+	return negentropy.InfiniteBound
 }
 
-func (v *Vector) Range(begin, end int) iter.Seq2[int, Item] {
-	return func(yield func(int, Item) bool) {
+func (v *Vector) Range(begin, end int) iter.Seq2[int, negentropy.Item] {
+	return func(yield func(int, negentropy.Item) bool) {
 		for i := begin; i < end; i++ {
 			if !yield(i, v.items[i]) {
 				break
@@ -57,13 +58,13 @@ func (v *Vector) Range(begin, end int) iter.Seq2[int, Item] {
 	}
 }
 
-func (v *Vector) FindLowerBound(begin, end int, bound Bound) int {
-	idx, _ := slices.BinarySearchFunc(v.items[begin:end], bound.Item, itemCompare)
+func (v *Vector) FindLowerBound(begin, end int, bound negentropy.Bound) int {
+	idx, _ := slices.BinarySearchFunc(v.items[begin:end], bound.Item, negentropy.ItemCompare)
 	return begin + idx
 }
 
-func (v *Vector) Fingerprint(begin, end int) [FingerprintSize]byte {
-	var out Accumulator
+func (v *Vector) Fingerprint(begin, end int) [negentropy.FingerprintSize]byte {
+	var out negentropy.Accumulator
 	out.SetToZero()
 
 	tmp := make([]byte, 32)

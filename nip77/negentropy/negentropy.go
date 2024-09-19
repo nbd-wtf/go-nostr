@@ -16,11 +16,11 @@ const (
 	buckets              = 16
 )
 
-var infiniteBound = Bound{Item: Item{Timestamp: maxTimestamp}}
+var InfiniteBound = Bound{Item: Item{Timestamp: maxTimestamp}}
 
 type Negentropy struct {
 	storage          Storage
-	sealed           bool
+	initialized      bool
 	frameSizeLimit   int
 	isClient         bool
 	lastTimestampIn  nostr.Timestamp
@@ -30,7 +30,7 @@ type Negentropy struct {
 	HaveNots chan string
 }
 
-func NewNegentropy(storage Storage, frameSizeLimit int) *Negentropy {
+func New(storage Storage, frameSizeLimit int) *Negentropy {
 	if frameSizeLimit == 0 {
 		frameSizeLimit = math.MaxInt
 	} else if frameSizeLimit < 4096 {
@@ -46,8 +46,8 @@ func NewNegentropy(storage Storage, frameSizeLimit int) *Negentropy {
 }
 
 func (n *Negentropy) String() string {
-	label := "unsealed"
-	if n.sealed {
+	label := "uninitialized"
+	if n.initialized {
 		label = "server"
 		if n.isClient {
 			label = "client"
@@ -56,33 +56,19 @@ func (n *Negentropy) String() string {
 	return fmt.Sprintf("<Negentropy %s with %d items>", label, n.storage.Size())
 }
 
-func (n *Negentropy) Insert(evt *nostr.Event) {
-	err := n.storage.Insert(evt.CreatedAt, evt.ID)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (n *Negentropy) seal() {
-	if !n.sealed {
-		n.storage.Seal()
-	}
-	n.sealed = true
-}
-
 func (n *Negentropy) Initiate() string {
-	n.seal()
+	n.initialized = true
 	n.isClient = true
 
 	output := NewStringHexWriter(make([]byte, 0, 1+n.storage.Size()*64))
 	output.WriteByte(protocolVersion)
-	n.SplitRange(0, n.storage.Size(), infiniteBound, output)
+	n.SplitRange(0, n.storage.Size(), InfiniteBound, output)
 
 	return output.Hex()
 }
 
 func (n *Negentropy) Reconcile(msg string) (output string, err error) {
-	n.seal()
+	n.initialized = true
 	reader := NewStringHexReader(msg)
 
 	output, err = n.reconcileAux(reader)
@@ -238,7 +224,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 		if n.frameSizeLimit-200 < fullOutput.Len()+partialOutput.Len() {
 			// frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint := n.storage.Fingerprint(upper, n.storage.Size())
-			n.writeBound(fullOutput, infiniteBound)
+			n.writeBound(fullOutput, InfiniteBound)
 			fullOutput.WriteByte(byte(FingerprintMode))
 			fullOutput.WriteBytes(remainingFingerprint[:])
 

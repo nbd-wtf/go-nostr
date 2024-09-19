@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"iter"
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -34,22 +33,12 @@ func (v Mode) String() string {
 	}
 }
 
-type Storage interface {
-	Insert(nostr.Timestamp, string) error
-	Seal()
-	Size() int
-	Range(begin, end int) iter.Seq2[int, Item]
-	FindLowerBound(begin, end int, value Bound) int
-	GetBound(idx int) Bound
-	Fingerprint(begin, end int) [FingerprintSize]byte
-}
-
 type Item struct {
 	Timestamp nostr.Timestamp
 	ID        string
 }
 
-func itemCompare(a, b Item) int {
+func ItemCompare(a, b Item) int {
 	if a.Timestamp == b.Timestamp {
 		return strings.Compare(a.ID, b.ID)
 	}
@@ -61,7 +50,7 @@ func (i Item) String() string { return fmt.Sprintf("Item<%d:%s>", i.Timestamp, i
 type Bound struct{ Item }
 
 func (b Bound) String() string {
-	if b.Timestamp == infiniteBound.Timestamp {
+	if b.Timestamp == InfiniteBound.Timestamp {
 		return "Bound<infinite>"
 	}
 	return fmt.Sprintf("Bound<%d:%s>", b.Timestamp, b.ID)

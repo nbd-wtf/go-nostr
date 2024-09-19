@@ -9,6 +9,7 @@ import (
 	"github.com/greatroar/blobloom"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
+	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
 )
 
 func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, filter nostr.Filter) error {
@@ -19,10 +20,12 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 		return fmt.Errorf("failed to query our local store: %w", err)
 	}
 
-	neg := negentropy.NewNegentropy(negentropy.NewVector(), 1024*1024)
+	vec := vector.New()
+	neg := negentropy.New(vec, 1024*1024)
 	for _, evt := range data {
-		neg.Insert(evt)
+		vec.Insert(evt.CreatedAt, evt.ID)
 	}
+	vec.Seal()
 
 	result := make(chan error)
 
