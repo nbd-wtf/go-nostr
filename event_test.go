@@ -170,3 +170,15 @@ func BenchmarkIDCheck(b *testing.B) {
 		}
 	})
 }
+
+func EventKindTest(t *testing.T) {
+	require.True(t, (&Event{Kind: 1}).IsRegular())
+	require.True(t, (&Event{Kind: 9}).IsRegular())
+	require.True(t, (&Event{Kind: 1111}).IsRegular())
+	require.True(t, (&Event{Kind: 0}).IsReplaceable())
+	require.True(t, (&Event{Kind: 3}).IsReplaceable())
+	require.True(t, (&Event{Kind: 10002}).IsReplaceable())
+	require.True(t, (&Event{Kind: 10050}).IsReplaceable())
+	require.True(t, (&Event{Kind: 30023}).IsAddressable())
+	require.True(t, (&Event{Kind: 39000}).IsAddressable())
+}
