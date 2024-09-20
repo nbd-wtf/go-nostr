@@ -96,7 +96,12 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 		return "", fmt.Errorf("failed to read pv: %w", err)
 	}
 	if pv != protocolVersion {
-		return "", fmt.Errorf("unsupported negentropy protocol version %v", pv)
+		if n.isClient {
+			return "", fmt.Errorf("unsupported negentropy protocol version %v", pv)
+		}
+
+		// if we're a server we just return our protocol version
+		return fullOutput.Hex(), nil
 	}
 
 	var prevBound Bound
