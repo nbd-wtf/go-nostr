@@ -82,7 +82,7 @@ func getMinimalBound(prev, curr Item) Bound {
 
 	sharedPrefixBytes := 0
 
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 32; i += 2 {
 		if curr.ID[i:i+2] != prev.ID[i:i+2] {
 			break
 		}
