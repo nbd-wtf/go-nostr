@@ -205,7 +205,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 				endBound := currBound
 
 				for index, item := range n.storage.Range(lower, upper) {
-					if n.frameSizeLimit-200 < fullOutput.Len()+1+8+responseIds.Len() {
+					if n.frameSizeLimit-200 < fullOutput.Len()/2+responseIds.Len()/2 {
 						endBound = Bound{item}
 						upper = index
 						break
@@ -227,7 +227,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			return "", fmt.Errorf("unexpected mode %d", mode)
 		}
 
-		if n.frameSizeLimit-200 < fullOutput.Len()+partialOutput.Len() {
+		if n.frameSizeLimit-200 <= fullOutput.Len()/2+partialOutput.Len()/2 {
 			// frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint := n.storage.Fingerprint(upper, n.storage.Size())
 			n.writeBound(fullOutput, InfiniteBound)
