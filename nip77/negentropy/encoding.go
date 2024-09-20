@@ -117,10 +117,10 @@ func writeVarInt(w *StringHexWriter, n int) {
 		return
 	}
 
-	w.WriteBytes(encodeVarInt(n))
+	w.WriteBytes(EncodeVarInt(n))
 }
 
-func encodeVarInt(n int) []byte {
+func EncodeVarInt(n int) []byte {
 	if n == 0 {
 		return []byte{0}
 	}

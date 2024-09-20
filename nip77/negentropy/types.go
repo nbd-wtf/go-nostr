@@ -2,8 +2,6 @@ package negentropy
 
 import (
 	"cmp"
-	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"strings"
 
@@ -54,52 +52,4 @@ func (b Bound) String() string {
 		return "Bound<infinite>"
 	}
 	return fmt.Sprintf("Bound<%d:%s>", b.Timestamp, b.ID)
-}
-
-type Accumulator struct {
-	Buf []byte
-}
-
-func (acc *Accumulator) SetToZero() {
-	acc.Buf = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-}
-
-func (acc *Accumulator) AddAccumulator(other Accumulator) {
-	acc.AddBytes(other.Buf)
-}
-
-func (acc *Accumulator) AddBytes(other []byte) {
-	var currCarry, nextCarry uint32
-
-	if len(acc.Buf) < 32 {
-		newBuf := make([]byte, 32)
-		copy(newBuf, acc.Buf)
-		acc.Buf = newBuf
-	}
-
-	for i := 0; i < 8; i++ {
-		offset := i * 4
-		orig := binary.LittleEndian.Uint32(acc.Buf[offset:])
-		otherV := binary.LittleEndian.Uint32(other[offset:])
-
-		next := orig + currCarry + otherV
-		if next < orig || next < otherV {
-			nextCarry = 1
-		}
-
-		binary.LittleEndian.PutUint32(acc.Buf[offset:], next&0xFFFFFFFF)
-		currCarry = nextCarry
-		nextCarry = 0
-	}
-}
-
-func (acc *Accumulator) GetFingerprint(n int) [FingerprintSize]byte {
-	input := acc.Buf[:]
-	input = append(input, encodeVarInt(n)...)
-
-	hash := sha256.Sum256(input)
-
-	var fingerprint [FingerprintSize]byte
-	copy(fingerprint[:], hash[:FingerprintSize])
-	return fingerprint
 }

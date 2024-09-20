@@ -36,9 +36,6 @@ func (r *StringHexReader) ReadHexByte() (byte, error) {
 }
 
 func (r *StringHexReader) ReadString(size int) (string, error) {
-	if size == 0 {
-		return "", nil
-	}
 	r.idx += size
 	if len(r.source) < r.idx {
 		return "", io.EOF

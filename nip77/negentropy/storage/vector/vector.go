@@ -13,6 +13,8 @@ import (
 type Vector struct {
 	items  []negentropy.Item
 	sealed bool
+
+	acc Accumulator
 }
 
 func New() *Vector {
@@ -21,14 +23,13 @@ func New() *Vector {
 	}
 }
 
-func (v *Vector) Insert(createdAt nostr.Timestamp, id string) error {
+func (v *Vector) Insert(createdAt nostr.Timestamp, id string) {
 	if len(id) != 64 {
-		return fmt.Errorf("bad id size for added item: expected %d bytes, got %d", 32, len(id)/2)
+		panic(fmt.Errorf("bad id size for added item: expected %d bytes, got %d", 32, len(id)/2))
 	}
 
 	item := negentropy.Item{Timestamp: createdAt, ID: id}
 	v.items = append(v.items, item)
-	return nil
 }
 
 func (v *Vector) Size() int { return len(v.items) }
@@ -63,15 +64,14 @@ func (v *Vector) FindLowerBound(begin, end int, bound negentropy.Bound) int {
 	return begin + idx
 }
 
-func (v *Vector) Fingerprint(begin, end int) [negentropy.FingerprintSize]byte {
-	var out negentropy.Accumulator
-	out.SetToZero()
+func (v *Vector) Fingerprint(begin, end int) string {
+	v.acc.Reset()
 
 	tmp := make([]byte, 32)
 	for _, item := range v.Range(begin, end) {
 		hex.Decode(tmp, []byte(item.ID))
-		out.AddBytes(tmp)
+		v.acc.AddBytes(tmp)
 	}
 
-	return out.GetFingerprint(end - begin)
+	return v.acc.GetFingerprint(end - begin)
 }

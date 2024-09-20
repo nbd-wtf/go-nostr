@@ -9,5 +9,5 @@ type Storage interface {
 	Range(begin, end int) iter.Seq2[int, Item]
 	FindLowerBound(begin, end int, value Bound) int
 	GetBound(idx int) Bound
-	Fingerprint(begin, end int) [FingerprintSize]byte
+	Fingerprint(begin, end int) string
 }

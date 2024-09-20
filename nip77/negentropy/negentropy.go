@@ -134,8 +134,8 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			skipping = true
 
 		case FingerprintMode:
-			var theirFingerprint [FingerprintSize]byte
-			if err := reader.ReadHexBytes(theirFingerprint[:]); err != nil {
+			theirFingerprint, err := reader.ReadString(FingerprintSize * 2)
+			if err != nil {
 				return "", fmt.Errorf("failed to read fingerprint: %w", err)
 			}
 			ourFingerprint := n.storage.Fingerprint(lower, upper)
@@ -181,6 +181,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			if n.isClient {
 				// notify client of what they have and we don't
 				for _, id := range theirItems {
+					// skip empty strings here because those were marked to be excluded as such in the previous step
 					if id != "" {
 						n.HaveNots <- id
 					}
@@ -226,7 +227,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			remainingFingerprint := n.storage.Fingerprint(upper, n.storage.Size())
 			n.writeBound(fullOutput, InfiniteBound)
 			fullOutput.WriteByte(byte(FingerprintMode))
-			fullOutput.WriteBytes(remainingFingerprint[:])
+			fullOutput.WriteHex(remainingFingerprint)
 
 			break // stop processing further
 		} else {
@@ -286,7 +287,7 @@ func (n *Negentropy) SplitRange(lower, upper int, upperBound Bound, output *Stri
 
 			n.writeBound(output, nextBound)
 			output.WriteByte(byte(FingerprintMode))
-			output.WriteBytes(ourFingerprint[:])
+			output.WriteHex(ourFingerprint)
 		}
 	}
 }
