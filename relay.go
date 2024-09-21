@@ -182,6 +182,10 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 		// stop the ticker
 		ticker.Stop()
+
+		// nil the connection
+		r.Connection = nil
+
 		// close all subscriptions
 		r.Subscriptions.Range(func(_ string, sub *Subscription) bool {
 			go sub.Unsub()
@@ -520,7 +524,6 @@ func (r *Relay) Close() error {
 	}
 
 	err := r.Connection.Close()
-	r.Connection = nil
 	if err != nil {
 		return err
 	}
