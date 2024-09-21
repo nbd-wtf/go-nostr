@@ -3,7 +3,6 @@ package negentropy
 import (
 	"fmt"
 	"math"
-	"slices"
 	"strings"
 	"unsafe"
 
@@ -159,12 +158,12 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			}
 
 			// what they have
-			theirItems := make([]string, 0, numIds)
+			theirItems := make(map[string]struct{}, numIds)
 			for i := 0; i < numIds; i++ {
 				if id, err := reader.ReadString(64); err != nil {
 					return "", fmt.Errorf("failed to read id (#%d/%d) in list: %w", i, numIds, err)
 				} else {
-					theirItems = append(theirItems, id)
+					theirItems[id] = struct{}{}
 				}
 			}
 
@@ -172,9 +171,9 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			for _, item := range n.storage.Range(lower, upper) {
 				id := item.ID
 
-				if idx, theyHave := slices.BinarySearch(theirItems, id); theyHave {
+				if _, theyHave := theirItems[id]; theyHave {
 					// if we have and they have, ignore
-					theirItems[idx] = ""
+					delete(theirItems, id)
 				} else {
 					// if we have and they don't, notify client
 					if n.isClient {
@@ -185,11 +184,9 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 
 			if n.isClient {
 				// notify client of what they have and we don't
-				for _, id := range theirItems {
+				for id := range theirItems {
 					// skip empty strings here because those were marked to be excluded as such in the previous step
-					if id != "" {
-						n.HaveNots <- id
-					}
+					n.HaveNots <- id
 				}
 
 				// client got list of ids, it's done, skip
@@ -227,7 +224,7 @@ func (n *Negentropy) reconcileAux(reader *StringHexReader) (string, error) {
 			return "", fmt.Errorf("unexpected mode %d", mode)
 		}
 
-		if n.frameSizeLimit-200 <= fullOutput.Len()/2+partialOutput.Len()/2 {
+		if n.frameSizeLimit-200 < fullOutput.Len()/2+partialOutput.Len()/2 {
 			// frame size limit exceeded, handle by encoding a boundary and fingerprint for the remaining range
 			remainingFingerprint := n.storage.Fingerprint(upper, n.storage.Size())
 			n.writeBound(fullOutput, InfiniteBound)
