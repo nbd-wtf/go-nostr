@@ -76,7 +76,6 @@ func ConnectBunker(
 		pool,
 		onAuth,
 	)
-
 	_, err = bunker.RPC(ctx, "connect", []string{targetPublicKey, secret})
 	return bunker, err
 }
@@ -237,6 +236,10 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 
 	respWaiter := make(chan Response)
 	bunker.listeners.Store(id, respWaiter)
+	defer func() {
+		bunker.listeners.Delete(id)
+		close(respWaiter)
+	}()
 	hasWorked := make(chan struct{})
 
 	for _, url := range bunker.relays {
@@ -259,10 +262,13 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 		return "", fmt.Errorf("couldn't connect to any relay")
 	}
 
-	resp := <-respWaiter
-	if resp.Error != "" {
-		return "", fmt.Errorf("response error: %s", resp.Error)
+	select {
+	case <-ctx.Done():
+		return "", fmt.Errorf("context canceled")
+	case resp := <-respWaiter:
+		if resp.Error != "" {
+			return "", fmt.Errorf("response error: %s", resp.Error)
+		}
+		return resp.Result, nil
 	}
-
-	return resp.Result, nil
 }
