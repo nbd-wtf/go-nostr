@@ -3,6 +3,7 @@ package sdk
 import (
 	"context"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -20,6 +21,11 @@ type TagItemWithValue interface {
 	Value() string
 }
 
+var (
+	genericListMutexes = [24]sync.Mutex{}
+	valueWasJustCached = [24]bool{}
+)
+
 func fetchGenericList[I TagItemWithValue](
 	sys *System,
 	ctx context.Context,
@@ -29,36 +35,45 @@ func fetchGenericList[I TagItemWithValue](
 	cache cache.Cache32[GenericList[I]],
 	skipFetch bool,
 ) (fl GenericList[I], fromInternal bool) {
-	if cache != nil {
-		if v, ok := cache.Get(pubkey); ok {
-			return v, true
-		}
+	// we have 24 mutexes, so we can load up to 24 lists at the same time, but if we do the same exact
+	// call that will do it only once, the subsequent ones will wait for a result to be cached
+	// and then return it from cache -- 13 is an arbitrary index for the pubkey
+	lockIdx := (int(pubkey[13]) + kind) % 24
+	genericListMutexes[lockIdx].Lock()
+
+	if valueWasJustCached[lockIdx] {
+		// this ensures the cache has had time to commit the values
+		// so we don't repeat a fetch immediately after the other
+		valueWasJustCached[lockIdx] = false
+		time.Sleep(time.Millisecond * 10)
 	}
 
-	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{kind}, Authors: []string{pubkey}})
-	if len(events) != 0 {
-		items := parseItemsFromEventTags(events[0], parseTag)
-		v := GenericList[I]{
-			PubKey: pubkey,
-			Event:  events[0],
-			Items:  items,
-		}
-		cache.SetWithTTL(pubkey, v, time.Hour*6)
+	defer genericListMutexes[lockIdx].Unlock()
+
+	if v, ok := cache.Get(pubkey); ok {
 		return v, true
 	}
 
 	v := GenericList[I]{PubKey: pubkey}
+
+	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{kind}, Authors: []string{pubkey}})
+	if len(events) != 0 {
+		items := parseItemsFromEventTags(events[0], parseTag)
+		v.Event = events[0]
+		v.Items = items
+		valueWasJustCached[lockIdx] = true
+		return v, true
+	}
+
 	if !skipFetch {
 		thunk := sys.replaceableLoaders[kind].Load(ctx, pubkey)
 		evt, err := thunk()
 		if err == nil {
 			items := parseItemsFromEventTags(evt, parseTag)
 			v.Items = items
-			if cache != nil {
-				cache.SetWithTTL(pubkey, v, time.Hour*6)
-			}
 			sys.StoreRelay.Publish(ctx, *evt)
 		}
+		valueWasJustCached[lockIdx] = true
 	}
 
 	return v, false

@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -10,34 +11,18 @@ var (
 	_dtnmtoahLock sync.Mutex
 )
 
-func DoThisNotMoreThanOnceAnHour(key string) (doItNow bool) {
-	if _dtnmtoah == nil {
-		go func() {
-			_dtnmtoah = make(map[string]time.Time)
-			for {
-				time.Sleep(time.Minute * 10)
-				_dtnmtoahLock.Lock()
-				now := time.Now()
-				for k, v := range _dtnmtoah {
-					if v.Before(now) {
-						delete(_dtnmtoah, k)
-					}
-				}
-				_dtnmtoahLock.Unlock()
-			}
-		}()
+// IsVirtualRelay returns true if the given normalized relay URL shouldn't be considered for outbox-model calculations.
+func IsVirtualRelay(url string) bool {
+	if len(url) < 6 {
+		// this is just invalid
+		return true
 	}
 
-	_dtnmtoahLock.Lock()
-	defer _dtnmtoahLock.Unlock()
+	if strings.HasPrefix(url, "wss://feeds.nostr.band") ||
+		strings.HasPrefix(url, "wss://filter.nostr.wine") ||
+		strings.HasPrefix(url, "wss://cache") {
+		return true
+	}
 
-	_, exists := _dtnmtoah[key]
-	return !exists
-}
-
-var serial = 0
-
-func pickNext(list []string) string {
-	serial++
-	return list[serial%len(list)]
+	return false
 }

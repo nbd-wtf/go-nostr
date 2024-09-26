@@ -22,11 +22,8 @@ func (sys *System) initializeDataloaders() {
 
 func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[string, *nostr.Event] {
 	return dataloader.NewBatchedLoader(
-		func(
-			ctx context.Context,
-			pubkeys []string,
-		) []*dataloader.Result[*nostr.Event] {
-			return sys.batchLoadReplaceableEvents(ctx, kind, pubkeys)
+		func(_ context.Context, pubkeys []string) []*dataloader.Result[*nostr.Event] {
+			return sys.batchLoadReplaceableEvents(kind, pubkeys)
 		},
 		dataloader.WithBatchCapacity[string, *nostr.Event](60),
 		dataloader.WithClearCacheOnBatch[string, *nostr.Event](),
@@ -35,7 +32,6 @@ func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[stri
 }
 
 func (sys *System) batchLoadReplaceableEvents(
-	ctx context.Context,
 	kind int,
 	pubkeys []string,
 ) []*dataloader.Result[*nostr.Event] {
@@ -67,7 +63,7 @@ func (sys *System) batchLoadReplaceableEvents(
 			}
 
 			// save attempts here so we don't try the same failed query over and over
-			if doItNow := DoThisNotMoreThanOnceAnHour("repl:" + strconv.Itoa(kind) + pubkey); !doItNow {
+			if doItNow := doThisNotMoreThanOnceAnHour("repl:" + strconv.Itoa(kind) + pubkey); !doItNow {
 				results[i] = &dataloader.Result[*nostr.Event]{
 					Error: fmt.Errorf("last attempt failed, waiting more to try again"),
 				}

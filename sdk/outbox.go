@@ -17,13 +17,10 @@ func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) 
 		return relays
 	}
 
-	if rl, ok := sys.RelayListCache.Get(pubkey); !ok || (rl.Event != nil && rl.Event.CreatedAt < nostr.Now()-60*60*24*7) {
-		// try to fetch relays list again if we don't have one or if ours is a week old
-		fetchGenericList(sys, ctx, pubkey, 10002, parseRelayFromKind10002, sys.RelayListCache, false)
-	}
+	// if we have it cached that means we have at least tried to fetch recently and it won't be tried again
+	fetchGenericList(sys, ctx, pubkey, 10002, parseRelayFromKind10002, sys.RelayListCache, false)
 
 	relays := sys.Hints.TopN(pubkey, 6)
-
 	if len(relays) == 0 {
 		return []string{"wss://relay.damus.io", "wss://nos.lol"}
 	}
