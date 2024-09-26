@@ -30,6 +30,7 @@ type SimplePool struct {
 	signatureChecker func(Event) bool
 	penaltyBoxMu     sync.Mutex
 	penaltyBox       map[string][2]float64
+	userAgent        string
 }
 
 type DirectedFilters struct {
@@ -120,10 +121,20 @@ func (h WithEventMiddleware) ApplyPoolOption(pool *SimplePool) {
 	pool.eventMiddleware = append(pool.eventMiddleware, h)
 }
 
+// WithUserAgent sets the user-agent header for all relay connections in the pool.
+func WithUserAgent(userAgent string) withUserAgentOpt { return withUserAgentOpt(userAgent) }
+
+type withUserAgentOpt string
+
+func (h withUserAgentOpt) ApplyPoolOption(pool *SimplePool) {
+	pool.userAgent = string(h)
+}
+
 var (
 	_ PoolOption = (WithAuthHandler)(nil)
 	_ PoolOption = (WithEventMiddleware)(nil)
 	_ PoolOption = WithPenaltyBox()
+	_ PoolOption = WithUserAgent("")
 )
 
 func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
@@ -146,7 +157,6 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	}
 
 	// try to connect
-	var err error
 	// we use this ctx here so when the pool dies everything dies
 	ctx, cancel := context.WithTimeout(pool.Context, time.Second*15)
 	defer cancel()
@@ -156,7 +166,10 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 		opts = append(opts, WithSignatureChecker(pool.signatureChecker))
 	}
 
-	if relay, err = RelayConnect(ctx, nm, opts...); err != nil {
+	relay = NewRelay(context.Background(), url, opts...)
+	relay.RequestHeader.Set("User-Agent", pool.userAgent)
+
+	if err := relay.Connect(ctx); err != nil {
 		if pool.penaltyBox != nil {
 			// putting relay in penalty box
 			pool.penaltyBoxMu.Lock()

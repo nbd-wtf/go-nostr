@@ -66,6 +66,7 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 			ok, _ := e.CheckSignature()
 			return ok
 		},
+		RequestHeader: make(http.Header, 1),
 	}
 
 	for _, opt := range opts {
@@ -160,9 +161,6 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		defer cancel()
 	}
 
-	if r.RequestHeader == nil {
-		r.RequestHeader = make(http.Header, 1)
-	}
 	if r.RequestHeader.Get("User-Agent") == "" {
 		r.RequestHeader.Set("User-Agent", "github.com/nbd-wtf/go-nostr")
 	}
