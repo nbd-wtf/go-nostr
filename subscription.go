@@ -142,7 +142,6 @@ func (sub *Subscription) Close() {
 		id := sub.GetID()
 		closeMsg := CloseEnvelope(id)
 		closeb, _ := (&closeMsg).MarshalJSON()
-		debugLogf("{%s} sending %v", sub.Relay.URL, closeb)
 		<-sub.Relay.Write(closeb)
 	}
 }
@@ -164,7 +163,6 @@ func (sub *Subscription) Fire() error {
 	} else {
 		reqb, _ = CountEnvelope{id, sub.Filters, nil}.MarshalJSON()
 	}
-	debugLogf("{%s} sending %v", sub.Relay.URL, reqb)
 
 	sub.live.Store(true)
 	if err := <-sub.Relay.Write(reqb); err != nil {
