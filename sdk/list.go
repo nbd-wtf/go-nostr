@@ -61,6 +61,7 @@ func fetchGenericList[I TagItemWithValue](
 		items := parseItemsFromEventTags(events[0], parseTag)
 		v.Event = events[0]
 		v.Items = items
+		cache.SetWithTTL(pubkey, v, time.Hour*6)
 		valueWasJustCached[lockIdx] = true
 		return v, true
 	}
@@ -73,6 +74,7 @@ func fetchGenericList[I TagItemWithValue](
 			v.Items = items
 			sys.StoreRelay.Publish(ctx, *evt)
 		}
+		cache.SetWithTTL(pubkey, v, time.Hour*6)
 		valueWasJustCached[lockIdx] = true
 	}
 
