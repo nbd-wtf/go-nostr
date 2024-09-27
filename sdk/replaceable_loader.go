@@ -3,6 +3,7 @@ package sdk
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -131,16 +132,21 @@ func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, ki
 	}
 
 	// use a different set of extra relays depending on the kind
-	for len(relays) < 3 {
+	for i := 0; i < 3-len(relays); i++ {
+		var next string
 		switch kind {
 		case 0:
-			relays = append(relays, pickNext(sys.MetadataRelays))
+			next = pickNext(sys.MetadataRelays)
 		case 3:
-			relays = append(relays, pickNext(sys.FollowListRelays))
+			next = pickNext(sys.FollowListRelays)
 		case 10002:
-			relays = append(relays, pickNext(sys.RelayListRelays))
+			next = pickNext(sys.RelayListRelays)
 		default:
-			relays = append(relays, pickNext(sys.FallbackRelays))
+			next = pickNext(sys.FallbackRelays)
+		}
+
+		if !slices.Contains(relays, next) {
+			relays = append(relays, next)
 		}
 	}
 
