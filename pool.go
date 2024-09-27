@@ -27,10 +27,9 @@ type SimplePool struct {
 	eventMiddleware []func(RelayEvent)
 
 	// custom things not often used
-	signatureChecker func(Event) bool
-	penaltyBoxMu     sync.Mutex
-	penaltyBox       map[string][2]float64
-	userAgent        string
+	penaltyBoxMu sync.Mutex
+	penaltyBox   map[string][2]float64
+	userAgent    string
 }
 
 type DirectedFilters struct {
@@ -161,12 +160,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	ctx, cancel := context.WithTimeout(pool.Context, time.Second*15)
 	defer cancel()
 
-	opts := make([]RelayOption, 0, 1+len(pool.eventMiddleware))
-	if pool.signatureChecker != nil {
-		opts = append(opts, WithSignatureChecker(pool.signatureChecker))
-	}
-
-	relay = NewRelay(context.Background(), url, opts...)
+	relay = NewRelay(context.Background(), url)
 	relay.RequestHeader.Set("User-Agent", pool.userAgent)
 
 	if err := relay.Connect(ctx); err != nil {

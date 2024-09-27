@@ -39,7 +39,6 @@ type Relay struct {
 	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
-	signatureChecker              func(Event) bool
 
 	// custom things that aren't often used
 	//
@@ -62,11 +61,7 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		okCallbacks:                   xsync.NewMapOf[string, func(bool, string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
-		signatureChecker: func(e Event) bool {
-			ok, _ := e.CheckSignature()
-			return ok
-		},
-		RequestHeader: make(http.Header, 1),
+		RequestHeader:                 make(http.Header, 1),
 	}
 
 	for _, opt := range opts {
@@ -93,7 +88,6 @@ type RelayOption interface {
 
 var (
 	_ RelayOption = (WithNoticeHandler)(nil)
-	_ RelayOption = (WithSignatureChecker)(nil)
 	_ RelayOption = (WithCustomHandler)(nil)
 )
 
@@ -103,14 +97,6 @@ type WithNoticeHandler func(notice string)
 
 func (nh WithNoticeHandler) ApplyRelayOption(r *Relay) {
 	r.noticeHandler = nh
-}
-
-// WithSignatureChecker must be a function that checks the signature of an
-// event and returns true or false.
-type WithSignatureChecker func(Event) bool
-
-func (sc WithSignatureChecker) ApplyRelayOption(r *Relay) {
-	r.signatureChecker = sc
 }
 
 // WithCustomHandler must be a function that handles any relay message that couldn't be
@@ -267,7 +253,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 					// check signature, ignore invalid, except from trusted (AssumeValid) relays
 					if !r.AssumeValid {
-						if ok := r.signatureChecker(env.Event); !ok {
+						if ok, _ := env.Event.CheckSignature(); !ok {
 							InfoLogger.Printf("{%s} bad signature on %s\n", r.URL, env.Event.ID)
 							continue
 						}
