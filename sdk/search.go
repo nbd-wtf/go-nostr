@@ -15,7 +15,7 @@ func (sys *System) SearchUsers(ctx context.Context, query string) []ProfileMetad
 			Search: query,
 			Limit:  limit,
 		},
-	}) {
+	}, nostr.WithLabel("search")) {
 		m, _ := ParseMetadata(ie.Event)
 		profiles = append(profiles, m)
 	}

@@ -128,7 +128,7 @@ func (sys *System) FetchUserEvents(ctx context.Context, filter nostr.Filter) (ma
 		go func(relayURL string, filter nostr.Filter) {
 			defer wg.Done()
 			filter.Limit = filter.Limit * len(filter.Authors) // hack
-			for ie := range sys.Pool.SubManyEose(ctx, []string{relayURL}, nostr.Filters{filter}) {
+			for ie := range sys.Pool.SubManyEose(ctx, []string{relayURL}, nostr.Filters{filter}, nostr.WithLabel("userevts")) {
 				results[ie.PubKey] = append(results[ie.PubKey], ie.Event)
 			}
 		}(relayURL, filter)

@@ -170,7 +170,7 @@ func (sys *System) batchReplaceableRelayQueries(
 			defer cancel()
 
 			received := 0
-			for ie := range sys.Pool.SubManyEose(ctx, []string{url}, nostr.Filters{filter}) {
+			for ie := range sys.Pool.SubManyEose(ctx, []string{url}, nostr.Filters{filter}, nostr.WithLabel("repl")) {
 				all <- ie.Event
 				received++
 				if received >= n {
