@@ -18,7 +18,7 @@ import (
 
 type Status int
 
-var subscriptionIDCounter atomic.Int32
+var subscriptionIDCounter atomic.Int64
 
 type Relay struct {
 	closeMutex sync.Mutex
@@ -27,7 +27,7 @@ type Relay struct {
 	RequestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
-	Subscriptions *xsync.MapOf[string, *Subscription]
+	Subscriptions *xsync.MapOf[int64, *Subscription]
 
 	ConnectionError         error
 	connectionContext       context.Context // will be canceled when the connection closes
@@ -57,7 +57,7 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		URL:                           NormalizeURL(url),
 		connectionContext:             ctx,
 		connectionContextCancel:       cancel,
-		Subscriptions:                 xsync.NewMapOf[string, *Subscription](),
+		Subscriptions:                 xsync.NewMapOf[int64, *Subscription](),
 		okCallbacks:                   xsync.NewMapOf[string, func(bool, string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
@@ -171,10 +171,9 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		r.Connection = nil
 
 		// close all subscriptions
-		r.Subscriptions.Range(func(_ string, sub *Subscription) bool {
-			go sub.Unsub()
-			return true
-		})
+		for _, sub := range r.Subscriptions.Range {
+			sub.Unsub()
+		}
 	}()
 
 	// queue all write operations here so we don't do mutex spaghetti
@@ -241,7 +240,8 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				if env.SubscriptionID == nil {
 					continue
 				}
-				if subscription, ok := r.Subscriptions.Load(*env.SubscriptionID); !ok {
+
+				if subscription, ok := r.Subscriptions.Load(subIdToSerial(*env.SubscriptionID)); !ok {
 					// InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
 					continue
 				} else {
@@ -263,15 +263,15 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 					subscription.dispatchEvent(&env.Event)
 				}
 			case *EOSEEnvelope:
-				if subscription, ok := r.Subscriptions.Load(string(*env)); ok {
+				if subscription, ok := r.Subscriptions.Load(subIdToSerial(string(*env))); ok {
 					subscription.dispatchEose()
 				}
 			case *ClosedEnvelope:
-				if subscription, ok := r.Subscriptions.Load(string(env.SubscriptionID)); ok {
+				if subscription, ok := r.Subscriptions.Load(subIdToSerial(env.SubscriptionID)); ok {
 					subscription.dispatchClosed(env.Reason)
 				}
 			case *CountEnvelope:
-				if subscription, ok := r.Subscriptions.Load(string(env.SubscriptionID)); ok && env.Count != nil && subscription.countResult != nil {
+				if subscription, ok := r.Subscriptions.Load(subIdToSerial(env.SubscriptionID)); ok && env.Count != nil && subscription.countResult != nil {
 					subscription.countResult <- *env.Count
 				}
 			case *OKEnvelope:
@@ -400,7 +400,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		Relay:             r,
 		Context:           ctx,
 		cancel:            cancel,
-		counter:           int(current),
+		counter:           current,
 		Events:            make(chan *Event),
 		EndOfStoredEvents: make(chan struct{}, 1),
 		ClosedReason:      make(chan string, 1),
@@ -415,8 +415,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		}
 	}
 
-	id := sub.GetID()
-	r.Subscriptions.Store(id, sub)
+	r.Subscriptions.Store(int64(sub.counter), sub)
 
 	// start handling events, eose, unsub etc:
 	go sub.start()
@@ -513,4 +512,8 @@ func (r *Relay) Close() error {
 	}
 
 	return nil
+}
+
+var subIdPool = sync.Pool{
+	New: func() any { return make([]byte, 0, 15) },
 }

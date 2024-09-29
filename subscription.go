@@ -10,7 +10,7 @@ import (
 
 type Subscription struct {
 	label   string
-	counter int
+	counter int64
 
 	Relay   *Relay
 	Filters Filters
@@ -65,7 +65,12 @@ var _ SubscriptionOption = (WithLabel)("")
 // GetID return the Nostr subscription ID as given to the Relay
 // it is a concatenation of the label and a serial number.
 func (sub *Subscription) GetID() string {
-	return sub.label + ":" + strconv.Itoa(sub.counter)
+	buf := subIdPool.Get().([]byte)
+	buf = strconv.AppendInt(buf, sub.counter, 10)
+	buf = append(buf, ':')
+	buf = append(buf, sub.label...)
+	defer subIdPool.Put(buf)
+	return string(buf)
 }
 
 func (sub *Subscription) start() {
@@ -133,7 +138,7 @@ func (sub *Subscription) Unsub() {
 	}
 
 	// remove subscription from our map
-	sub.Relay.Subscriptions.Delete(sub.GetID())
+	sub.Relay.Subscriptions.Delete(sub.counter)
 }
 
 // Close just sends a CLOSE message. You probably want Unsub() instead.

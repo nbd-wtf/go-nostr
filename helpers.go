@@ -1,6 +1,8 @@
 package nostr
 
 import (
+	"strconv"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -91,4 +93,9 @@ func arePointerValuesEqual[V comparable](a *V, b *V) bool {
 		return *a == *b
 	}
 	return false
+}
+
+func subIdToSerial(subId string) int64 {
+	serialId, _ := strconv.ParseInt(subId[0:strings.Index(subId, ":")], 10, 64)
+	return serialId
 }
