@@ -409,18 +409,23 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		match:             filters.Match,
 	}
 
+	label := ""
 	for _, opt := range opts {
 		switch o := opt.(type) {
 		case WithLabel:
-			buf := subIdPool.Get().([]byte)[:0]
-			buf = strconv.AppendInt(buf, sub.counter, 10)
-			buf = append(buf, ':')
-			buf = append(buf, string(o)...)
-			defer subIdPool.Put(buf)
-			sub.id = string(buf)
+			label = string(o)
 		}
 	}
 
+	// subscription id calculation
+	buf := subIdPool.Get().([]byte)[:0]
+	buf = strconv.AppendInt(buf, sub.counter, 10)
+	buf = append(buf, ':')
+	buf = append(buf, label...)
+	defer subIdPool.Put(buf)
+	sub.id = string(buf)
+
+	// we track subscriptions only by their counter, no need for the full id
 	r.Subscriptions.Store(int64(sub.counter), sub)
 
 	// start handling events, eose, unsub etc:
