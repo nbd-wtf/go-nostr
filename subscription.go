@@ -3,14 +3,13 @@ package nostr
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 	"sync/atomic"
 )
 
 type Subscription struct {
-	label   string
 	counter int64
+	id      string
 
 	Relay   *Relay
 	Filters Filters
@@ -62,17 +61,6 @@ func (_ WithLabel) IsSubscriptionOption() {}
 
 var _ SubscriptionOption = (WithLabel)("")
 
-// GetID return the Nostr subscription ID as given to the Relay
-// it is a concatenation of the label and a serial number.
-func (sub *Subscription) GetID() string {
-	buf := subIdPool.Get().([]byte)
-	buf = strconv.AppendInt(buf, sub.counter, 10)
-	buf = append(buf, ':')
-	buf = append(buf, sub.label...)
-	defer subIdPool.Put(buf)
-	return string(buf)
-}
-
 func (sub *Subscription) start() {
 	<-sub.Context.Done()
 	// the subscription ends once the context is canceled (if not already)
@@ -83,6 +71,8 @@ func (sub *Subscription) start() {
 	close(sub.Events)
 	sub.mu.Unlock()
 }
+
+func (sub *Subscription) GetID() string { return sub.id }
 
 func (sub *Subscription) dispatchEvent(evt *Event) {
 	added := false
@@ -144,8 +134,7 @@ func (sub *Subscription) Unsub() {
 // Close just sends a CLOSE message. You probably want Unsub() instead.
 func (sub *Subscription) Close() {
 	if sub.Relay.IsConnected() {
-		id := sub.GetID()
-		closeMsg := CloseEnvelope(id)
+		closeMsg := CloseEnvelope(sub.id)
 		closeb, _ := (&closeMsg).MarshalJSON()
 		<-sub.Relay.Write(closeb)
 	}
@@ -160,13 +149,11 @@ func (sub *Subscription) Sub(_ context.Context, filters Filters) {
 
 // Fire sends the "REQ" command to the relay.
 func (sub *Subscription) Fire() error {
-	id := sub.GetID()
-
 	var reqb []byte
 	if sub.countResult == nil {
-		reqb, _ = ReqEnvelope{id, sub.Filters}.MarshalJSON()
+		reqb, _ = ReqEnvelope{sub.id, sub.Filters}.MarshalJSON()
 	} else {
-		reqb, _ = CountEnvelope{id, sub.Filters, nil}.MarshalJSON()
+		reqb, _ = CountEnvelope{sub.id, sub.Filters, nil}.MarshalJSON()
 	}
 
 	sub.live.Store(true)

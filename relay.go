@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -411,7 +412,12 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	for _, opt := range opts {
 		switch o := opt.(type) {
 		case WithLabel:
-			sub.label = string(o)
+			buf := subIdPool.Get().([]byte)[:0]
+			buf = strconv.AppendInt(buf, sub.counter, 10)
+			buf = append(buf, ':')
+			buf = append(buf, string(o)...)
+			defer subIdPool.Put(buf)
+			sub.id = string(buf)
 		}
 	}
 
