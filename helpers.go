@@ -96,6 +96,10 @@ func arePointerValuesEqual[V comparable](a *V, b *V) bool {
 }
 
 func subIdToSerial(subId string) int64 {
-	serialId, _ := strconv.ParseInt(subId[0:strings.Index(subId, ":")], 10, 64)
+	n := strings.Index(subId, ":")
+	if n < 0 || n > len(subId) {
+		return -1
+	}
+	serialId, _ := strconv.ParseInt(subId[0:n], 10, 64)
 	return serialId
 }
