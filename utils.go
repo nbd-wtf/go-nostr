@@ -35,3 +35,44 @@ func CompareEvent(a, b Event) int {
 	}
 	return cmp.Compare(a.CreatedAt, b.CreatedAt)
 }
+
+func CompareEventReverse(b, a Event) int {
+	if a.CreatedAt == b.CreatedAt {
+		return strings.Compare(a.ID, b.ID)
+	}
+	return cmp.Compare(a.CreatedAt, b.CreatedAt)
+}
+
+func CompareEventPtr(a, b *Event) int {
+	if a == nil {
+		if b == nil {
+			return 0
+		} else {
+			return -1
+		}
+	} else if b == nil {
+		return 1
+	}
+
+	if a.CreatedAt == b.CreatedAt {
+		return strings.Compare(a.ID, b.ID)
+	}
+	return cmp.Compare(a.CreatedAt, b.CreatedAt)
+}
+
+func CompareEventPtrReverse(b, a *Event) int {
+	if a == nil {
+		if b == nil {
+			return 0
+		} else {
+			return -1
+		}
+	} else if b == nil {
+		return 1
+	}
+
+	if a.CreatedAt == b.CreatedAt {
+		return strings.Compare(a.ID, b.ID)
+	}
+	return cmp.Compare(a.CreatedAt, b.CreatedAt)
+}
