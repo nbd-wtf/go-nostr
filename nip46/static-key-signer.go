@@ -234,6 +234,7 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 		result = plaintext
 	case "ping":
 		result = "pong"
+		harmless = true
 	default:
 		return req, resp, eventResponse,
 			fmt.Errorf("unknown method '%s'", req.Method)
