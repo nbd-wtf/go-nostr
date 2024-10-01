@@ -105,11 +105,11 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 		}
 
 		p.setSession(event.PubKey, session)
+	}
 
-		req, err = session.ParseRequest(event)
-		if err != nil {
-			return req, resp, eventResponse, fmt.Errorf("error parsing request: %w", err)
-		}
+	req, err = session.ParseRequest(event)
+	if err != nil {
+		return req, resp, eventResponse, fmt.Errorf("error parsing request: %w", err)
 	}
 
 	var secret string
