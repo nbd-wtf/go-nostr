@@ -257,6 +257,8 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			break
 		}
 		result = plaintext
+	case "ping":
+		result = "pong"
 	default:
 		return req, resp, eventResponse,
 			fmt.Errorf("unknown method '%s'", req.Method)
