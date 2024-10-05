@@ -13,7 +13,7 @@ import (
 func GetDMRelays(ctx context.Context, pubkey string, pool *nostr.SimplePool, relaysToQuery []string) []string {
 	ie := pool.QuerySingle(ctx, relaysToQuery, nostr.Filter{
 		Authors: []string{pubkey},
-		Kinds:   []int{10050},
+		Kinds:   []int{nostr.KindDMRelayList},
 	})
 	if ie == nil {
 		return nil
@@ -102,7 +102,7 @@ func PrepareMessage(
 	}
 
 	rumor := nostr.Event{
-		Kind:      14,
+		Kind:      nostr.KindDirectMessage,
 		Content:   content,
 		Tags:      append(tags, nostr.Tag{"p", recipientPubKey}),
 		CreatedAt: nostr.Now(),
@@ -156,7 +156,7 @@ func ListenForMessages(
 
 		for ie := range pool.SubMany(ctx, ourRelays, nostr.Filters{
 			{
-				Kinds: []int{1059},
+				Kinds: []int{nostr.KindGiftWrap},
 				Tags:  nostr.TagMap{"p": []string{pk}},
 				Since: &since,
 			},
