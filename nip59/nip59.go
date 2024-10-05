@@ -26,7 +26,7 @@ func GiftWrap(
 	}
 
 	seal := nostr.Event{
-		Kind:      13,
+		Kind:      nostr.KindSeal,
 		Content:   rumorCiphertext,
 		CreatedAt: nostr.Now() - nostr.Timestamp(60*rand.Int63n(600) /* up to 6 hours in the past */),
 		Tags:      make(nostr.Tags, 0),
@@ -47,7 +47,7 @@ func GiftWrap(
 	}
 
 	gw := nostr.Event{
-		Kind:      1059,
+		Kind:      nostr.KindGiftWrap,
 		Content:   sealCiphertext,
 		CreatedAt: nostr.Now() - nostr.Timestamp(60*rand.Int63n(600) /* up to 6 hours in the past */),
 		Tags: nostr.Tags{
