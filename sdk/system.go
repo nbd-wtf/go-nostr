@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/fiatjaf/eventstore"
-	"github.com/fiatjaf/eventstore/slicestore"
+	"github.com/fiatjaf/eventstore/nullstore"
 	"github.com/graph-gophers/dataloader/v7"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/sdk/cache"
@@ -95,7 +95,7 @@ func NewSystem(mods ...SystemModifier) *System {
 	}
 
 	if sys.Store == nil {
-		sys.Store = &slicestore.SliceStore{}
+		sys.Store = &nullstore.NullStore{}
 		sys.Store.Init()
 	}
 	sys.StoreRelay = eventstore.RelayWrapper{Store: sys.Store}
