@@ -19,12 +19,13 @@ type System struct {
 	MetadataCache    cache.Cache32[ProfileMetadata]
 	Hints            hints.HintsDB
 	Pool             *nostr.SimplePool
-	RelayListRelays  []string
-	FollowListRelays []string
-	MetadataRelays   []string
-	FallbackRelays   []string
-	UserSearchRelays []string
-	NoteSearchRelays []string
+	RelayListRelays  *RelayStream
+	FollowListRelays *RelayStream
+	MetadataRelays   *RelayStream
+	FallbackRelays   *RelayStream
+	JustIDRelays     *RelayStream
+	UserSearchRelays *RelayStream
+	NoteSearchRelays *RelayStream
 	Store            eventstore.Store
 
 	StoreRelay nostr.RelayStore
@@ -35,35 +36,50 @@ type System struct {
 
 type SystemModifier func(sys *System)
 
+type RelayStream struct {
+	URLs   []string
+	serial int
+}
+
+func NewRelayStream(urls ...string) *RelayStream {
+	return &RelayStream{URLs: urls, serial: -1}
+}
+
+func (rs *RelayStream) Next() string {
+	rs.serial++
+	return rs.URLs[rs.serial%len(rs.URLs)]
+}
+
 func NewSystem(mods ...SystemModifier) *System {
 	sys := &System{
 		RelayListCache:   cache_memory.New32[RelayList](1000),
 		FollowListCache:  cache_memory.New32[FollowList](1000),
 		MetadataCache:    cache_memory.New32[ProfileMetadata](1000),
-		RelayListRelays:  []string{"wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"},
-		FollowListRelays: []string{"wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"},
-		MetadataRelays:   []string{"wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"},
-		FallbackRelays: []string{
-			"wss://relay.primal.net",
+		RelayListRelays:  NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		FollowListRelays: NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		MetadataRelays:   NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		FallbackRelays: NewRelayStream(
 			"wss://relay.damus.io",
-			"wss://nostr.wine",
 			"wss://nostr.mom",
-			"wss://offchain.pub",
 			"wss://nos.lol",
 			"wss://mostr.pub",
 			"wss://relay.nostr.band",
-			"wss://nostr21.com",
-		},
-		UserSearchRelays: []string{
+		),
+		JustIDRelays: NewRelayStream(
+			"wss://cache2.primal.net/v1",
+			"wss://relay.noswhere.com",
+			"wss://relay.nostr.band",
+		),
+		UserSearchRelays: NewRelayStream(
+			"wss://search.nos.today",
 			"wss://nostr.wine",
 			"wss://relay.nostr.band",
-			"wss://relay.noswhere.com",
-		},
-		NoteSearchRelays: []string{
+		),
+		NoteSearchRelays: NewRelayStream(
 			"wss://nostr.wine",
 			"wss://relay.nostr.band",
-			"wss://relay.noswhere.com",
-		},
+			"wss://search.nos.today",
+		),
 		Hints: memory_hints.NewHintDB(),
 
 		outboxShortTermCache: cache_memory.New32[[]string](1000),
@@ -99,37 +115,43 @@ func WithHintsDB(hdb hints.HintsDB) SystemModifier {
 
 func WithRelayListRelays(list []string) SystemModifier {
 	return func(sys *System) {
-		sys.RelayListRelays = list
+		sys.RelayListRelays.URLs = list
 	}
 }
 
 func WithMetadataRelays(list []string) SystemModifier {
 	return func(sys *System) {
-		sys.MetadataRelays = list
+		sys.MetadataRelays.URLs = list
 	}
 }
 
 func WithFollowListRelays(list []string) SystemModifier {
 	return func(sys *System) {
-		sys.FollowListRelays = list
+		sys.FollowListRelays.URLs = list
 	}
 }
 
 func WithFallbackRelays(list []string) SystemModifier {
 	return func(sys *System) {
-		sys.FallbackRelays = list
+		sys.FallbackRelays.URLs = list
+	}
+}
+
+func WithJustIDRelays(list []string) SystemModifier {
+	return func(sys *System) {
+		sys.JustIDRelays.URLs = list
 	}
 }
 
 func WithUserSearchRelays(list []string) SystemModifier {
 	return func(sys *System) {
-		sys.UserSearchRelays = list
+		sys.UserSearchRelays.URLs = list
 	}
 }
 
 func WithNoteSearchRelays(list []string) SystemModifier {
 	return func(sys *System) {
-		sys.NoteSearchRelays = list
+		sys.NoteSearchRelays.URLs = list
 	}
 }
 

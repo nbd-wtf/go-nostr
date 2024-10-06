@@ -136,13 +136,13 @@ func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, ki
 		var next string
 		switch kind {
 		case 0:
-			next = pickNext(sys.MetadataRelays)
+			next = sys.MetadataRelays.Next()
 		case 3:
-			next = pickNext(sys.FollowListRelays)
+			next = sys.FollowListRelays.Next()
 		case 10002:
-			next = pickNext(sys.RelayListRelays)
+			next = sys.RelayListRelays.Next()
 		default:
-			next = pickNext(sys.FallbackRelays)
+			next = sys.FallbackRelays.Next()
 		}
 
 		if !slices.Contains(relays, next) {

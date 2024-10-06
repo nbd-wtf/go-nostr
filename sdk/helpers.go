@@ -1,12 +1,18 @@
 package sdk
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
-var serial = 0
-
-func pickNext(list []string) string {
-	serial++
-	return list[serial%len(list)]
+func appendUnique[I comparable](arr []I, item ...I) []I {
+	for _, item := range item {
+		if slices.Contains(arr, item) {
+			return arr
+		}
+		arr = append(arr, item)
+	}
+	return arr
 }
 
 func doThisNotMoreThanOnceAnHour(key string) (doItNow bool) {
