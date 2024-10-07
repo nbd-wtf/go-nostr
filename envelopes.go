@@ -159,10 +159,6 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 	}
 	v.SubscriptionID = arr[1].Str
 
-	if len(arr) < 3 {
-		return fmt.Errorf("COUNT array must have at least 3 items")
-	}
-
 	var countResult struct {
 		Count *int64 `json:"count"`
 	}
