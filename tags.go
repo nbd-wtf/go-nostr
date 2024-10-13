@@ -53,7 +53,7 @@ func (tag Tag) Value() string {
 }
 
 func (tag Tag) Relay() string {
-	if (tag[0] == "e" || tag[0] == "p") && len(tag) > 2 {
+	if len(tag) > 2 && (tag[0] == "e" || tag[0] == "p") {
 		return NormalizeURL(tag[2])
 	}
 	return ""
