@@ -3,9 +3,9 @@ package nostr
 import (
 	"encoding/json"
 	"errors"
-	"strings"
-
+	"iter"
 	"slices"
+	"strings"
 )
 
 type Tag []string
@@ -103,7 +103,20 @@ func (tags Tags) GetAll(tagPrefix []string) Tags {
 	return result
 }
 
-// FilterOut removes all tags that match the prefix, see [Tag.StartsWith]
+// All returns an iterator for all the tags that match the prefix, see [Tag.StartsWith]
+func (tags Tags) All(tagPrefix []string) iter.Seq2[int, Tag] {
+	return func(yield func(int, Tag) bool) {
+		for i, v := range tags {
+			if v.StartsWith(tagPrefix) {
+				if !yield(i, v) {
+					break
+				}
+			}
+		}
+	}
+}
+
+// FilterOut returns a new slice with only the elements that match the prefix, see [Tag.StartsWith]
 func (tags Tags) FilterOut(tagPrefix []string) Tags {
 	filtered := make(Tags, 0, len(tags))
 	for _, v := range tags {
@@ -112,6 +125,20 @@ func (tags Tags) FilterOut(tagPrefix []string) Tags {
 		}
 	}
 	return filtered
+}
+
+// FilterOutInPlace removes all tags that match the prefix, but potentially reorders the tags in unpredictable ways, see [Tag.StartsWith]
+func (tags *Tags) FilterOutInPlace(tagPrefix []string) {
+	for i := 0; i < len(*tags); i++ {
+		tag := (*tags)[i]
+		if tag.StartsWith(tagPrefix) {
+			// remove this by swapping the last tag into this place
+			last := len(*tags) - 1
+			(*tags)[i] = (*tags)[last]
+			*tags = (*tags)[0:last]
+			i-- // this is so we can match this just swapped item in the next iteration
+		}
+	}
 }
 
 // AppendUnique appends a tag if it doesn't exist yet, otherwise does nothing.
