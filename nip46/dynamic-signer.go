@@ -1,6 +1,7 @@
 package nip46
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -9,7 +10,6 @@ import (
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
-	"github.com/nbd-wtf/go-nostr/nip44"
 )
 
 var _ Signer = (*DynamicSigner)(nil)
@@ -20,26 +20,40 @@ type DynamicSigner struct {
 
 	sync.Mutex
 
-	RelaysToAdvertise map[string]RelayReadWrite
-
-	getPrivateKey       func(pubkey string) (string, error)
+	getHandlerSecretKey func(handlerPubkey string) (string, error)
+	getUserKeyer        func(handlerPubkey string) (nostr.Keyer, error)
 	authorizeSigning    func(event nostr.Event, from string, secret string) bool
-	onEventSigned       func(event nostr.Event)
 	authorizeEncryption func(from string, secret string) bool
+	onEventSigned       func(event nostr.Event)
+	getRelays           func(pubkey string) map[string]RelayReadWrite
 }
 
 func NewDynamicSigner(
-	getPrivateKey func(pubkey string) (string, error),
+	// the handler is the keypair we use to communicate with the NIP-46 client, decrypt requests, encrypt responses etc
+	getHandlerSecretKey func(handlerPubkey string) (string, error),
+
+	// this should correspond to the actual user on behalf of which we will respond to requests
+	getUserKeyer func(handlerPubkey string) (nostr.Keyer, error),
+
+	// this is called on every sign_event call, if it is nil it will be assumed that everything is authorized
 	authorizeSigning func(event nostr.Event, from string, secret string) bool,
-	onEventSigned func(event nostr.Event),
+
+	// this is called on every encrypt or decrypt calls, if it is nil it will be assumed that everything is authorized
 	authorizeEncryption func(from string, secret string) bool,
+
+	// unless it is nil, this is called after every event is signed
+	onEventSigned func(event nostr.Event),
+
+	// unless it is nil, the results of this will be used in reply to get_relays
+	getRelays func(pubkey string) map[string]RelayReadWrite,
 ) DynamicSigner {
 	return DynamicSigner{
-		getPrivateKey:       getPrivateKey,
+		getHandlerSecretKey: getHandlerSecretKey,
+		getUserKeyer:        getUserKeyer,
 		authorizeSigning:    authorizeSigning,
-		onEventSigned:       onEventSigned,
 		authorizeEncryption: authorizeEncryption,
-		RelaysToAdvertise:   make(map[string]RelayReadWrite),
+		onEventSigned:       onEventSigned,
+		getRelays:           getRelays,
 	}
 }
 
@@ -69,7 +83,7 @@ func (p *DynamicSigner) setSession(clientPubkey string, session Session) {
 	p.sessions[idx] = session
 }
 
-func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
+func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 	req Request,
 	resp Response,
 	eventResponse nostr.Event,
@@ -80,16 +94,19 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			fmt.Errorf("event kind is %d, but we expected %d", event.Kind, nostr.KindNostrConnect)
 	}
 
-	targetUser := event.Tags.GetFirst([]string{"p", ""})
-	if targetUser == nil || !nostr.IsValid32ByteHex((*targetUser)[1]) {
+	handler := event.Tags.GetFirst([]string{"p", ""})
+	if handler == nil || !nostr.IsValid32ByteHex((*handler)[1]) {
 		return req, resp, eventResponse, fmt.Errorf("invalid \"p\" tag")
 	}
 
-	targetPubkey := (*targetUser)[1]
-
-	privateKey, err := p.getPrivateKey(targetPubkey)
+	handlerPubkey := (*handler)[1]
+	handlerSecret, err := p.getHandlerSecretKey(handlerPubkey)
 	if err != nil {
-		return req, resp, eventResponse, fmt.Errorf("no private key for %s: %w", targetPubkey, err)
+		return req, resp, eventResponse, fmt.Errorf("no private key for %s: %w", handlerPubkey, err)
+	}
+	userKeyer, err := p.getUserKeyer(handlerPubkey)
+	if err != nil {
+		return req, resp, eventResponse, fmt.Errorf("failed to get user keyer for %s: %w", handlerPubkey, err)
 	}
 
 	var session Session
@@ -99,9 +116,14 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 	} else {
 		session = Session{}
 
-		session.SharedKey, err = nip04.ComputeSharedSecret(event.PubKey, privateKey)
+		session.SharedKey, err = nip04.ComputeSharedSecret(event.PubKey, handlerSecret)
 		if err != nil {
 			return req, resp, eventResponse, fmt.Errorf("failed to compute shared secret: %w", err)
+		}
+
+		session.PublicKey, err = userKeyer.GetPublicKey(ctx)
+		if err != nil {
+			return req, resp, eventResponse, fmt.Errorf("failed to get public key: %w", err)
 		}
 
 		p.setSession(event.PubKey, session)
@@ -123,7 +145,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 		}
 		result = "ack"
 	case "get_public_key":
-		result = targetPubkey
+		result = session.PublicKey
 	case "sign_event":
 		if len(req.Params) != 1 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'sign_event'")
@@ -135,11 +157,12 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("failed to decode event/2: %w", err)
 			break
 		}
-		if !p.authorizeSigning(evt, event.PubKey, secret) {
+		if p.authorizeSigning != nil && !p.authorizeSigning(evt, event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to sign this event")
 			break
 		}
-		err = evt.Sign(privateKey)
+
+		err = userKeyer.SignEvent(ctx, &evt)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to sign event: %w", err)
 			break
@@ -147,8 +170,12 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 		jrevt, _ := easyjson.Marshal(evt)
 		result = string(jrevt)
 	case "get_relays":
-		jrelays, _ := json.Marshal(p.RelaysToAdvertise)
-		result = string(jrelays)
+		if p.getRelays == nil {
+			jrelays, _ := json.Marshal(p.getRelays(session.PublicKey))
+			result = string(jrelays)
+		} else {
+			result = "{}"
+		}
 	case "nip44_encrypt":
 		if len(req.Params) != 2 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
@@ -159,18 +186,13 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
 			break
 		}
-		if !p.authorizeEncryption(event.PubKey, secret) {
+		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to encrypt")
 			break
 		}
 		plaintext := req.Params[1]
 
-		sharedSecret, err := nip44.GenerateConversationKey(thirdPartyPubkey, privateKey)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
-			break
-		}
-		ciphertext, err := nip44.Encrypt(plaintext, sharedSecret)
+		ciphertext, err := userKeyer.Encrypt(ctx, plaintext, thirdPartyPubkey)
 		if err != nil {
 			resultErr = fmt.Errorf("failed to encrypt: %w", err)
 			break
@@ -186,74 +208,15 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
 			break
 		}
-		if !p.authorizeEncryption(event.PubKey, secret) {
+		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {
 			resultErr = fmt.Errorf("refusing to decrypt")
 			break
 		}
 		ciphertext := req.Params[1]
 
-		sharedSecret, err := nip44.GenerateConversationKey(thirdPartyPubkey, privateKey)
+		plaintext, err := userKeyer.Decrypt(ctx, ciphertext, thirdPartyPubkey)
 		if err != nil {
-			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
-			break
-		}
-		plaintext, err := nip44.Decrypt(ciphertext, sharedSecret)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to encrypt: %w", err)
-			break
-		}
-		result = plaintext
-	case "nip04_encrypt":
-		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
-			break
-		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
-			break
-		}
-		if !p.authorizeEncryption(event.PubKey, secret) {
-			resultErr = fmt.Errorf("refusing to encrypt")
-			break
-		}
-		plaintext := req.Params[1]
-
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, privateKey)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
-			break
-		}
-		ciphertext, err := nip04.Encrypt(plaintext, sharedSecret)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to encrypt: %w", err)
-			break
-		}
-		result = ciphertext
-	case "nip04_decrypt":
-		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
-			break
-		}
-		thirdPartyPubkey := req.Params[0]
-		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
-			break
-		}
-		if !p.authorizeEncryption(event.PubKey, secret) {
-			resultErr = fmt.Errorf("refusing to decrypt")
-			break
-		}
-		ciphertext := req.Params[1]
-
-		sharedSecret, err := nip04.ComputeSharedSecret(thirdPartyPubkey, privateKey)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to compute shared secret: %w", err)
-			break
-		}
-		plaintext, err := nip04.Decrypt(ciphertext, sharedSecret)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to encrypt: %w", err)
+			resultErr = fmt.Errorf("failed to decrypt: %w", err)
 			break
 		}
 		result = plaintext
@@ -269,7 +232,7 @@ func (p *DynamicSigner) HandleRequest(event *nostr.Event) (
 		return req, resp, eventResponse, err
 	}
 
-	err = eventResponse.Sign(privateKey)
+	err = eventResponse.Sign(handlerSecret)
 	if err != nil {
 		return req, resp, eventResponse, err
 	}

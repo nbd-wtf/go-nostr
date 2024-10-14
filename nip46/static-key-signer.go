@@ -1,6 +1,7 @@
 package nip46
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -60,7 +61,13 @@ func (p *StaticKeySigner) getOrCreateSession(clientPubkey string) (Session, erro
 		return Session{}, fmt.Errorf("failed to compute shared secret: %w", err)
 	}
 
+	pubkey, err := nostr.GetPublicKey(p.secretKey)
+	if err != nil {
+		return Session{}, fmt.Errorf("failed to derive public key: %w", err)
+	}
+
 	session := Session{
+		PublicKey:       pubkey,
 		SharedKey:       shared,
 		ConversationKey: ck,
 	}
@@ -76,7 +83,7 @@ func (p *StaticKeySigner) getOrCreateSession(clientPubkey string) (Session, erro
 	return session, nil
 }
 
-func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
+func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 	req Request,
 	resp Response,
 	eventResponse nostr.Event,
@@ -110,14 +117,8 @@ func (p *StaticKeySigner) HandleRequest(event *nostr.Event) (
 		result = "ack"
 		harmless = true
 	case "get_public_key":
-		pubkey, err := nostr.GetPublicKey(p.secretKey)
-		if err != nil {
-			resultErr = fmt.Errorf("failed to derive public key: %w", err)
-			break
-		} else {
-			result = pubkey
-			harmless = true
-		}
+		result = session.PublicKey
+		harmless = true
 	case "sign_event":
 		if len(req.Params) != 1 {
 			resultErr = fmt.Errorf("wrong number of arguments to 'sign_event'")

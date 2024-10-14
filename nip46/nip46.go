@@ -1,6 +1,7 @@
 package nip46
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -26,10 +27,11 @@ type Response struct {
 
 type Signer interface {
 	GetSession(clientPubkey string) (Session, bool)
-	HandleRequest(event *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, err error)
+	HandleRequest(context.Context, *nostr.Event) (req Request, resp Response, eventResponse nostr.Event, err error)
 }
 
 type Session struct {
+	PublicKey       string
 	SharedKey       []byte   // nip04
 	ConversationKey [32]byte // nip44
 }
