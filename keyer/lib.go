@@ -15,22 +15,12 @@ import (
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
-type Keyer interface {
-	Signer
-	Cipher
-}
-
-// A Signer provides basic public key signing methods.
-type Signer interface {
-	GetPublicKey(context.Context) (string, error)
-	SignEvent(context.Context, *nostr.Event) error
-}
-
-// A Cipher provides NIP-44 encryption and decryption methods.
-type Cipher interface {
-	Encrypt(ctx context.Context, plaintext string, recipientPublicKey string) (base64ciphertext string, err error)
-	Decrypt(ctx context.Context, base64ciphertext string, senderPublicKey string) (plaintext string, err error)
-}
+var (
+	_ nostr.Keyer = (*BunkerSigner)(nil)
+	_ nostr.Keyer = (*EncryptedKeySigner)(nil)
+	_ nostr.Keyer = (*KeySigner)(nil)
+	_ nostr.Keyer = (*ManualSigner)(nil)
+)
 
 type SignerOptions struct {
 	BunkerClientSecretKey string
@@ -45,7 +35,7 @@ type SignerOptions struct {
 	Password string
 }
 
-func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *SignerOptions) (Keyer, error) {
+func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *SignerOptions) (nostr.Keyer, error) {
 	if opts == nil {
 		opts = &SignerOptions{}
 	}
