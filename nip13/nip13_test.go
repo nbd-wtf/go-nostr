@@ -128,27 +128,6 @@ func TestDoWorkTimeout(t *testing.T) {
 	}
 }
 
-func BenchmarkGenerate(b *testing.B) {
-	if testing.Short() {
-		b.Skip("too consuming for short mode")
-	}
-	for _, difficulty := range []int{8, 16, 24} {
-		difficulty := difficulty
-		b.Run(fmt.Sprintf("%dbits", difficulty), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				event := &nostr.Event{
-					Kind:    nostr.KindTextNote,
-					Content: "It's just me mining my own business",
-					PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
-				}
-				if _, err := Generate(event, difficulty, time.Minute); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
 func BenchmarkDoWork(b *testing.B) {
 	if testing.Short() {
 		b.Skip("too consuming for short mode")
@@ -162,7 +141,8 @@ func BenchmarkDoWork(b *testing.B) {
 					Content: "It's just me mining my own business",
 					PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 				}
-				ctx, _ := context.WithTimeout(context.Background(), time.Second*60)
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+				defer cancel()
 				if _, err := DoWork(ctx, *event, difficulty); err != nil {
 					b.Fatal(err)
 				}

@@ -38,9 +38,9 @@ func TestFetch(t *testing.T) {
 		expectedName string
 		expectedURL  string
 	}{
-		{"wss://relay.nostr.bg", false, "", "wss://relay.nostr.bg"},
-		{"https://relay.nostr.bg", false, "", "wss://relay.nostr.bg"},
-		{"relay.nostr.bg", false, "", "wss://relay.nostr.bg"},
+		{"wss://nostr.wine", false, "", "wss://nostr.wine"},
+		{"https://nostr.wine", false, "", "wss://nostr.wine"},
+		{"nostr.wine", false, "", "wss://nostr.wine"},
 		{"wlenwqkeqwe.asjdaskd", true, "", "wss://wlenwqkeqwe.asjdaskd"},
 	}
 
