@@ -74,30 +74,36 @@ func (sys *System) FetchSpecificEvent(
 	}
 
 	var result *nostr.Event
+	fetchProfileOnce := sync.Once{}
 
+attempts:
 	for _, attempt := range []struct {
-		label     string
-		relays    []string
-		nonUnique bool
+		label          string
+		relays         []string
+		slowWithRelays bool
 	}{
 		{
 			label:  "fetch-" + prefix,
 			relays: relays,
 			// set this to true if the caller wants relays, so we won't return immediately
 			//   but will instead wait a little while to see if more relays respond
-			nonUnique: withRelays,
+			slowWithRelays: withRelays,
 		},
 		{
-			label:     "fetchf-" + prefix,
-			relays:    fallback,
-			nonUnique: false,
+			label:          "fetchf-" + prefix,
+			relays:         fallback,
+			slowWithRelays: false,
 		},
 	} {
 		// actually fetch the event here
 		countdown := 6.0
 		subManyCtx := ctx
+		subMany := sys.Pool.SubManyEose
+		if attempt.slowWithRelays {
+			subMany = sys.Pool.SubManyEoseNonUnique
+		}
 
-		if attempt.nonUnique {
+		if attempt.slowWithRelays {
 			// keep track of where we have actually found the event so we can show that
 			var cancel context.CancelFunc
 			subManyCtx, cancel = context.WithTimeout(ctx, time.Second*6)
@@ -115,9 +121,7 @@ func (sys *System) FetchSpecificEvent(
 			}()
 		}
 
-		fetchProfileOnce := sync.Once{}
-
-		for ie := range sys.Pool.SubManyEoseNonUnique(
+		for ie := range subMany(
 			subManyCtx,
 			attempt.relays,
 			nostr.Filters{filter},
@@ -131,6 +135,11 @@ func (sys *System) FetchSpecificEvent(
 			if result == nil || ie.CreatedAt > result.CreatedAt {
 				result = ie.Event
 			}
+
+			if !attempt.slowWithRelays {
+				break attempts
+			}
+
 			countdown = min(countdown-0.5, 1)
 		}
 	}
