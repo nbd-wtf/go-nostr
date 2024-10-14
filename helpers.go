@@ -103,3 +103,13 @@ func subIdToSerial(subId string) int64 {
 	serialId, _ := strconv.ParseInt(subId[0:n], 10, 64)
 	return serialId
 }
+
+func isLowerHex(thing string) bool {
+	for _, charNumber := range thing {
+		if (charNumber >= 48 && charNumber <= 57) || (charNumber >= 97 && charNumber <= 102) {
+			continue
+		}
+		return false
+	}
+	return true
+}

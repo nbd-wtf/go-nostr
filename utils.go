@@ -19,7 +19,7 @@ func IsValidRelayURL(u string) bool {
 }
 
 func IsValid32ByteHex(thing string) bool {
-	if strings.ToLower(thing) != thing {
+	if !isLowerHex(thing) {
 		return false
 	}
 	if len(thing) != 64 {

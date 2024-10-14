@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -39,16 +38,11 @@ func GetPublicKey(sk string) (string, error) {
 	return hex.EncodeToString(schnorr.SerializePubKey(pk)), nil
 }
 
-// Deprecated: use IsValid32ByteHex instead -- functionality unchanged.
-func IsValidPublicKeyHex(pk string) bool {
-	if strings.ToLower(pk) != pk {
+func IsValidPublicKey(pk string) bool {
+	if !isLowerHex(pk) {
 		return false
 	}
-	dec, _ := hex.DecodeString(pk)
-	return len(dec) == 32
-}
 
-func IsValidPublicKey(pk string) bool {
 	v, _ := hex.DecodeString(pk)
 	_, err := schnorr.ParsePubKey(v)
 	return err == nil
