@@ -34,7 +34,6 @@ type Subscription struct {
 	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
 	eosed  atomic.Bool
-	closed atomic.Bool
 	cancel context.CancelFunc
 
 	// this keeps track of the events we've received before the EOSE that we must dispatch before
@@ -108,12 +107,12 @@ func (sub *Subscription) dispatchEose() {
 	}
 }
 
-func (sub *Subscription) dispatchClosed(reason string) {
-	if sub.closed.CompareAndSwap(false, true) {
-		go func() {
-			sub.ClosedReason <- reason
-		}()
-	}
+func (sub *Subscription) handleClosed(reason string) {
+	go func() {
+		sub.ClosedReason <- reason
+	}()
+	sub.live.Store(false) // set this so we don't send an unnecessary CLOSE to the relay
+	sub.Unsub()
 }
 
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.

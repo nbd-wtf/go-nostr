@@ -269,7 +269,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				}
 			case *ClosedEnvelope:
 				if subscription, ok := r.Subscriptions.Load(subIdToSerial(env.SubscriptionID)); ok {
-					subscription.dispatchClosed(env.Reason)
+					subscription.handleClosed(env.Reason)
 				}
 			case *CountEnvelope:
 				if subscription, ok := r.Subscriptions.Load(subIdToSerial(env.SubscriptionID)); ok && env.Count != nil && subscription.countResult != nil {
