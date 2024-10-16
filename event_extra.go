@@ -1,6 +1,6 @@
 package nostr
 
-// SetExtra sets an out-of-the-spec value under the given key into the event object.
+// Deprecated: this was never a good idea, stop using.
 func (evt *Event) SetExtra(key string, value any) {
 	if evt.extra == nil {
 		evt.extra = make(map[string]any)
@@ -8,7 +8,7 @@ func (evt *Event) SetExtra(key string, value any) {
 	evt.extra[key] = value
 }
 
-// RemoveExtra removes an out-of-the-spec value under the given key from the event object.
+// Deprecated: this was never a good idea, stop using.
 func (evt *Event) RemoveExtra(key string) {
 	if evt.extra == nil {
 		return
@@ -16,15 +16,13 @@ func (evt *Event) RemoveExtra(key string) {
 	delete(evt.extra, key)
 }
 
-// GetExtra tries to get a value under the given key that may be present in the event object
-// but is hidden in the basic type since it is out of the spec.
+// Deprecated: this was never a good idea, stop using.
 func (evt Event) GetExtra(key string) any {
 	ival, _ := evt.extra[key]
 	return ival
 }
 
-// GetExtraString is like [Event.GetExtra], but only works if the value is a string,
-// otherwise returns the zero-value.
+// Deprecated: this was never a good idea, stop using.
 func (evt Event) GetExtraString(key string) string {
 	ival, ok := evt.extra[key]
 	if !ok {
@@ -37,8 +35,7 @@ func (evt Event) GetExtraString(key string) string {
 	return val
 }
 
-// GetExtraNumber is like [Event.GetExtra], but only works if the value is a float64,
-// otherwise returns the zero-value.
+// Deprecated: this was never a good idea, stop using.
 func (evt Event) GetExtraNumber(key string) float64 {
 	ival, ok := evt.extra[key]
 	if !ok {
@@ -57,8 +54,7 @@ func (evt Event) GetExtraNumber(key string) float64 {
 	return 0
 }
 
-// GetExtraBoolean is like [Event.GetExtra], but only works if the value is a boolean,
-// otherwise returns the zero-value.
+// Deprecated: this was never a good idea, stop using.
 func (evt Event) GetExtraBoolean(key string) bool {
 	ival, ok := evt.extra[key]
 	if !ok {
