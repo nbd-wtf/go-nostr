@@ -110,9 +110,9 @@ func (sub *Subscription) dispatchEose() {
 func (sub *Subscription) handleClosed(reason string) {
 	go func() {
 		sub.ClosedReason <- reason
+		sub.live.Store(false) // set this so we don't send an unnecessary CLOSE to the relay
+		sub.Unsub()
 	}()
-	sub.live.Store(false) // set this so we don't send an unnecessary CLOSE to the relay
-	sub.Unsub()
 }
 
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
