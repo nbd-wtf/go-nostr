@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/keyer"
 	"github.com/nbd-wtf/go-nostr/nip59"
 )
 
@@ -39,7 +38,7 @@ func PublishMessage(
 	pool *nostr.SimplePool,
 	ourRelays []string,
 	theirRelays []string,
-	kr keyer.Keyer,
+	kr nostr.Keyer,
 	recipientPubKey string,
 	modify func(*nostr.Event),
 ) error {
@@ -92,7 +91,7 @@ func PrepareMessage(
 	ctx context.Context,
 	content string,
 	tags nostr.Tags,
-	kr keyer.Keyer,
+	kr nostr.Keyer,
 	recipientPubKey string,
 	modify func(*nostr.Event),
 ) (toUs nostr.Event, toThem nostr.Event, err error) {
@@ -139,7 +138,7 @@ func PrepareMessage(
 func ListenForMessages(
 	ctx context.Context,
 	pool *nostr.SimplePool,
-	kr keyer.Keyer,
+	kr nostr.Keyer,
 	ourRelays []string,
 	since nostr.Timestamp,
 ) chan nostr.Event {
