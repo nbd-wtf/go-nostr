@@ -449,6 +449,7 @@ func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan *Event, er
 			case <-r.Context().Done():
 			}
 			sub.Unsub()
+			return
 		}
 	}()
 
