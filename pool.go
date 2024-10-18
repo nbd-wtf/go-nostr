@@ -178,6 +178,32 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	return relay, nil
 }
 
+type PublishResult struct {
+	Error    error
+	RelayURL string
+	Relay    *Relay
+}
+
+func (pool *SimplePool) PublishMany(ctx context.Context, urls []string, evt Event) chan PublishResult {
+	ch := make(chan PublishResult, len(urls))
+
+	go func() {
+		for _, url := range urls {
+			relay, err := pool.EnsureRelay(url)
+			if err != nil {
+				ch <- PublishResult{err, url, nil}
+			} else {
+				err = relay.Publish(ctx, evt)
+				ch <- PublishResult{err, url, relay}
+			}
+		}
+
+		close(ch)
+	}()
+
+	return ch
+}
+
 // SubMany opens a subscription with the given filters to multiple relays
 // the subscriptions only end when the context is canceled
 func (pool *SimplePool) SubMany(
