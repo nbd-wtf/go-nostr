@@ -79,7 +79,8 @@ func TestDoWorkLong(t *testing.T) {
 				Content: "It's just me mining my own business",
 				PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 			}
-			ctx, _ := context.WithTimeout(context.Background(), time.Minute)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
 			pow, err := DoWork(ctx, event, difficulty)
 			if err != nil {
 				t.Fatal(err)
@@ -114,7 +115,8 @@ func TestDoWorkTimeout(t *testing.T) {
 	}
 	done := make(chan error)
 	go func() {
-		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		defer cancel()
 		_, err := DoWork(ctx, event, 256)
 		done <- err
 	}()

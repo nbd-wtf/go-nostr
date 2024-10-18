@@ -87,6 +87,7 @@ func DoWork(ctx context.Context, event nostr.Event, targetDifficulty int) (nostr
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	nthreads := runtime.NumCPU()
 	tagCh := make(chan nostr.Tag)
 
