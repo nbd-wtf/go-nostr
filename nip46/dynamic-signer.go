@@ -10,6 +10,7 @@ import (
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
+	"github.com/nbd-wtf/go-nostr/nip44"
 )
 
 var _ Signer = (*DynamicSigner)(nil)
@@ -117,6 +118,11 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 		session = Session{}
 
 		session.SharedKey, err = nip04.ComputeSharedSecret(event.PubKey, handlerSecret)
+		if err != nil {
+			return req, resp, eventResponse, fmt.Errorf("failed to compute shared secret: %w", err)
+		}
+
+		session.ConversationKey, err = nip44.GenerateConversationKey(event.PubKey, handlerSecret)
 		if err != nil {
 			return req, resp, eventResponse, fmt.Errorf("failed to compute shared secret: %w", err)
 		}
