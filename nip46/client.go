@@ -12,6 +12,7 @@ import (
 	"github.com/mailru/easyjson"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip04"
+	"github.com/nbd-wtf/go-nostr/nip44"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
@@ -21,7 +22,8 @@ type BunkerClient struct {
 	pool            *nostr.SimplePool
 	target          string
 	relays          []string
-	sharedSecret    []byte
+	sharedSecret    []byte   // nip04
+	conversationKey [32]byte // nip44
 	listeners       *xsync.MapOf[string, chan Response]
 	expectingAuth   *xsync.MapOf[string, struct{}]
 	idPrefix        string
@@ -94,6 +96,7 @@ func NewBunker(
 
 	clientPublicKey, _ := nostr.GetPublicKey(clientSecretKey)
 	sharedSecret, _ := nip04.ComputeSharedSecret(targetPublicKey, clientSecretKey)
+	conversationKey, _ := nip44.GenerateConversationKey(targetPublicKey, clientSecretKey)
 
 	bunker := &BunkerClient{
 		pool:            pool,
@@ -101,6 +104,7 @@ func NewBunker(
 		target:          targetPublicKey,
 		relays:          relays,
 		sharedSecret:    sharedSecret,
+		conversationKey: conversationKey,
 		listeners:       xsync.NewMapOf[string, chan Response](),
 		expectingAuth:   xsync.NewMapOf[string, struct{}](),
 		onAuth:          onAuth,
@@ -123,9 +127,12 @@ func NewBunker(
 			}
 
 			var resp Response
-			plain, err := nip04.Decrypt(ie.Content, sharedSecret)
+			plain, err := nip44.Decrypt(ie.Content, conversationKey)
 			if err != nil {
-				continue
+				plain, err = nip04.Decrypt(ie.Content, sharedSecret)
+				if err != nil {
+					continue
+				}
 			}
 
 			err = json.Unmarshal([]byte(plain), &resp)
