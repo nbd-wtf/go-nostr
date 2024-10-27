@@ -54,7 +54,7 @@ func (s Session) MakeResponse(
 	}
 
 	jresp, _ := json.Marshal(resp)
-	ciphertext, err := nip04.Encrypt(string(jresp), s.SharedKey)
+	ciphertext, err := nip44.Encrypt(string(jresp), s.ConversationKey)
 	if err != nil {
 		return resp, evt, fmt.Errorf("failed to encrypt result: %w", err)
 	}

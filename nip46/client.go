@@ -22,7 +22,6 @@ type BunkerClient struct {
 	pool            *nostr.SimplePool
 	target          string
 	relays          []string
-	sharedSecret    []byte   // nip04
 	conversationKey [32]byte // nip44
 	listeners       *xsync.MapOf[string, chan Response]
 	expectingAuth   *xsync.MapOf[string, struct{}]
@@ -103,7 +102,6 @@ func NewBunker(
 		clientSecretKey: clientSecretKey,
 		target:          targetPublicKey,
 		relays:          relays,
-		sharedSecret:    sharedSecret,
 		conversationKey: conversationKey,
 		listeners:       xsync.NewMapOf[string, chan Response](),
 		expectingAuth:   xsync.NewMapOf[string, struct{}](),
@@ -226,7 +224,7 @@ func (bunker *BunkerClient) RPC(ctx context.Context, method string, params []str
 		return "", err
 	}
 
-	content, err := nip04.Encrypt(string(req), bunker.sharedSecret)
+	content, err := nip44.Encrypt(string(req), bunker.conversationKey)
 	if err != nil {
 		return "", fmt.Errorf("error encrypting request: %w", err)
 	}
