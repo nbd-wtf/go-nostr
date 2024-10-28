@@ -54,9 +54,6 @@ func EncryptBytes(secretKey []byte, password string, logn uint8, ksb KeySecurity
 		return "", fmt.Errorf("failed to start xchacha20poly1305: %w", err)
 	}
 	ciphertext := c2p1.Seal(nil, concat[2+16:2+16+24], secretKey, ad)
-	if err != nil {
-		return "", fmt.Errorf("failed to encrypt: %w", err)
-	}
 	copy(concat[2+16+24+1:], ciphertext)
 
 	bits5, err := bech32.ConvertBits(concat, 8, 5, true)
