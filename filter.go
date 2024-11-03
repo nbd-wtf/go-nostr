@@ -170,3 +170,47 @@ func (ef Filter) Clone() Filter {
 
 	return clone
 }
+
+// GetTheoreticalLimit gets the maximum number of events that a normal filter would ever return, for example, if
+// there is a number of "ids" in the filter, the theoretical limit will be that number of ids.
+//
+// It returns -1 if there are no theoretical limits.
+//
+// The given .Limit present in the filter is ignored.
+func GetTheoreticalLimit(filter Filter) int {
+	if len(filter.IDs) > 0 {
+		return len(filter.IDs)
+	}
+
+	if len(filter.Kinds) == 0 {
+		return -1
+	}
+
+	if len(filter.Authors) > 0 {
+		allAreReplaceable := true
+		for _, kind := range filter.Kinds {
+			if !IsReplaceableKind(kind) {
+				allAreReplaceable = false
+				break
+			}
+		}
+		if allAreReplaceable {
+			return len(filter.Authors) * len(filter.Kinds)
+		}
+
+		if len(filter.Tags["d"]) > 0 {
+			allAreAddressable := true
+			for _, kind := range filter.Kinds {
+				if !IsAddressableKind(kind) {
+					allAreAddressable = false
+					break
+				}
+			}
+			if allAreAddressable {
+				return len(filter.Authors) * len(filter.Kinds) * len(filter.Tags["d"])
+			}
+		}
+	}
+
+	return -1
+}
