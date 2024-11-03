@@ -132,3 +132,19 @@ const (
 	KindSimpleGroupAdmins           int = 39001
 	KindSimpleGroupMembers          int = 39002
 )
+
+func IsRegularKind(kind int) bool {
+	return kind < 10000 && kind != 0 && kind != 3
+}
+
+func IsReplaceableKind(kind int) bool {
+	return kind == 0 || kind == 3 || (10000 <= kind && kind < 20000)
+}
+
+func IsEphemeralKind(kind int) bool {
+	return 20000 <= kind && kind < 30000
+}
+
+func IsAddressableKind(kind int) bool {
+	return 30000 <= kind && kind < 40000
+}

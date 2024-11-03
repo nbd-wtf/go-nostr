@@ -82,24 +82,3 @@ func (evt *Event) Serialize() []byte {
 
 	return dst
 }
-
-// IsRegular checks if the given kind is in Regular range.
-func (evt *Event) IsRegular() bool {
-	return evt.Kind < 10000 && evt.Kind != 0 && evt.Kind != 3
-}
-
-// IsReplaceable checks if the given kind is in Replaceable range.
-func (evt *Event) IsReplaceable() bool {
-	return evt.Kind == 0 || evt.Kind == 3 ||
-		(10000 <= evt.Kind && evt.Kind < 20000)
-}
-
-// IsEphemeral checks if the given kind is in Ephemeral range.
-func (evt *Event) IsEphemeral() bool {
-	return 20000 <= evt.Kind && evt.Kind < 30000
-}
-
-// IsAddressable checks if the given kind is in Addressable range.
-func (evt *Event) IsAddressable() bool {
-	return 30000 <= evt.Kind && evt.Kind < 40000
-}
