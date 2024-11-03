@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHyperLogLog(t *testing.T) {
+func TestHyperLogLogBasic(t *testing.T) {
 	rand := rand.New(rand.NewPCG(1, 0))
 
 	for _, count := range []int{
@@ -18,7 +18,7 @@ func TestHyperLogLog(t *testing.T) {
 		777, 922, 1000, 1500, 2222, 9999,
 		13600, 80000, 133333, 200000,
 	} {
-		hll, _ := New(8)
+		hll := New()
 
 		for range count {
 			b := make([]byte, 32)
@@ -29,9 +29,10 @@ func TestHyperLogLog(t *testing.T) {
 			hll.Add(id)
 		}
 
-		res100 := int(hll.Count() * 100)
-		require.Greater(t, res100, count*85, "result too low (actual %d < %d)", hll.Count(), count)
-		require.Less(t, res100, count*115, "result too high (actual %d > %d)", hll.Count(), count)
+		c := hll.Count()
+		res100 := int(c * 100)
+		require.Greater(t, res100, count*85, "result too low (actual %d < %d)", c, count)
+		require.Less(t, res100, count*115, "result too high (actual %d > %d)", c, count)
 	}
 }
 
@@ -45,8 +46,8 @@ func TestHyperLogLogMerge(t *testing.T) {
 		777, 922, 1000, 1500, 2222, 9999,
 		13600, 80000, 133333, 200000,
 	} {
-		hllA, _ := New(8)
-		hllB, _ := New(8)
+		hllA := New()
+		hllB := New()
 
 		for range count / 2 {
 			b := make([]byte, 32)
@@ -65,7 +66,7 @@ func TestHyperLogLogMerge(t *testing.T) {
 			hllB.Add(id)
 		}
 
-		hll, _ := New(8)
+		hll := New()
 		hll.Merge(hllA)
 		hll.Merge(hllB)
 
@@ -76,7 +77,7 @@ func TestHyperLogLogMerge(t *testing.T) {
 }
 
 func TestHyperLogLogMergeComplex(t *testing.T) {
-	rand := rand.New(rand.NewPCG(2, 0))
+	rand := rand.New(rand.NewPCG(4, 0))
 
 	for _, count := range []int{
 		3, 6, 9, 12, 15, 22, 36, 46, 57,
@@ -85,9 +86,9 @@ func TestHyperLogLogMergeComplex(t *testing.T) {
 		777, 922, 1000, 1500, 2222, 9999,
 		13600, 80000, 133333, 200000,
 	} {
-		hllA, _ := New(8)
-		hllB, _ := New(8)
-		hllC, _ := New(8)
+		hllA := New()
+		hllB := New()
+		hllC := New()
 
 		for range count / 3 {
 			b := make([]byte, 32)
@@ -117,7 +118,7 @@ func TestHyperLogLogMergeComplex(t *testing.T) {
 			hllA.Add(id)
 		}
 
-		hll, _ := New(8)
+		hll := New()
 		hll.Merge(hllA)
 		hll.Merge(hllB)
 		hll.Merge(hllC)

@@ -1,29 +1,30 @@
 package nip45
 
 import (
-	"fmt"
-	"strconv"
+	"encoding/binary"
+	"encoding/hex"
 )
 
-var threshold = []uint{
-	10, 20, 40, 80, 220, 400, 900, 1800, 3100,
-	6500, 11500, 20000, 50000, 120000, 350000,
-}
-
+// Everything is hardcoded to use precision 8, i.e. 256 registers.
 type HyperLogLog struct {
 	registers []uint8
-	precision uint8
 }
 
-func New(precision uint8) (*HyperLogLog, error) {
-	if precision > 16 || precision < 4 {
-		return nil, fmt.Errorf("precision must be between 4 and 16")
-	}
-
+func New() *HyperLogLog {
+	// precision is always 8
+	// the number of registers is always 256 (1<<8)
 	hll := &HyperLogLog{}
-	hll.precision = precision
-	hll.registers = make([]uint8, 1<<precision)
-	return hll, nil
+	hll.registers = make([]uint8, 256)
+	return hll
+}
+
+func (hll *HyperLogLog) Encode() string {
+	return hex.EncodeToString(hll.registers)
+}
+
+func (hll *HyperLogLog) Decode(enc string) error {
+	_, err := hex.Decode(hll.registers, []byte(enc))
+	return err
 }
 
 func (hll *HyperLogLog) Clear() {
@@ -33,70 +34,52 @@ func (hll *HyperLogLog) Clear() {
 }
 
 func (hll *HyperLogLog) Add(id string) {
-	x, _ := strconv.ParseUint(id[32:32+8*2], 16, 64)
+	x, _ := hex.DecodeString(id[32 : 32+8*2])
+	j := x[0] // register address (first 8 bits, i.e. first byte)
 
-	i := eb(x, 64, 64-hll.precision)             // {x31,...,x32-p}
-	w := x<<hll.precision | 1<<(hll.precision-1) // {x32-p,...,x0}
+	w := binary.BigEndian.Uint64(x) // number that we will use
+	zeroBits := clz56(w) + 1        // count zeroes (skip the first byte, so only use 56 bits)
 
-	zeroBits := clz64(w) + 1
-	if zeroBits > hll.registers[i] {
-		hll.registers[i] = zeroBits
+	if zeroBits > hll.registers[j] {
+		hll.registers[j] = zeroBits
 	}
 }
 
 func (hll *HyperLogLog) Merge(other *HyperLogLog) error {
-	if hll.precision != other.precision {
-		return fmt.Errorf("precisions must be equal")
-	}
-
 	for i, v := range other.registers {
 		if v > hll.registers[i] {
 			hll.registers[i] = v
 		}
 	}
-
 	return nil
 }
 
 func (hll *HyperLogLog) Count() uint64 {
-	m := uint32(len(hll.registers))
+	v := countZeros(hll.registers)
 
-	if v := countZeros(hll.registers); v != 0 {
-		lc := linearCounting(m, v)
-		if lc <= float64(threshold[hll.precision-4]) {
+	if v != 0 {
+		lc := linearCounting(256 /* nregisters */, v)
+
+		if lc <= 220 /* threshold */ {
 			return uint64(lc)
 		}
 	}
 
-	est := calculateEstimate(hll.registers)
-	if est <= float64(len(hll.registers))*5.0 {
-		if v := countZeros(hll.registers); v != 0 {
-			return uint64(linearCounting(m, v))
+	est := hll.calculateEstimate()
+	if est <= 256 /* nregisters */ *3 {
+		if v != 0 {
+			return uint64(linearCounting(256 /* nregisters */, v))
 		}
 	}
 
 	return uint64(est)
 }
 
-func (hll *HyperLogLog) estimateBias(est float64) float64 {
-	estTable, biasTable := rawEstimateData[hll.precision-4], biasData[hll.precision-4]
-
-	if estTable[0] > est {
-		return biasTable[0]
+func (hll HyperLogLog) calculateEstimate() float64 {
+	sum := 0.0
+	for _, val := range hll.registers {
+		sum += 1.0 / float64(uint64(1)<<val) // this is the same as 2^(-val)
 	}
 
-	lastEstimate := estTable[len(estTable)-1]
-	if lastEstimate < est {
-		return biasTable[len(biasTable)-1]
-	}
-
-	var i int
-	for i = 0; i < len(estTable) && estTable[i] < est; i++ {
-	}
-
-	e1, b1 := estTable[i-1], biasTable[i-1]
-	e2, b2 := estTable[i], biasTable[i]
-
-	c := (est - e1) / (e2 - e1)
-	return b1*(1-c) + b2*c
+	return 0.7182725932495458 /* alpha for 256 registers */ * 256 /* nregisters */ * 256 /* nregisters */ / sum
 }
