@@ -3,6 +3,7 @@ package nip29
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -40,13 +41,56 @@ type Group struct {
 	Name    string
 	Picture string
 	About   string
-	Members map[string]*Role
+	Members map[string][]*Role
 	Private bool
 	Closed  bool
+
+	Roles []*Role
 
 	LastMetadataUpdate nostr.Timestamp
 	LastAdminsUpdate   nostr.Timestamp
 	LastMembersUpdate  nostr.Timestamp
+	LastRolesUpdate    nostr.Timestamp
+}
+
+func (group Group) String() string {
+	maybePrivate := ""
+	maybeClosed := ""
+
+	if group.Private {
+		maybePrivate = " private"
+	}
+	if group.Closed {
+		maybeClosed = " closed"
+	}
+
+	members := make([]string, len(group.Members))
+	i := 0
+	for pubkey, roles := range group.Members {
+		members[i] = pubkey
+		if len(roles) > 0 {
+			members[i] += ":"
+		}
+		for _, role := range roles {
+			members[i] += role.Name
+			if slices.Contains(group.Roles, role) {
+				members[i] += "*"
+			}
+			members[i] += "/"
+		}
+		members[i] = strings.TrimRight(members[i], "/")
+		i++
+	}
+
+	return fmt.Sprintf(`<Group %s name="%s"%s%s picture="%s" about="%s" members=[%v]>`,
+		group.Address,
+		group.Name,
+		maybePrivate,
+		maybeClosed,
+		group.Picture,
+		group.About,
+		strings.Join(members, " "),
+	)
 }
 
 // NewGroup takes a group address in the form "<id>'<relay-hostname>"
@@ -59,7 +103,7 @@ func NewGroup(gadstr string) (Group, error) {
 	return Group{
 		Address: gad,
 		Name:    gad.ID,
-		Members: make(map[string]*Role),
+		Members: make(map[string][]*Role),
 	}, nil
 }
 
@@ -70,7 +114,7 @@ func NewGroupFromMetadataEvent(relayURL string, evt *nostr.Event) (Group, error)
 			ID:    evt.Tags.GetD(),
 		},
 		Name:    evt.Tags.GetD(),
-		Members: make(map[string]*Role),
+		Members: make(map[string][]*Role),
 	}
 
 	err := g.MergeInMetadataEvent(evt)
@@ -118,18 +162,20 @@ func (group Group) ToAdminsEvent() *nostr.Event {
 	}
 	evt.Tags[0] = nostr.Tag{"d", group.Address.ID}
 
-	for member, role := range group.Members {
-		if role != nil {
-			// is an admin
-			tag := make([]string, 3, 3+len(role.Permissions))
-			tag[0] = "p"
-			tag[1] = member
-			tag[2] = role.Name
-			for perm := range role.Permissions {
-				tag = append(tag, string(perm))
-			}
-			evt.Tags = append(evt.Tags, tag)
+	for member, roles := range group.Members {
+		if len(roles) == 0 {
+			// is not an admin
+			continue
 		}
+
+		// is an admin
+		tag := make([]string, 2, 2+len(roles))
+		tag[0] = "p"
+		tag[1] = member
+		for _, role := range roles {
+			tag = append(tag, role.Name)
+		}
+		evt.Tags = append(evt.Tags, tag)
 	}
 
 	return evt
@@ -146,6 +192,22 @@ func (group Group) ToMembersEvent() *nostr.Event {
 	for member := range group.Members {
 		// include both admins and normal members
 		evt.Tags = append(evt.Tags, nostr.Tag{"p", member})
+	}
+
+	return evt
+}
+
+func (group Group) ToRolesEvent() *nostr.Event {
+	evt := &nostr.Event{
+		Kind:      nostr.KindSimpleGroupMembers,
+		CreatedAt: group.LastMembersUpdate,
+		Tags:      make(nostr.Tags, 1, 1+len(group.Members)),
+	}
+	evt.Tags[0] = nostr.Tag{"d", group.Address.ID}
+
+	for _, role := range group.Roles {
+		// include both admins and normal members
+		evt.Tags = append(evt.Tags, nostr.Tag{"role", role.Name, role.Description})
 	}
 
 	return evt
@@ -202,16 +264,8 @@ func (group *Group) MergeInAdminsEvent(evt *nostr.Event) error {
 			continue
 		}
 
-		role := group.Members[tag[1]]
-		if role == nil {
-			role = &Role{Name: tag[2]}
-			group.Members[tag[1]] = role
-		}
-		if role.Permissions == nil {
-			role.Permissions = make(map[Permission]struct{}, len(tag)-3)
-		}
-		for _, perm := range tag[2:] {
-			role.Permissions[Permission(perm)] = struct{}{}
+		for _, roleName := range tag[2:] {
+			group.Members[tag[1]] = append(group.Members[tag[1]], group.GetRoleByName(roleName))
 		}
 	}
 
@@ -240,7 +294,7 @@ func (group *Group) MergeInMembersEvent(evt *nostr.Event) error {
 
 		_, exists := group.Members[tag[1]]
 		if !exists {
-			group.Members[tag[1]] = EmptyRole
+			group.Members[tag[1]] = nil
 		}
 	}
 
