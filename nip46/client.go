@@ -30,6 +30,9 @@ type BunkerClient struct {
 
 	// memoized
 	getPublicKeyResponse string
+
+	// SkipSignatureCheck can be set if you don't want to double-check incoming signatures
+	SkipSignatureCheck bool
 }
 
 // ConnectBunker establishes an RPC connection to a NIP-46 signer using the relays and secret provided in the bunkerURL.
@@ -175,10 +178,25 @@ func (bunker *BunkerClient) GetPublicKey(ctx context.Context) (string, error) {
 
 func (bunker *BunkerClient) SignEvent(ctx context.Context, evt *nostr.Event) error {
 	resp, err := bunker.RPC(ctx, "sign_event", []string{evt.String()})
-	if err == nil {
-		err = easyjson.Unmarshal([]byte(resp), evt)
+	if err != nil {
+		return err
 	}
-	return err
+
+	err = easyjson.Unmarshal([]byte(resp), evt)
+	if err != nil {
+		return err
+	}
+
+	if !bunker.SkipSignatureCheck {
+		if ok := evt.CheckID(); !ok {
+			return fmt.Errorf("sign_event response from bunker has invalid id")
+		}
+		if ok, _ := evt.CheckSignature(); !ok {
+			return fmt.Errorf("sign_event response from bunker has invalid signature")
+		}
+	}
+
+	return nil
 }
 
 func (bunker *BunkerClient) NIP44Encrypt(
