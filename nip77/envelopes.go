@@ -75,7 +75,7 @@ func (v OpenEnvelope) MarshalJSON() ([]byte, error) {
 	res.WriteString(v.SubscriptionID)
 	res.WriteString(`",`)
 
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	v.Filter.MarshalEasyJSON(&w)
 	w.Buffer.DumpTo(res)
 

@@ -288,13 +288,14 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 
 // MarshalJSON supports json.Marshaler interface
 func (v Filter) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Filter) MarshalEasyJSON(w *jwriter.Writer) {
+	w.NoEscapeHTML = true
 	easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(w, v)
 }
 

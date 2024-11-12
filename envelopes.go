@@ -91,7 +91,7 @@ func (v *EventEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v EventEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["EVENT",`)
 	if v.SubscriptionID != nil {
 		w.RawString(`"` + *v.SubscriptionID + `",`)
@@ -128,7 +128,7 @@ func (v *ReqEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["REQ",`)
 	w.RawString(`"` + v.SubscriptionID + `"`)
 	for _, filter := range v.Filters {
@@ -183,7 +183,7 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v CountEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["COUNT",`)
 	w.RawString(`"` + v.SubscriptionID + `"`)
 	if v.Count != nil {
@@ -219,7 +219,7 @@ func (v *NoticeEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v NoticeEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["NOTICE",`)
 	w.Raw(json.Marshal(string(v)))
 	w.RawString(`]`)
@@ -245,7 +245,7 @@ func (v *EOSEEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v EOSEEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["EOSE",`)
 	w.Raw(json.Marshal(string(v)))
 	w.RawString(`]`)
@@ -273,7 +273,7 @@ func (v *CloseEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["CLOSE",`)
 	w.Raw(json.Marshal(string(v)))
 	w.RawString(`]`)
@@ -304,7 +304,7 @@ func (v *ClosedEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v ClosedEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["CLOSED",`)
 	w.Raw(json.Marshal(string(v.SubscriptionID)))
 	w.RawString(`,`)
@@ -339,7 +339,7 @@ func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v OKEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["OK",`)
 	w.RawString(`"` + v.EventID + `",`)
 	ok := "false"
@@ -379,7 +379,7 @@ func (v *AuthEnvelope) UnmarshalJSON(data []byte) error {
 }
 
 func (v AuthEnvelope) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
+	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["AUTH",`)
 	if v.Challenge != nil {
 		w.Raw(json.Marshal(*v.Challenge))
