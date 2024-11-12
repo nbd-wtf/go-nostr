@@ -23,15 +23,16 @@ type RelayReadWrite struct {
 func (s Session) ParseRequest(event *nostr.Event) (Request, error) {
 	var req Request
 
-	plain, err := nip44.Decrypt(event.Content, s.ConversationKey)
-	if err != nil {
-		plain, err = nip04.Decrypt(event.Content, s.SharedKey)
-		if err != nil {
-			return req, fmt.Errorf("failed to decrypt event from %s: %w", event.PubKey, err)
+	plain, err1 := nip44.Decrypt(event.Content, s.ConversationKey)
+	if err1 != nil {
+		var err2 error
+		plain, err2 = nip04.Decrypt(event.Content, s.SharedKey)
+		if err2 != nil {
+			return req, fmt.Errorf("failed to decrypt event from %s: (nip44: %w, nip04: %w)", event.PubKey, err1, err2)
 		}
 	}
 
-	err = json.Unmarshal([]byte(plain), &req)
+	err := json.Unmarshal([]byte(plain), &req)
 	return req, err
 }
 
