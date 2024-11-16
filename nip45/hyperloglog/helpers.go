@@ -1,4 +1,4 @@
-package nip45
+package hyperloglog
 
 import (
 	"math"

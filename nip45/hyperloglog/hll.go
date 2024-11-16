@@ -1,4 +1,4 @@
-package nip45
+package hyperloglog
 
 import (
 	"encoding/binary"
@@ -18,13 +18,14 @@ func New() *HyperLogLog {
 	return hll
 }
 
-func (hll *HyperLogLog) Encode() string {
-	return hex.EncodeToString(hll.registers)
-}
-
-func (hll *HyperLogLog) Decode(enc string) error {
-	_, err := hex.Decode(hll.registers, []byte(enc))
-	return err
+func (hll *HyperLogLog) GetRegisters() []byte    { return hll.registers }
+func (hll *HyperLogLog) SetRegisters(enc []byte) { hll.registers = enc }
+func (hll *HyperLogLog) MergeRegisters(other []byte) {
+	for i, v := range other {
+		if v > hll.registers[i] {
+			hll.registers[i] = v
+		}
+	}
 }
 
 func (hll *HyperLogLog) Clear() {
@@ -45,13 +46,12 @@ func (hll *HyperLogLog) Add(id string) {
 	}
 }
 
-func (hll *HyperLogLog) Merge(other *HyperLogLog) error {
+func (hll *HyperLogLog) Merge(other *HyperLogLog) {
 	for i, v := range other.registers {
 		if v > hll.registers[i] {
 			hll.registers[i] = v
 		}
 	}
-	return nil
 }
 
 func (hll *HyperLogLog) Count() uint64 {

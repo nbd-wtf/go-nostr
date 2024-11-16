@@ -273,7 +273,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				}
 			case *CountEnvelope:
 				if subscription, ok := r.Subscriptions.Load(subIdToSerial(env.SubscriptionID)); ok && env.Count != nil && subscription.countResult != nil {
-					subscription.countResult <- *env.Count
+					subscription.countResult <- *env
 				}
 			case *OKEnvelope:
 				if okCallback, exist := r.okCallbacks.Load(env.EventID); exist {
@@ -478,11 +478,19 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) 
 }
 
 func (r *Relay) Count(ctx context.Context, filters Filters, opts ...SubscriptionOption) (int64, error) {
+	v, err := r.countInternal(ctx, filters, opts...)
+	if err != nil {
+		return 0, err
+	}
+	return *v.Count, nil
+}
+
+func (r *Relay) countInternal(ctx context.Context, filters Filters, opts ...SubscriptionOption) (CountEnvelope, error) {
 	sub := r.PrepareSubscription(ctx, filters, opts...)
-	sub.countResult = make(chan int64)
+	sub.countResult = make(chan CountEnvelope)
 
 	if err := sub.Fire(); err != nil {
-		return 0, err
+		return CountEnvelope{}, err
 	}
 
 	defer sub.Unsub()
@@ -499,7 +507,7 @@ func (r *Relay) Count(ctx context.Context, filters Filters, opts ...Subscription
 		case count := <-sub.countResult:
 			return count, nil
 		case <-ctx.Done():
-			return 0, ctx.Err()
+			return CountEnvelope{}, ctx.Err()
 		}
 	}
 }
