@@ -26,7 +26,7 @@ const (
 	KindChess                    int = 64
 	KindMergeRequests            int = 818
 	KindBid                      int = 1021
-	KIndBidConfirmation          int = 1022
+	KindBidConfirmation          int = 1022
 	KindOpenTimestamps           int = 1040
 	KindGiftWrap                 int = 1059
 	KindFileMetadata             int = 1063
