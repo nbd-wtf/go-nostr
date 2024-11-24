@@ -182,11 +182,13 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		for {
 			select {
 			case <-ticker.C:
-				err := wsutil.WriteClientMessage(r.Connection.conn, ws.OpPing, nil)
-				if err != nil {
-					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
-					r.Close() // this should trigger a context cancelation
-					return
+				if r.Connection != nil {
+					err := wsutil.WriteClientMessage(r.Connection.conn, ws.OpPing, nil)
+					if err != nil {
+						InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
+						r.Close() // this should trigger a context cancelation
+						return
+					}
 				}
 			case writeRequest := <-r.writeQueue:
 				// all write requests will go through this to prevent races
