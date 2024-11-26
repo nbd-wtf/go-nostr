@@ -6,14 +6,12 @@ require (
 	github.com/bluekeyes/go-gitdiff v0.7.1
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/btcutil v1.1.3
-	github.com/cespare/xxhash v1.1.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/dgraph-io/ristretto v1.0.0
 	github.com/fiatjaf/eventstore v0.9.0
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.4.0
 	github.com/graph-gophers/dataloader/v7 v7.1.0
-	github.com/greatroar/blobloom v0.8.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mailru/easyjson v0.7.7
 	github.com/mattn/go-sqlite3 v1.14.18

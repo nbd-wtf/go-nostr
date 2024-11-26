@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/cespare/xxhash"
-	"github.com/greatroar/blobloom"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
 	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
@@ -88,10 +86,7 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 		go func(dir direction) {
 			defer wg.Done()
 
-			seen := blobloom.NewOptimized(blobloom.Config{
-				Capacity: 10000,
-				FPRate:   0.01,
-			})
+			seen := make(map[string]struct{})
 
 			doSync := func(ids []string) {
 				defer wg.Done()
@@ -112,12 +107,11 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 
 			ids := pool.grab()
 			for item := range dir.items {
-				h := xxhash.Sum64([]byte(item))
-				if seen.Has(h) {
+				if _, ok := seen[item]; ok {
 					continue
 				}
+				seen[item] = struct{}{}
 
-				seen.Add(h)
 				ids = append(ids, item)
 				if len(ids) == 50 {
 					wg.Add(1)
