@@ -16,6 +16,7 @@ import (
 type System struct {
 	RelayListCache   cache.Cache32[RelayList]
 	FollowListCache  cache.Cache32[FollowList]
+	MuteListCache    cache.Cache32[FollowList]
 	MetadataCache    cache.Cache32[ProfileMetadata]
 	Hints            hints.HintsDB
 	Pool             *nostr.SimplePool
@@ -54,6 +55,7 @@ func NewSystem(mods ...SystemModifier) *System {
 	sys := &System{
 		RelayListCache:   cache_memory.New32[RelayList](1000),
 		FollowListCache:  cache_memory.New32[FollowList](1000),
+		MuteListCache:    cache_memory.New32[FollowList](1000),
 		MetadataCache:    cache_memory.New32[ProfileMetadata](1000),
 		RelayListRelays:  NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
 		FollowListRelays: NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
@@ -170,6 +172,12 @@ func WithRelayListCache(cache cache.Cache32[RelayList]) SystemModifier {
 func WithFollowListCache(cache cache.Cache32[FollowList]) SystemModifier {
 	return func(sys *System) {
 		sys.FollowListCache = cache
+	}
+}
+
+func WithMuteListCache(cache cache.Cache32[FollowList]) SystemModifier {
+	return func(sys *System) {
+		sys.MuteListCache = cache
 	}
 }
 
