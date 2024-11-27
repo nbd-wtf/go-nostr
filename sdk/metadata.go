@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip05"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
@@ -26,6 +27,9 @@ type ProfileMetadata struct {
 	Banner      string `json:"banner,omitempty"`
 	NIP05       string `json:"nip05,omitempty"`
 	LUD16       string `json:"lud16,omitempty"`
+
+	nip05Valid       bool
+	nip05LastAttempt time.Time
 }
 
 func (p ProfileMetadata) Npub() string {
@@ -51,6 +55,25 @@ func (p ProfileMetadata) ShortName() string {
 		return p.DisplayName
 	}
 	return p.NpubShort()
+}
+
+func (p *ProfileMetadata) NIP05Valid(ctx context.Context) bool {
+	if p.NIP05 == "" {
+		return false
+	}
+
+	now := time.Now()
+	if p.nip05LastAttempt.Before(now.AddDate(0, 0, -7)) {
+		// must revalidate
+		p.nip05LastAttempt = now
+		pp, err := nip05.QueryIdentifier(ctx, p.NIP05)
+		if err != nil {
+			p.nip05Valid = false
+		} else {
+			p.nip05Valid = pp.PublicKey == p.PubKey
+		}
+	}
+	return p.nip05Valid
 }
 
 // FetchProfileFromInput takes an nprofile, npub, nip05 or hex pubkey and returns a ProfileMetadata,
