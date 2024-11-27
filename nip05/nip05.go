@@ -95,3 +95,11 @@ func NormalizeIdentifier(fullname string) string {
 
 	return fullname
 }
+
+func IdentifierToURL(address string) string {
+	spl := strings.Split(address, "@")
+	if len(spl) == 1 {
+		return fmt.Sprintf("https://%s/.well-known/nostr.json?name=_", spl[0])
+	}
+	return fmt.Sprintf("https://%s/.well-known/nostr.json?name=%s", spl[1], spl[0])
+}

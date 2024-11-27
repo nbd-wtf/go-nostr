@@ -47,10 +47,10 @@ func TestQuery(t *testing.T) {
 	for _, test := range tests {
 		pp, err := QueryIdentifier(context.Background(), test.input)
 		if test.expectError {
-			assert.Error(t, err, "Expected error for input: %s", test.input)
+			assert.Error(t, err, "expected error for input: %s", test.input)
 		} else {
-			assert.NoError(t, err, "Did not expect error for input: %s", test.input)
-			assert.Equal(t, test.expectedKey, pp.PublicKey, "For input: %s", test.input)
+			assert.NoError(t, err, "did not expect error for input: %s", test.input)
+			assert.Equal(t, test.expectedKey, pp.PublicKey, "for input: %s", test.input)
 		}
 	}
 }
