@@ -27,6 +27,10 @@ func NewHintDB() *HintDB {
 }
 
 func (db *HintDB) Save(pubkey string, relay string, key hints.HintKey, ts nostr.Timestamp) {
+	if now := nostr.Now(); ts > now {
+		ts = now
+	}
+
 	relayIndex := slices.Index(db.RelayBySerial, relay)
 	if relayIndex == -1 {
 		relayIndex = len(db.RelayBySerial)

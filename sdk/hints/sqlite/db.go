@@ -87,11 +87,15 @@ func (sh SQLiteHints) TopN(pubkey string, n int) []string {
 	return res
 }
 
-func (sh SQLiteHints) Save(pubkey string, relay string, key hints.HintKey, score nostr.Timestamp) {
-	_, err := sh.saves[key].Exec(pubkey, relay, score, score)
+func (sh SQLiteHints) Save(pubkey string, relay string, key hints.HintKey, ts nostr.Timestamp) {
+	if now := nostr.Now(); ts > now {
+		ts = now
+	}
+
+	_, err := sh.saves[key].Exec(pubkey, relay, ts, ts)
 	if err != nil {
 		nostr.InfoLogger.Printf("[sdk/hints/sqlite] unexpected error on insert for %s, %s, %d: %s\n",
-			pubkey, relay, score, err)
+			pubkey, relay, ts, err)
 	}
 }
 
