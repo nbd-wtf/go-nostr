@@ -1,6 +1,8 @@
 package nip11
 
-import "slices"
+import (
+	"slices"
+)
 
 type RelayInformationDocument struct {
 	URL string `json:"-"`
@@ -9,7 +11,7 @@ type RelayInformationDocument struct {
 	Description   string `json:"description"`
 	PubKey        string `json:"pubkey"`
 	Contact       string `json:"contact"`
-	SupportedNIPs []int  `json:"supported_nips"`
+	SupportedNIPs []any  `json:"supported_nips"`
 	Software      string `json:"software"`
 	Version       string `json:"version"`
 
@@ -24,14 +26,12 @@ type RelayInformationDocument struct {
 }
 
 func (info *RelayInformationDocument) AddSupportedNIP(number int) {
-	idx, exists := slices.BinarySearch(info.SupportedNIPs, number)
-	if exists {
+	idx := slices.IndexFunc(info.SupportedNIPs, func(n any) bool { return n == number })
+	if idx != -1 {
 		return
 	}
 
-	info.SupportedNIPs = append(info.SupportedNIPs, -1)
-	copy(info.SupportedNIPs[idx+1:], info.SupportedNIPs[idx:])
-	info.SupportedNIPs[idx] = number
+	info.SupportedNIPs = append(info.SupportedNIPs, number)
 }
 
 type RelayLimitationDocument struct {

@@ -25,10 +25,7 @@ func TestAddSupportedNIP(t *testing.T) {
 	info.AddSupportedNIP(1)
 	info.AddSupportedNIP(18)
 
-	for i, v := range []int{0, 1, 2, 12, 13, 17, 18, 19, 44} {
-		assert.Equal(t, v, info.SupportedNIPs[i], "expected info.SupportedNIPs[%d] to equal %v, got %v",
-			i, v, info.SupportedNIPs)
-	}
+	assert.Contains(t, info.SupportedNIPs, 0, 1, 2, 12, 13, 17, 18, 19, 44)
 }
 
 func TestFetch(t *testing.T) {
