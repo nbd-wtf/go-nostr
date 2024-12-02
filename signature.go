@@ -42,7 +42,7 @@ func (evt Event) CheckSignature() (bool, error) {
 }
 
 // Sign signs an event with a given privateKey.
-func (evt *Event) Sign(secretKey string, signOpts ...schnorr.SignOption) error {
+func (evt *Event) Sign(secretKey string) error {
 	s, err := hex.DecodeString(secretKey)
 	if err != nil {
 		return fmt.Errorf("Sign called with invalid secret key '%s': %w", secretKey, err)
@@ -57,7 +57,7 @@ func (evt *Event) Sign(secretKey string, signOpts ...schnorr.SignOption) error {
 	evt.PubKey = hex.EncodeToString(pkBytes[1:])
 
 	h := sha256.Sum256(evt.Serialize())
-	sig, err := schnorr.Sign(sk, h[:], signOpts...)
+	sig, err := schnorr.Sign(sk, h[:], schnorr.FastSign())
 	if err != nil {
 		return err
 	}
