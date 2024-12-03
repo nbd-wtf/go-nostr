@@ -1,7 +1,6 @@
 package nostr
 
 import (
-	"encoding/json"
 	"errors"
 	"iter"
 	"slices"

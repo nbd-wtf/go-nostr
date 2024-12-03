@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -96,7 +96,7 @@ func Upload(ctx context.Context, req UploadRequest) (*UploadResponse, error) {
 
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted:
 		var uploadResp UploadResponse
-		if err := json.NewDecoder(resp.Body).Decode(&uploadResp); err != nil {
+		if err := jsoniter.NewDecoder(resp.Body).Decode(&uploadResp); err != nil {
 			return nil, fmt.Errorf("Error decoding JSON: %w", err)
 		}
 		return &uploadResp, nil
@@ -126,7 +126,7 @@ func generateAuthHeader(sk, host string, fileHash hash.Hash) (string, error) {
 	}
 	event.Sign(sk)
 
-	b, err := json.Marshal(event)
+	b, err := jsoniter.ConfigFastest.Marshal(event)
 	if err != nil {
 		return "", fmt.Errorf("json.Marshal: %w", err)
 	}

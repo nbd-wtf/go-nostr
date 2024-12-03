@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 )
@@ -69,7 +69,7 @@ func main() {
 	if f, err := os.Create(filename); err == nil {
 		fmt.Fprintf(os.Stderr, "returned events saved to %s\n", filename)
 		// encode the returned events in a file
-		enc := json.NewEncoder(f)
+		enc := jsoniter.NewEncoder(f)
 		enc.SetIndent("", " ")
 		enc.Encode(evs)
 		f.Close()

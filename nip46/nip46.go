@@ -2,13 +2,16 @@ package nip46
 
 import (
 	"context"
-	"encoding/json"
 	"regexp"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/nbd-wtf/go-nostr"
 )
 
-var BUNKER_REGEX = regexp.MustCompile(`^bunker:\/\/([0-9a-f]{64})\??([?\/\w:.=&%]*)$`)
+var (
+	BUNKER_REGEX = regexp.MustCompile(`^bunker:\/\/([0-9a-f]{64})\??([?\/\w:.=&%]*)$`)
+	json         = jsoniter.ConfigFastest
+)
 
 type Request struct {
 	ID     string   `json:"id"`

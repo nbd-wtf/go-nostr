@@ -2,12 +2,12 @@ package nip05
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -81,7 +81,7 @@ func Fetch(ctx context.Context, fullname string) (resp WellKnownResponse, name s
 	defer res.Body.Close()
 
 	var result WellKnownResponse
-	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+	if err := jsoniter.NewDecoder(res.Body).Decode(&result); err != nil {
 		return resp, name, fmt.Errorf("failed to decode json response: %w", err)
 	}
 

@@ -3,7 +3,6 @@
 package nostr
 
 import (
-	"encoding/json"
 	"fmt"
 )
 

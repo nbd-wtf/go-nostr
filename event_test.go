@@ -1,7 +1,6 @@
 package nostr
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"testing"

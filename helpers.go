@@ -6,12 +6,16 @@ import (
 	"sync"
 	"unsafe"
 
+	jsoniter "github.com/json-iterator/go"
 	"golang.org/x/exp/constraints"
 )
 
 const MAX_LOCKS = 50
 
-var namedMutexPool = make([]sync.Mutex, MAX_LOCKS)
+var (
+	namedMutexPool = make([]sync.Mutex, MAX_LOCKS)
+	json           = jsoniter.ConfigFastest
+)
 
 //go:noescape
 //go:linkname memhash runtime.memhash

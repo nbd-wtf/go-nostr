@@ -2,7 +2,6 @@ package nostr
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strconv"
 

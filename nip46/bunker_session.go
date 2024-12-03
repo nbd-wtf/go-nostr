@@ -1,7 +1,6 @@
 package nip46
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/nbd-wtf/go-nostr"

@@ -3,7 +3,7 @@ package nostr
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	stdjson "encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -37,7 +37,7 @@ func TestPublish(t *testing.T) {
 		published = true
 		mu.Unlock()
 		// verify the client sent exactly the textNote
-		var raw []json.RawMessage
+		var raw []stdjson.RawMessage
 		err := websocket.JSON.Receive(conn, &raw)
 		assert.NoError(t, err)
 
@@ -67,7 +67,7 @@ func TestPublishBlocked(t *testing.T) {
 	// fake relay server
 	ws := newWebsocketServer(func(conn *websocket.Conn) {
 		// discard received message; not interested
-		var raw []json.RawMessage
+		var raw []stdjson.RawMessage
 		err := websocket.JSON.Receive(conn, &raw)
 		assert.NoError(t, err)
 
@@ -192,7 +192,7 @@ func mustRelayConnect(t *testing.T, url string) *Relay {
 	return rl
 }
 
-func parseEventMessage(t *testing.T, raw []json.RawMessage) Event {
+func parseEventMessage(t *testing.T, raw []stdjson.RawMessage) Event {
 	t.Helper()
 
 	assert.Condition(t, func() (success bool) {
@@ -211,7 +211,7 @@ func parseEventMessage(t *testing.T, raw []json.RawMessage) Event {
 	return event
 }
 
-func parseSubscriptionMessage(t *testing.T, raw []json.RawMessage) (subid string, filters []Filter) {
+func parseSubscriptionMessage(t *testing.T, raw []stdjson.RawMessage) (subid string, filters []Filter) {
 	t.Helper()
 
 	assert.Greater(t, len(raw), 3)

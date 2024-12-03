@@ -2,7 +2,6 @@ package nip46
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/url"
