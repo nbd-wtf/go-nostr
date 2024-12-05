@@ -145,6 +145,14 @@ But to use it you need the host to have it installed as a shared library and CGO
 
 To use it, use `-tags=libsecp256k1` whenever you're compiling your program that uses this library.
 
+### Test for WASM
+
+Install [wasmbrowsertest](github.com/agnivade/wasmbrowsertest), then run tests:
+
+```shell
+TEST_RELAY_URL=<relay_url> GOOS=js GOARCH=wasm go test -short ./...
+```
+
 ## Warning: risk of goroutine bloat (if used incorrectly)
 
 Remember to cancel subscriptions, either by calling `.Unsub()` on them or ensuring their `context.Context` will be canceled at some point.

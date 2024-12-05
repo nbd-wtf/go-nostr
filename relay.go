@@ -12,8 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
@@ -183,7 +181,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			select {
 			case <-ticker.C:
 				if r.Connection != nil {
-					err := wsutil.WriteClientMessage(r.Connection.conn, ws.OpPing, nil)
+					err := r.Connection.Ping(ctx)
 					if err != nil {
 						InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
 						r.Close() // this should trigger a context cancelation

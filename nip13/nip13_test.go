@@ -59,11 +59,11 @@ func TestDoWorkShort(t *testing.T) {
 		Content: "It's just me mining my own business",
 		PubKey:  "a48380f4cfcc1ad5378294fcac36439770f9c878dd880ffa94bb74ea54a6f243",
 	}
-	pow, err := DoWork(context.Background(), event, 0)
+	pow, err := DoWork(context.Background(), event, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testNonceTag(t, pow, 0)
+	testNonceTag(t, pow, 2)
 }
 
 func TestDoWorkLong(t *testing.T) {
