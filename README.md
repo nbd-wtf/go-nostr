@@ -149,7 +149,7 @@ To use it, use `-tags=libsecp256k1` whenever you're compiling your program that 
 
 Install [wasmbrowsertest](github.com/agnivade/wasmbrowsertest), then run tests:
 
-```shell
+```sh
 TEST_RELAY_URL=<relay_url> GOOS=js GOARCH=wasm go test -short ./...
 ```
 
