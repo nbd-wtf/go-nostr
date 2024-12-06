@@ -147,7 +147,7 @@ To use it, use `-tags=libsecp256k1` whenever you're compiling your program that 
 
 ### Test for WASM
 
-Install [wasmbrowsertest](github.com/agnivade/wasmbrowsertest), then run tests:
+Install [wasmbrowsertest](https://github.com/agnivade/wasmbrowsertest), then run tests:
 
 ```sh
 TEST_RELAY_URL=<relay_url> GOOS=js GOARCH=wasm go test -short ./...
