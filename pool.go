@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nbd-wtf/go-nostr/nip45/hyperloglog"
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
@@ -466,6 +467,39 @@ func (pool *SimplePool) subManyEose(
 	}
 
 	return events
+}
+
+// CountMany aggregates count results from multiple relays using HyperLogLog
+func (pool *SimplePool) CountMany(
+	ctx context.Context,
+	urls []string,
+	filter Filter,
+	opts []SubscriptionOption,
+) int {
+	hll := hyperloglog.New(0) // offset is irrelevant here, so we just pass 0
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(urls))
+	for _, url := range urls {
+		go func(nm string) {
+			defer wg.Done()
+			relay, err := pool.EnsureRelay(url)
+			if err != nil {
+				return
+			}
+			ce, err := relay.countInternal(ctx, Filters{filter}, opts...)
+			if err != nil {
+				return
+			}
+			if len(ce.HyperLogLog) != 256 {
+				return
+			}
+			hll.MergeRegisters(ce.HyperLogLog)
+		}(NormalizeURL(url))
+	}
+
+	wg.Wait()
+	return int(hll.Count())
 }
 
 // QuerySingle returns the first event returned by the first relay, cancels everything else.

@@ -15,7 +15,7 @@ type Subscription struct {
 	Filters Filters
 
 	// for this to be treated as a COUNT and not a REQ this must be set
-	countResult chan int64
+	countResult chan CountEnvelope
 
 	// the Events channel emits all EVENTs that come in a Subscription
 	// will be closed when the subscription ends
@@ -152,7 +152,7 @@ func (sub *Subscription) Fire() error {
 	if sub.countResult == nil {
 		reqb, _ = ReqEnvelope{sub.id, sub.Filters}.MarshalJSON()
 	} else {
-		reqb, _ = CountEnvelope{sub.id, sub.Filters, nil}.MarshalJSON()
+		reqb, _ = CountEnvelope{sub.id, sub.Filters, nil, nil}.MarshalJSON()
 	}
 
 	sub.live.Store(true)
