@@ -166,7 +166,12 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 	}
 	if err := json.Unmarshal([]byte(arr[2].Raw), &countResult); err == nil && countResult.Count != nil {
 		v.Count = countResult.Count
-		v.HyperLogLog, _ = hex.DecodeString(countResult.HLL)
+		if len(countResult.HLL) == 512 {
+			v.HyperLogLog, err = hex.DecodeString(countResult.HLL)
+			if err != nil {
+				return fmt.Errorf("invalid \"hll\" value in COUNT message: %w", err)
+			}
+		}
 		return nil
 	}
 
