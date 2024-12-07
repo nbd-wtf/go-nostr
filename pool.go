@@ -476,7 +476,7 @@ func (pool *SimplePool) CountMany(
 	filter Filter,
 	opts []SubscriptionOption,
 ) int {
-	hll := hyperloglog.New()
+	hll := hyperloglog.New(0) // offset is irrelevant here, so we just pass 0
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))

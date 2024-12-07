@@ -195,7 +195,7 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 		w.RawString(strconv.FormatInt(*v.Count, 10))
 		if v.HyperLogLog != nil {
 			w.RawString(`,"hll":"`)
-			hllHex := make([]byte, 0, 512)
+			hllHex := make([]byte, 512)
 			hex.Encode(hllHex, v.HyperLogLog)
 			w.Buffer.AppendBytes(hllHex)
 			w.RawString(`"`)

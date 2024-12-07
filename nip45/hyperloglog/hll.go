@@ -3,19 +3,35 @@ package hyperloglog
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 )
 
 // Everything is hardcoded to use precision 8, i.e. 256 registers.
 type HyperLogLog struct {
+	offset    int
 	registers []uint8
 }
 
-func New() *HyperLogLog {
+func New(offset int) *HyperLogLog {
+	if offset < 0 || offset > 32-8 {
+		panic(fmt.Errorf("invalid offset %d", offset))
+	}
+
 	// precision is always 8
 	// the number of registers is always 256 (1<<8)
-	hll := &HyperLogLog{}
+	hll := &HyperLogLog{offset: offset}
 	hll.registers = make([]uint8, 256)
 	return hll
+}
+
+func NewWithRegisters(registers []byte, offset int) *HyperLogLog {
+	if offset < 0 || offset > 32-8 {
+		panic(fmt.Errorf("invalid offset %d", offset))
+	}
+	if len(registers) != 256 {
+		panic(fmt.Errorf("invalid number of registers %d", len(registers)))
+	}
+	return &HyperLogLog{registers: registers, offset: offset}
 }
 
 func (hll *HyperLogLog) GetRegisters() []byte    { return hll.registers }
@@ -34,8 +50,22 @@ func (hll *HyperLogLog) Clear() {
 	}
 }
 
-func (hll *HyperLogLog) Add(id string) {
-	x, _ := hex.DecodeString(id[32 : 32+8*2])
+// Add takes a Nostr event pubkey which will be used as the item "key" (that combined with the offset)
+func (hll *HyperLogLog) Add(pubkey string) {
+	x, _ := hex.DecodeString(pubkey[hll.offset*2 : hll.offset*2+8*2])
+	j := x[0] // register address (first 8 bits, i.e. first byte)
+
+	w := binary.BigEndian.Uint64(x) // number that we will use
+	zeroBits := clz56(w) + 1        // count zeroes (skip the first byte, so only use 56 bits)
+
+	if zeroBits > hll.registers[j] {
+		hll.registers[j] = zeroBits
+	}
+}
+
+// AddBytes is like Add, but takes pubkey as bytes instead of as string
+func (hll *HyperLogLog) AddBytes(pubkey []byte) {
+	x := pubkey[hll.offset : hll.offset+8]
 	j := x[0] // register address (first 8 bits, i.e. first byte)
 
 	w := binary.BigEndian.Uint64(x) // number that we will use
