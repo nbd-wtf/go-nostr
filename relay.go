@@ -479,12 +479,17 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) 
 	return events, nil
 }
 
-func (r *Relay) Count(ctx context.Context, filters Filters, opts ...SubscriptionOption) (int64, error) {
+func (r *Relay) Count(
+	ctx context.Context,
+	filters Filters,
+	opts ...SubscriptionOption,
+) (int64, []byte, error) {
 	v, err := r.countInternal(ctx, filters, opts...)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	return *v.Count, nil
+
+	return *v.Count, v.HyperLogLog, nil
 }
 
 func (r *Relay) countInternal(ctx context.Context, filters Filters, opts ...SubscriptionOption) (CountEnvelope, error) {
