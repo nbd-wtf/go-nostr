@@ -45,7 +45,7 @@ func main() {
 		}
 
 		err := nip77.NegentropySync(ctx,
-			local, "ws://localhost:7777", nostr.Filter{})
+			local, "ws://localhost:7777", nostr.Filter{}, nip77.Both)
 		if err != nil {
 			panic(err)
 		}
