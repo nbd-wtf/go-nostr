@@ -2,16 +2,14 @@ package nip46
 
 import (
 	"context"
-	"regexp"
+	"net/url"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nbd-wtf/go-nostr"
 )
 
-var (
-	BUNKER_REGEX = regexp.MustCompile(`^bunker:\/\/([0-9a-f]{64})\??([?\/\w:.=&%]*)$`)
-	json         = jsoniter.ConfigFastest
-)
+var json = jsoniter.ConfigFastest
 
 type Request struct {
 	ID     string   `json:"id"`
@@ -41,5 +39,18 @@ type Signer interface {
 }
 
 func IsValidBunkerURL(input string) bool {
-	return BUNKER_REGEX.MatchString(input)
+	p, err := url.Parse(input)
+	if err != nil {
+		return false
+	}
+	if p.Scheme != "bunker" {
+		return false
+	}
+	if !nostr.IsValidPublicKey(p.Host) {
+		return false
+	}
+	if !strings.Contains(p.RawQuery, "relay=") {
+		return false
+	}
+	return true
 }
