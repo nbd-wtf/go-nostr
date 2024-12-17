@@ -10,7 +10,14 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
 )
 
-func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, filter nostr.Filter) error {
+type direction struct {
+	label  string
+	items  chan string
+	source nostr.RelayStore
+	target nostr.RelayStore
+}
+
+func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, filter nostr.Filter, d string) error {
 	id := "go-nostr-tmp" // for now we can't have more than one subscription in the same connection
 
 	data, err := store.QuerySync(ctx, filter)
@@ -69,19 +76,17 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 		r.Write(clse)
 	}()
 
-	type direction struct {
-		label  string
-		items  chan string
-		source nostr.RelayStore
-		target nostr.RelayStore
-	}
-
 	wg := sync.WaitGroup{}
 	pool := newidlistpool(50)
-	for _, dir := range []direction{
-		{"up", neg.Haves, store, r},
-		{"down", neg.HaveNots, r, store},
-	} {
+
+	// Define sync directions
+	directions := map[string][]direction{
+		"up":   {{"up", neg.Haves, store, r}},
+		"down": {{"down", neg.HaveNots, r, store}},
+		"both": {{"up", neg.Haves, store, r}, {"down", neg.HaveNots, r, store}},
+	}
+
+	for _, dir := range selectDir(directions, d) {
 		wg.Add(1)
 		go func(dir direction) {
 			defer wg.Done()
@@ -135,4 +140,16 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 	}
 
 	return nil
+}
+
+// selectDir returns the directions to sync based on the user input
+func selectDir(directions map[string][]direction, d string) []direction {
+	switch d {
+	case "up":
+		return directions["up"]
+	case "down":
+		return directions["down"]
+	default:
+		return directions["both"]
+	}
 }
