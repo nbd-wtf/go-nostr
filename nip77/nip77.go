@@ -10,7 +10,28 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage/vector"
 )
 
-func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, filter nostr.Filter) error {
+type direction struct {
+	label  string
+	items  chan string
+	source nostr.RelayStore
+	target nostr.RelayStore
+}
+
+type Direction int
+
+const (
+	Up   = 0
+	Down = 1
+	Both = 2
+)
+
+func NegentropySync(
+	ctx context.Context,
+	store nostr.RelayStore,
+	url string,
+	filter nostr.Filter,
+	dir Direction,
+) error {
 	id := "go-nostr-tmp" // for now we can't have more than one subscription in the same connection
 
 	data, err := store.QuerySync(ctx, filter)
@@ -69,19 +90,17 @@ func NegentropySync(ctx context.Context, store nostr.RelayStore, url string, fil
 		r.Write(clse)
 	}()
 
-	type direction struct {
-		label  string
-		items  chan string
-		source nostr.RelayStore
-		target nostr.RelayStore
-	}
-
 	wg := sync.WaitGroup{}
 	pool := newidlistpool(50)
-	for _, dir := range []direction{
-		{"up", neg.Haves, store, r},
-		{"down", neg.HaveNots, r, store},
-	} {
+
+	// Define sync directions
+	directions := [][]direction{
+		{{"up", neg.Haves, store, r}},
+		{{"down", neg.HaveNots, r, store}},
+		{{"up", neg.Haves, store, r}, {"down", neg.HaveNots, r, store}},
+	}
+
+	for _, dir := range directions[dir] {
 		wg.Add(1)
 		go func(dir direction) {
 			defer wg.Done()

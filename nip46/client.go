@@ -120,7 +120,7 @@ func NewBunker(
 				Since:     &now,
 				LimitZero: true,
 			},
-		})
+		}, nostr.WithLabel("bunker46client"))
 		for ie := range events {
 			if ie.Kind != nostr.KindNostrConnect {
 				continue
@@ -151,6 +151,7 @@ func NewBunker(
 
 			if dispatcher, ok := bunker.listeners.Load(resp.ID); ok {
 				dispatcher <- resp
+				continue
 			}
 		}
 	}()
