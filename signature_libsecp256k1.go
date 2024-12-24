@@ -3,10 +3,12 @@
 package nostr
 
 /*
-#cgo LDFLAGS: -lsecp256k1
-#include <secp256k1.h>
-#include <secp256k1_schnorrsig.h>
-#include <secp256k1_extrakeys.h>
+#include "./libsecp256k1/src/secp256k1.c"
+#include "./libsecp256k1/src/modules/extrakeys/main_impl.h"
+#include "./libsecp256k1/src/modules/schnorrsig/main_impl.h"
+#include "./libsecp256k1/include/secp256k1.h"
+#include "./libsecp256k1/include/secp256k1_schnorrsig.h"
+#include "./libsecp256k1/include/secp256k1_extrakeys.h"
 */
 import "C"
 
