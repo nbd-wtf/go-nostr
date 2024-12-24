@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"context"
+	"math/rand/v2"
 
 	"github.com/fiatjaf/eventstore"
 	"github.com/fiatjaf/eventstore/nullstore"
@@ -10,7 +11,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/sdk/cache"
 	cache_memory "github.com/nbd-wtf/go-nostr/sdk/cache/memory"
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
-	memory_hints "github.com/nbd-wtf/go-nostr/sdk/hints/memory"
+	"github.com/nbd-wtf/go-nostr/sdk/hints/memoryh"
 )
 
 type System struct {
@@ -43,7 +44,7 @@ type RelayStream struct {
 }
 
 func NewRelayStream(urls ...string) *RelayStream {
-	return &RelayStream{URLs: urls, serial: -1}
+	return &RelayStream{URLs: urls, serial: rand.Int()}
 }
 
 func (rs *RelayStream) Next() string {
@@ -82,12 +83,13 @@ func NewSystem(mods ...SystemModifier) *System {
 			"wss://relay.nostr.band",
 			"wss://search.nos.today",
 		),
-		Hints: memory_hints.NewHintDB(),
+		Hints: memoryh.NewHintDB(),
 
 		outboxShortTermCache: cache_memory.New32[[]string](1000),
 	}
 
 	sys.Pool = nostr.NewSimplePool(context.Background(),
+		nostr.WithQueryMiddleware(sys.TrackQueryAttempts),
 		nostr.WithEventMiddleware(sys.TrackEventHints),
 		nostr.WithPenaltyBox(),
 	)
