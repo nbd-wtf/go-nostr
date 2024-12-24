@@ -124,15 +124,19 @@ func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, ki
 	if kind == 10002 {
 		// prevent infinite loops by jumping directly to this
 		relays = sys.Hints.TopN(pubkey, 3)
-	} else if kind == 0 {
-		// leave room for one hardcoded relay because people are stupid
-		relays = sys.FetchOutboxRelays(ctx, pubkey, 2)
+		if len(relays) == 0 {
+			relays = []string{"wss://relay.damus.io", "wss://nos.lol"}
+		}
+	} else if kind == 0 || kind == 3 {
+		// leave room for two hardcoded relays because people are stupid
+		relays = sys.FetchOutboxRelays(ctx, pubkey, 1)
 	} else {
 		relays = sys.FetchOutboxRelays(ctx, pubkey, 3)
 	}
 
 	// use a different set of extra relays depending on the kind
-	for i := 0; i < 3-len(relays); i++ {
+	needed := 3 - len(relays)
+	for range needed {
 		var next string
 		switch kind {
 		case 0:

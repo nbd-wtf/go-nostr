@@ -25,7 +25,8 @@ type SimplePool struct {
 	authHandler func(context.Context, RelayEvent) error
 	cancel      context.CancelFunc
 
-	eventMiddleware []func(RelayEvent)
+	eventMiddleware func(RelayEvent)
+	queryMiddleware func(relay string, pubkey string, kind int)
 
 	// custom things not often used
 	penaltyBoxMu sync.Mutex
@@ -114,11 +115,18 @@ func (h withPenaltyBoxOpt) ApplyPoolOption(pool *SimplePool) {
 }
 
 // WithEventMiddleware is a function that will be called with all events received.
-// more than one can be passed at a time.
 type WithEventMiddleware func(RelayEvent)
 
 func (h WithEventMiddleware) ApplyPoolOption(pool *SimplePool) {
-	pool.eventMiddleware = append(pool.eventMiddleware, h)
+	pool.eventMiddleware = h
+}
+
+// WithQueryMiddleware is a function that will be called with every combination of relay+pubkey+kind queried
+// in a .SubMany*() call -- when applicable (i.e. when the query contains a pubkey and a kind).
+type WithQueryMiddleware func(relay string, pubkey string, kind int)
+
+func (h WithQueryMiddleware) ApplyPoolOption(pool *SimplePool) {
+	pool.queryMiddleware = h
 }
 
 // WithUserAgent sets the user-agent header for all relay connections in the pool.
@@ -271,6 +279,18 @@ func (pool *SimplePool) subMany(
 
 				var sub *Subscription
 
+				if mh := pool.queryMiddleware; mh != nil {
+					for _, filter := range filters {
+						if filter.Kinds != nil && filter.Authors != nil {
+							for _, kind := range filter.Kinds {
+								for _, author := range filter.Authors {
+									mh(nm, author, kind)
+								}
+							}
+						}
+					}
+				}
+
 				relay, err := pool.EnsureRelay(nm)
 				if err != nil {
 					goto reconnect
@@ -306,7 +326,7 @@ func (pool *SimplePool) subMany(
 						}
 
 						ie := RelayEvent{Event: evt, Relay: relay}
-						for _, mh := range pool.eventMiddleware {
+						if mh := pool.eventMiddleware; mh != nil {
 							mh(ie)
 						}
 
@@ -407,6 +427,18 @@ func (pool *SimplePool) subManyEose(
 		go func(nm string) {
 			defer wg.Done()
 
+			if mh := pool.queryMiddleware; mh != nil {
+				for _, filter := range filters {
+					if filter.Kinds != nil && filter.Authors != nil {
+						for _, kind := range filter.Kinds {
+							for _, author := range filter.Authors {
+								mh(nm, author, kind)
+							}
+						}
+					}
+				}
+			}
+
 			relay, err := pool.EnsureRelay(nm)
 			if err != nil {
 				return
@@ -446,7 +478,7 @@ func (pool *SimplePool) subManyEose(
 					}
 
 					ie := RelayEvent{Event: evt, Relay: relay}
-					for _, mh := range pool.eventMiddleware {
+					if mh := pool.eventMiddleware; mh != nil {
 						mh(ie)
 					}
 

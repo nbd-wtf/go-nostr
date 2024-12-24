@@ -7,6 +7,19 @@ import (
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
+func (sys *System) TrackQueryAttempts(relay string, author string, kind int) {
+	if IsVirtualRelay(relay) {
+		return
+	}
+	if kind < 30000 && kind >= 20000 {
+		return
+	}
+	if kind == 0 || kind == 10002 || kind == 3 {
+		return
+	}
+	sys.Hints.Save(author, relay, hints.LastFetchAttempt, nostr.Now())
+}
+
 func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 	if IsVirtualRelay(ie.Relay.URL) {
 		return
@@ -16,7 +29,15 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 	}
 
 	switch ie.Kind {
+	case nostr.KindProfileMetadata:
+		// this could be anywhere so it doesn't count
+		return
 	case nostr.KindRelayListMetadata:
+		// this is special, we only use it to track relay-list hints
+		if len(ie.Tags) > 12 {
+			// too many relays in the list means this person is not using this correctly so we better ignore them
+			return
+		}
 		for _, tag := range ie.Tags {
 			if len(tag) < 2 || tag[0] != "r" {
 				continue
@@ -26,8 +47,7 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 			}
 		}
 	case nostr.KindFollowList:
-		sys.Hints.Save(ie.PubKey, ie.Relay.URL, hints.MostRecentEventFetched, ie.CreatedAt)
-
+		// this is special, we only use it to check if there are hints for the contacts
 		for _, tag := range ie.Tags {
 			if len(tag) < 3 {
 				continue
@@ -42,7 +62,8 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 				sys.Hints.Save(tag[1], tag[2], hints.LastInTag, ie.CreatedAt)
 			}
 		}
-	case nostr.KindTextNote:
+	default:
+		// everything else may have hints
 		sys.Hints.Save(ie.PubKey, ie.Relay.URL, hints.MostRecentEventFetched, ie.CreatedAt)
 
 		for _, tag := range ie.Tags {
