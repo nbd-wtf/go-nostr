@@ -12,11 +12,13 @@ require (
 	github.com/fiatjaf/eventstore v0.9.0
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.4.0
+	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
 	github.com/graph-gophers/dataloader/v7 v7.1.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/json-iterator/go v1.1.12
 	github.com/mailru/easyjson v0.7.7
 	github.com/mattn/go-sqlite3 v1.14.18
+	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/ncruces/go-sqlite3 v0.18.3
 	github.com/puzpuzpuz/xsync/v3 v3.4.0
 	github.com/stretchr/testify v1.9.0
@@ -26,7 +28,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0
 	golang.org/x/crypto v0.28.0
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
-	golang.org/x/net v0.21.0
+	golang.org/x/net v0.26.0
 	golang.org/x/text v0.19.0
 	modernc.org/sqlite v1.33.1
 )
@@ -35,6 +37,7 @@ require (
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
+	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -42,6 +45,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

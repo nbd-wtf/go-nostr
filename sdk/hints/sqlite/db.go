@@ -35,17 +35,17 @@ func NewSQLiteHints(db *sqlx.DB) (SQLiteHints, error) {
 		}
 	}
 
-	_, err := sh.Exec(`CREATE TABLE pubkey_relays (pubkey text, relay text, ` + cols.String())
+	_, err := sh.Exec(`CREATE TABLE IF NOT EXISTS nostr_sdk_pubkey_relays (pubkey text, relay text, ` + cols.String())
 	if err != nil {
 		return SQLiteHints{}, err
 	}
 
-	_, err = sh.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pkr ON pubkey_relays (pubkey, relay)`)
+	_, err = sh.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pkr ON nostr_sdk_pubkey_relays (pubkey, relay)`)
 	if err != nil {
 		return SQLiteHints{}, err
 	}
 
-	_, err = sh.Exec(`CREATE INDEX IF NOT EXISTS bypk ON pubkey_relays (pubkey)`)
+	_, err = sh.Exec(`CREATE INDEX IF NOT EXISTS bypk ON nostr_sdk_pubkey_relays (pubkey)`)
 	if err != nil {
 		return SQLiteHints{}, err
 	}
@@ -55,7 +55,7 @@ func NewSQLiteHints(db *sqlx.DB) (SQLiteHints, error) {
 		col := hints.HintKey(i).String()
 
 		stmt, err := sh.Preparex(
-			`INSERT INTO pubkey_relays (pubkey, relay, ` + col + `) VALUES (?, ?, ?)
+			`INSERT INTO nostr_sdk_pubkey_relays (pubkey, relay, ` + col + `) VALUES (?, ?, ?)
 			 ON CONFLICT (pubkey, relay) DO UPDATE SET ` + col + ` = max(?, coalesce(` + col + `, 0))`,
 		)
 		if err != nil {
@@ -66,7 +66,7 @@ func NewSQLiteHints(db *sqlx.DB) (SQLiteHints, error) {
 
 	{
 		stmt, err := sh.Preparex(
-			`SELECT relay FROM pubkey_relays WHERE pubkey = ? ORDER BY (` + scorePartialQuery() + `) DESC LIMIT ?`,
+			`SELECT relay FROM nostr_sdk_pubkey_relays WHERE pubkey = ? ORDER BY (` + scorePartialQuery() + `) DESC LIMIT ?`,
 		)
 		if err != nil {
 			return sh, fmt.Errorf("failed to prepare statement for querying: %w", err)
@@ -103,7 +103,7 @@ func (sh SQLiteHints) PrintScores() {
 	fmt.Println("= print scores")
 
 	allpubkeys := make([]string, 0, 50)
-	if err := sh.Select(&allpubkeys, `SELECT DISTINCT pubkey FROM pubkey_relays`); err != nil {
+	if err := sh.Select(&allpubkeys, `SELECT DISTINCT pubkey FROM nostr_sdk_pubkey_relays`); err != nil {
 		panic(err)
 	}
 
@@ -116,7 +116,7 @@ func (sh SQLiteHints) PrintScores() {
 		fmt.Println("== relay scores for", pubkey)
 		if err := sh.Select(&allrelays,
 			`SELECT pubkey, relay, coalesce(`+scorePartialQuery()+`, 0) AS score
-			 FROM pubkey_relays WHERE pubkey = ? ORDER BY score DESC`, pubkey); err != nil {
+			 FROM nostr_sdk_pubkey_relays WHERE pubkey = ? ORDER BY score DESC`, pubkey); err != nil {
 			panic(err)
 		}
 
