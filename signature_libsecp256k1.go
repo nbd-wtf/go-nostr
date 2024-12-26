@@ -3,10 +3,23 @@
 package nostr
 
 /*
-#cgo LDFLAGS: -lsecp256k1
-#include <secp256k1.h>
-#include <secp256k1_schnorrsig.h>
-#include <secp256k1_extrakeys.h>
+#cgo CFLAGS: -I${SRCDIR}/libsecp256k1/include -I${SRCDIR}/libsecp256k1/src
+#cgo CFLAGS: -DECMULT_GEN_PREC_BITS=4
+#cgo CFLAGS: -DECMULT_WINDOW_SIZE=15
+#cgo CFLAGS: -DENABLE_MODULE_SCHNORRSIG=1
+#cgo CFLAGS: -DENABLE_MODULE_EXTRAKEYS=1
+
+#include "./libsecp256k1/src/secp256k1.c"
+#include "./libsecp256k1/src/precomputed_ecmult.c"
+#include "./libsecp256k1/src/precomputed_ecmult_gen.c"
+#include "./libsecp256k1/src/ecmult_gen.h"
+#include "./libsecp256k1/src/ecmult.h"
+#include "./libsecp256k1/src/modules/extrakeys/main_impl.h"
+#include "./libsecp256k1/src/modules/schnorrsig/main_impl.h"
+
+#include "./libsecp256k1/include/secp256k1.h"
+#include "./libsecp256k1/include/secp256k1_extrakeys.h"
+#include "./libsecp256k1/include/secp256k1_schnorrsig.h"
 */
 import "C"
 
