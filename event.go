@@ -16,9 +16,6 @@ type Event struct {
 	Tags      Tags
 	Content   string
 	Sig       string
-
-	// anything here will be mashed together with the main event object when serializing
-	extra map[string]any
 }
 
 // Event Stringer interface, just returns the raw JSON as a string.
