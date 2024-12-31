@@ -145,7 +145,7 @@ But to use it you need the host to have it installed as a shared library and CGO
 
 To use it, use `-tags=libsecp256k1` whenever you're compiling your program that uses this library.
 
-### Test for WASM
+### Test for Wasm
 
 Install [wasmbrowsertest](https://github.com/agnivade/wasmbrowsertest), then run tests:
 
