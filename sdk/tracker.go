@@ -81,7 +81,7 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 			}
 		}
 
-		for _, ref := range ParseReferences(ie.Event) {
+		for ref := range ParseReferences(*ie.Event) {
 			if ref.Profile != nil {
 				for _, relay := range ref.Profile.Relays {
 					if IsVirtualRelay(relay) {
