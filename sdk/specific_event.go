@@ -9,6 +9,7 @@ import (
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
+	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
 // FetchSpecificEvent tries to get a specific event from a NIP-19 code using whatever means necessary.
@@ -20,17 +21,22 @@ func (sys *System) FetchSpecificEvent(
 	// this is for deciding what relays will go on nevent and nprofile later
 	priorityRelays := make([]string, 0, 8)
 
-	prefix, data, err := nip19.Decode(code)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode %w", err)
-	}
-
 	author := ""
 
 	var filter nostr.Filter
 	relays := make([]string, 0, 10)
 	fallback := make([]string, 0, 10)
 	successRelays = make([]string, 0, 10)
+
+	prefix, data, err := nip19.Decode(code)
+	if err != nil {
+		if nostr.IsValid32ByteHex(code) {
+			data = code
+			prefix = "note"
+		} else {
+			return nil, nil, fmt.Errorf("failed to decode %w", err)
+		}
+	}
 
 	switch v := data.(type) {
 	case nostr.EventPointer:
@@ -40,9 +46,7 @@ func (sys *System) FetchSpecificEvent(
 		relays = appendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.JustIDRelays.URLs...)
 		fallback = appendUnique(fallback, sys.FallbackRelays.Next())
-		for _, r := range v.Relays {
-			priorityRelays = append(priorityRelays, r)
-		}
+		priorityRelays = append(priorityRelays, v.Relays...)
 	case nostr.EntityPointer:
 		author = v.PublicKey
 		filter.Authors = []string{v.PublicKey}
@@ -51,6 +55,7 @@ func (sys *System) FetchSpecificEvent(
 		relays = append(relays, v.Relays...)
 		relays = appendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.FallbackRelays.Next(), sys.FallbackRelays.Next())
+		priorityRelays = append(priorityRelays, v.Relays...)
 	case string:
 		if prefix == "note" {
 			filter.IDs = []string{v}
@@ -69,6 +74,15 @@ func (sys *System) FetchSpecificEvent(
 	if author != "" {
 		// fetch relays for author
 		authorRelays := sys.FetchOutboxRelays(ctx, author, 3)
+
+		// after that we register these hints as associated with author
+		// (we do this after fetching author outbox relays because we are already going to prioritize these hints)
+		now := nostr.Now()
+		for _, relay := range priorityRelays {
+			sys.Hints.Save(author, relay, hints.LastInNevent, now)
+		}
+
+		// arrange these
 		relays = appendUnique(relays, authorRelays...)
 		priorityRelays = appendUnique(priorityRelays, authorRelays...)
 	}
