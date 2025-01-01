@@ -25,6 +25,7 @@ const (
 	KindChannelMuteUser          int = 44
 	KindChess                    int = 64
 	KindMergeRequests            int = 818
+	KindComment                  int = 1111
 	KindBid                      int = 1021
 	KindBidConfirmation          int = 1022
 	KindOpenTimestamps           int = 1040
