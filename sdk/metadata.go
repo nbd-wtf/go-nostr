@@ -117,7 +117,7 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm 
 
 	pm.PubKey = pubkey
 
-	thunk0 := sys.replaceableLoaders[0].Load(ctx, pubkey)
+	thunk0 := sys.replaceableLoaders[kind_0].Load(ctx, pubkey)
 	evt, err := thunk0()
 	if err == nil {
 		pm, _ = ParseMetadata(evt)

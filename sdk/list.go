@@ -30,7 +30,8 @@ func fetchGenericList[I TagItemWithValue](
 	sys *System,
 	ctx context.Context,
 	pubkey string,
-	kind int,
+	actualKind int,
+	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericList[I]],
 	skipFetch bool,
@@ -38,7 +39,7 @@ func fetchGenericList[I TagItemWithValue](
 	// we have 24 mutexes, so we can load up to 24 lists at the same time, but if we do the same exact
 	// call that will do it only once, the subsequent ones will wait for a result to be cached
 	// and then return it from cache -- 13 is an arbitrary index for the pubkey
-	lockIdx := (int(pubkey[13]) + kind) % 24
+	lockIdx := (int(pubkey[13]) + int(replaceableIndex)) % 24
 	genericListMutexes[lockIdx].Lock()
 
 	if valueWasJustCached[lockIdx] {
@@ -56,7 +57,7 @@ func fetchGenericList[I TagItemWithValue](
 
 	v := GenericList[I]{PubKey: pubkey}
 
-	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{kind}, Authors: []string{pubkey}})
+	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{actualKind}, Authors: []string{pubkey}})
 	if len(events) != 0 {
 		items := parseItemsFromEventTags(events[0], parseTag)
 		v.Event = events[0]
@@ -67,7 +68,7 @@ func fetchGenericList[I TagItemWithValue](
 	}
 
 	if !skipFetch {
-		thunk := sys.replaceableLoaders[kind].Load(ctx, pubkey)
+		thunk := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
 		evt, err := thunk()
 		if err == nil {
 			items := parseItemsFromEventTags(evt, parseTag)

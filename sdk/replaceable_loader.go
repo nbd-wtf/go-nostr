@@ -12,13 +12,38 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
+type replaceableIndex int
+
+const (
+	kind_0     replaceableIndex = 0
+	kind_3     replaceableIndex = 1
+	kind_10000 replaceableIndex = 2
+	kind_10001 replaceableIndex = 3
+	kind_10002 replaceableIndex = 4
+	kind_10003 replaceableIndex = 5
+	kind_10004 replaceableIndex = 6
+	kind_10005 replaceableIndex = 7
+	kind_10006 replaceableIndex = 8
+	kind_10007 replaceableIndex = 9
+	kind_10015 replaceableIndex = 10
+	kind_10030 replaceableIndex = 11
+)
+
 type EventResult dataloader.Result[*nostr.Event]
 
 func (sys *System) initializeDataloaders() {
-	sys.replaceableLoaders = make(map[int]*dataloader.Loader[string, *nostr.Event])
-	for _, kind := range []int{0, 3, 10000, 10001, 10002, 10003, 10004, 10005, 10006, 10007, 10015, 10030} {
-		sys.replaceableLoaders[kind] = sys.createReplaceableDataloader(kind)
-	}
+	sys.replaceableLoaders[kind_0] = sys.createReplaceableDataloader(0)
+	sys.replaceableLoaders[kind_3] = sys.createReplaceableDataloader(3)
+	sys.replaceableLoaders[kind_10000] = sys.createReplaceableDataloader(10000)
+	sys.replaceableLoaders[kind_10001] = sys.createReplaceableDataloader(10001)
+	sys.replaceableLoaders[kind_10002] = sys.createReplaceableDataloader(10002)
+	sys.replaceableLoaders[kind_10003] = sys.createReplaceableDataloader(10003)
+	sys.replaceableLoaders[kind_10004] = sys.createReplaceableDataloader(10004)
+	sys.replaceableLoaders[kind_10005] = sys.createReplaceableDataloader(10005)
+	sys.replaceableLoaders[kind_10006] = sys.createReplaceableDataloader(10006)
+	sys.replaceableLoaders[kind_10007] = sys.createReplaceableDataloader(10007)
+	sys.replaceableLoaders[kind_10015] = sys.createReplaceableDataloader(10015)
+	sys.replaceableLoaders[kind_10030] = sys.createReplaceableDataloader(10030)
 }
 
 func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[string, *nostr.Event] {

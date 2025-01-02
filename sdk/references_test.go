@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -57,7 +58,7 @@ func TestParseReferences(t *testing.T) {
 		},
 	}
 
-	got := ParseReferences(&evt)
+	got := slices.Collect(ParseReferences(evt))
 
 	if len(got) != len(expected) {
 		t.Errorf("got %d references, expected %d", len(got), len(expected))

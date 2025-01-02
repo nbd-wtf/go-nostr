@@ -15,24 +15,28 @@ import (
 )
 
 type System struct {
-	RelayListCache   cache.Cache32[RelayList]
-	FollowListCache  cache.Cache32[FollowList]
-	MuteListCache    cache.Cache32[FollowList]
-	MetadataCache    cache.Cache32[ProfileMetadata]
-	Hints            hints.HintsDB
-	Pool             *nostr.SimplePool
-	RelayListRelays  *RelayStream
-	FollowListRelays *RelayStream
-	MetadataRelays   *RelayStream
-	FallbackRelays   *RelayStream
-	JustIDRelays     *RelayStream
-	UserSearchRelays *RelayStream
-	NoteSearchRelays *RelayStream
-	Store            eventstore.Store
+	MetadataCache         cache.Cache32[ProfileMetadata]
+	RelayListCache        cache.Cache32[GenericList[Relay]]
+	FollowListCache       cache.Cache32[GenericList[ProfileRef]]
+	MuteListCache         cache.Cache32[GenericList[ProfileRef]]
+	BookmarkListCache     cache.Cache32[GenericList[EventRef]]
+	PinListCache          cache.Cache32[GenericList[EventRef]]
+	BlockedRelayListCache cache.Cache32[GenericList[RelayURL]]
+	SearchRelayListCache  cache.Cache32[GenericList[RelayURL]]
+	Hints                 hints.HintsDB
+	Pool                  *nostr.SimplePool
+	RelayListRelays       *RelayStream
+	FollowListRelays      *RelayStream
+	MetadataRelays        *RelayStream
+	FallbackRelays        *RelayStream
+	JustIDRelays          *RelayStream
+	UserSearchRelays      *RelayStream
+	NoteSearchRelays      *RelayStream
+	Store                 eventstore.Store
 
 	StoreRelay nostr.RelayStore
 
-	replaceableLoaders   map[int]*dataloader.Loader[string, *nostr.Event]
+	replaceableLoaders   []*dataloader.Loader[string, *nostr.Event]
 	outboxShortTermCache cache.Cache32[[]string]
 }
 
@@ -54,13 +58,17 @@ func (rs *RelayStream) Next() string {
 
 func NewSystem(mods ...SystemModifier) *System {
 	sys := &System{
-		RelayListCache:   cache_memory.New32[RelayList](1000),
-		FollowListCache:  cache_memory.New32[FollowList](1000),
-		MuteListCache:    cache_memory.New32[FollowList](1000),
-		MetadataCache:    cache_memory.New32[ProfileMetadata](1000),
-		RelayListRelays:  NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
-		FollowListRelays: NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
-		MetadataRelays:   NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		MetadataCache:         cache_memory.New32[ProfileMetadata](8000),
+		RelayListCache:        cache_memory.New32[GenericList[Relay]](8000),
+		FollowListCache:       cache_memory.New32[GenericList[ProfileRef]](1000),
+		MuteListCache:         cache_memory.New32[GenericList[ProfileRef]](1000),
+		BookmarkListCache:     cache_memory.New32[GenericList[EventRef]](1000),
+		PinListCache:          cache_memory.New32[GenericList[EventRef]](1000),
+		BlockedRelayListCache: cache_memory.New32[GenericList[RelayURL]](1000),
+		SearchRelayListCache:  cache_memory.New32[GenericList[RelayURL]](1000),
+		RelayListRelays:       NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		FollowListRelays:      NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		MetadataRelays:        NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
 		FallbackRelays: NewRelayStream(
 			"wss://relay.damus.io",
 			"wss://nostr.mom",
@@ -165,21 +173,15 @@ func WithStore(store eventstore.Store) SystemModifier {
 	}
 }
 
-func WithRelayListCache(cache cache.Cache32[RelayList]) SystemModifier {
+func WithRelayListCache(cache cache.Cache32[GenericList[Relay]]) SystemModifier {
 	return func(sys *System) {
 		sys.RelayListCache = cache
 	}
 }
 
-func WithFollowListCache(cache cache.Cache32[FollowList]) SystemModifier {
+func WithFollowListCache(cache cache.Cache32[GenericList[ProfileRef]]) SystemModifier {
 	return func(sys *System) {
 		sys.FollowListCache = cache
-	}
-}
-
-func WithMuteListCache(cache cache.Cache32[FollowList]) SystemModifier {
-	return func(sys *System) {
-		sys.MuteListCache = cache
 	}
 }
 
