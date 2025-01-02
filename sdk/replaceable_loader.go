@@ -31,7 +31,7 @@ const (
 
 type EventResult dataloader.Result[*nostr.Event]
 
-func (sys *System) initializeDataloaders() {
+func (sys *System) initializeReplaceableDataloaders() {
 	sys.replaceableLoaders[kind_0] = sys.createReplaceableDataloader(0)
 	sys.replaceableLoaders[kind_3] = sys.createReplaceableDataloader(3)
 	sys.replaceableLoaders[kind_10000] = sys.createReplaceableDataloader(10000)
@@ -143,7 +143,7 @@ func (sys *System) batchLoadReplaceableEvents(
 }
 
 func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, kind int) []string {
-	relays := make([]string, 0, 10)
+	var relays []string
 
 	// search in specific relays for user
 	if kind == 10002 {

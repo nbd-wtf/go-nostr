@@ -33,6 +33,11 @@ func (sys *System) FetchSearchRelayList(ctx context.Context, pubkey string) Gene
 	return ml
 }
 
+func (sys *System) FetchRelaySets(ctx context.Context, pubkey string) GenericSets[RelayURL] {
+	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30002, kind_30002, parseRelayURL, sys.RelaySetsCache, false)
+	return ml
+}
+
 func parseRelayFromKind10002(tag nostr.Tag) (rl Relay, ok bool) {
 	if u := tag.Value(); u != "" && tag[0] == "r" {
 		if !nostr.IsValidRelayURL(u) {

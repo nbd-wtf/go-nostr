@@ -26,6 +26,11 @@ func (sys *System) FetchMuteList(ctx context.Context, pubkey string) GenericList
 	return ml
 }
 
+func (sys *System) FetchFollowSets(ctx context.Context, pubkey string) GenericSets[ProfileRef] {
+	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30000, kind_30000, parseProfileRef, sys.FollowSetsCache, false)
+	return ml
+}
+
 func parseProfileRef(tag nostr.Tag) (fw ProfileRef, ok bool) {
 	if len(tag) < 2 {
 		return fw, false

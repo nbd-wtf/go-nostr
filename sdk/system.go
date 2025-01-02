@@ -23,6 +23,10 @@ type System struct {
 	PinListCache          cache.Cache32[GenericList[EventRef]]
 	BlockedRelayListCache cache.Cache32[GenericList[RelayURL]]
 	SearchRelayListCache  cache.Cache32[GenericList[RelayURL]]
+	TopicListCache        cache.Cache32[GenericList[Topic]]
+	RelaySetsCache        cache.Cache32[GenericSets[RelayURL]]
+	FollowSetsCache       cache.Cache32[GenericSets[ProfileRef]]
+	TopicSetsCache        cache.Cache32[GenericSets[Topic]]
 	Hints                 hints.HintsDB
 	Pool                  *nostr.SimplePool
 	RelayListRelays       *RelayStream
@@ -37,6 +41,7 @@ type System struct {
 	StoreRelay nostr.RelayStore
 
 	replaceableLoaders   []*dataloader.Loader[string, *nostr.Event]
+	addressableLoaders   []*dataloader.Loader[string, []*nostr.Event]
 	outboxShortTermCache cache.Cache32[[]string]
 }
 
@@ -66,6 +71,10 @@ func NewSystem(mods ...SystemModifier) *System {
 		PinListCache:          cache_memory.New32[GenericList[EventRef]](1000),
 		BlockedRelayListCache: cache_memory.New32[GenericList[RelayURL]](1000),
 		SearchRelayListCache:  cache_memory.New32[GenericList[RelayURL]](1000),
+		TopicListCache:        cache_memory.New32[GenericList[Topic]](1000),
+		RelaySetsCache:        cache_memory.New32[GenericSets[RelayURL]](1000),
+		FollowSetsCache:       cache_memory.New32[GenericSets[ProfileRef]](1000),
+		TopicSetsCache:        cache_memory.New32[GenericSets[Topic]](1000),
 		RelayListRelays:       NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
 		FollowListRelays:      NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
 		MetadataRelays:        NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
@@ -112,7 +121,8 @@ func NewSystem(mods ...SystemModifier) *System {
 	}
 	sys.StoreRelay = eventstore.RelayWrapper{Store: sys.Store}
 
-	sys.initializeDataloaders()
+	sys.initializeReplaceableDataloaders()
+	sys.initializeAddressableDataloaders()
 
 	return sys
 }
