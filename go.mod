@@ -6,6 +6,7 @@ require (
 	github.com/bluekeyes/go-gitdiff v0.7.1
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/btcutil v1.1.3
+	github.com/coder/websocket v1.8.12
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/dgraph-io/ristretto v1.0.0
 	github.com/fiatjaf/eventstore v0.9.0

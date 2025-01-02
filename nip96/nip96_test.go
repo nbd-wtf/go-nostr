@@ -1,3 +1,5 @@
+//go:build !js
+
 package nip96
 
 import (

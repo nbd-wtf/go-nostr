@@ -1,3 +1,5 @@
+//go:build !js
+
 package nostr
 
 import (
@@ -178,4 +180,8 @@ func (c *Connection) ReadMessage(ctx context.Context, buf io.Writer) error {
 
 func (c *Connection) Close() error {
 	return c.conn.Close()
+}
+
+func (c *Connection) Ping(ctx context.Context) error {
+	return wsutil.WriteClientMessage(c.conn, ws.OpPing, nil)
 }

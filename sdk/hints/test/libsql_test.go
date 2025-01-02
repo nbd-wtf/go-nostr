@@ -1,4 +1,4 @@
-//go:build !sqlite_math_functions
+//go:build !js && !sqlite_math_functions
 
 package test
 
