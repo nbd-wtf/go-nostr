@@ -123,9 +123,9 @@ func (h WithEventMiddleware) ApplyPoolOption(pool *SimplePool) {
 
 // WithQueryMiddleware is a function that will be called with every combination of relay+pubkey+kind queried
 // in a .SubMany*() call -- when applicable (i.e. when the query contains a pubkey and a kind).
-type WithQueryMiddleware func(relay string, pubkey string, kind int)
+type WithAuthorKindQueryMiddleware func(relay string, pubkey string, kind int)
 
-func (h WithQueryMiddleware) ApplyPoolOption(pool *SimplePool) {
+func (h WithAuthorKindQueryMiddleware) ApplyPoolOption(pool *SimplePool) {
 	pool.queryMiddleware = h
 }
 
@@ -508,7 +508,7 @@ func (pool *SimplePool) CountMany(
 	filter Filter,
 	opts []SubscriptionOption,
 ) int {
-	hll := hyperloglog.New(0) // offset is irrelevant here, so we just pass 0
+	hll := hyperloglog.New(0) // offset is irrelevant here
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))

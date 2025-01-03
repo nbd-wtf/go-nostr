@@ -106,7 +106,7 @@ func NewSystem(mods ...SystemModifier) *System {
 	}
 
 	sys.Pool = nostr.NewSimplePool(context.Background(),
-		nostr.WithQueryMiddleware(sys.TrackQueryAttempts),
+		nostr.WithAuthorKindQueryMiddleware(sys.TrackQueryAttempts),
 		nostr.WithEventMiddleware(sys.TrackEventHints),
 		nostr.WithPenaltyBox(),
 	)
