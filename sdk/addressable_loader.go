@@ -23,6 +23,7 @@ const (
 )
 
 func (sys *System) initializeAddressableDataloaders() {
+	sys.addressableLoaders = make([]*dataloader.Loader[string, []*nostr.Event], 4)
 	sys.addressableLoaders[kind_30000] = sys.createAddressableDataloader(30000)
 	sys.addressableLoaders[kind_30002] = sys.createAddressableDataloader(30002)
 	sys.addressableLoaders[kind_30015] = sys.createAddressableDataloader(30015)
