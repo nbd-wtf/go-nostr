@@ -23,7 +23,7 @@ type Relay struct {
 	closeMutex sync.Mutex
 
 	URL           string
-	RequestHeader http.Header // e.g. for origin header
+	requestHeader http.Header // e.g. for origin header
 
 	Connection    *Connection
 	Subscriptions *xsync.MapOf[int64, *Subscription]
@@ -60,7 +60,7 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 		okCallbacks:                   xsync.NewMapOf[string, func(bool, string)](),
 		writeQueue:                    make(chan writeRequest),
 		subscriptionChannelCloseQueue: make(chan *Subscription),
-		RequestHeader:                 make(http.Header, 1),
+		requestHeader:                 nil,
 	}
 
 	for _, opt := range opts {
@@ -88,6 +88,7 @@ type RelayOption interface {
 var (
 	_ RelayOption = (WithNoticeHandler)(nil)
 	_ RelayOption = (WithCustomHandler)(nil)
+	_ RelayOption = (WithRequestHeader)(nil)
 )
 
 // WithNoticeHandler just takes notices and is expected to do something with them.
@@ -104,6 +105,13 @@ type WithCustomHandler func(data []byte)
 
 func (ch WithCustomHandler) ApplyRelayOption(r *Relay) {
 	r.customHandler = ch
+}
+
+// WithRequestHeader sets the HTTP request header of the websocket preflight request.
+type WithRequestHeader http.Header
+
+func (ch WithRequestHeader) ApplyRelayOption(r *Relay) {
+	r.requestHeader = http.Header(ch)
 }
 
 // String just returns the relay URL.
@@ -146,11 +154,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 		defer cancel()
 	}
 
-	if r.RequestHeader.Get("User-Agent") == "" {
-		r.RequestHeader.Set("User-Agent", "github.com/nbd-wtf/go-nostr")
-	}
-
-	conn, err := NewConnection(ctx, r.URL, r.RequestHeader, tlsConfig)
+	conn, err := NewConnection(ctx, r.URL, r.requestHeader, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("error opening websocket to '%s': %w", r.URL, err)
 	}

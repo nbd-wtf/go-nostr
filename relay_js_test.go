@@ -12,40 +12,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConnectContext(t *testing.T) {
+var testRelayURL = func() string {
 	url := os.Getenv("TEST_RELAY_URL")
-	if url == "" {
-		t.Fatal("please set the environment: $TEST_RELAY_URL")
+	if url != "" {
+		return url
 	}
+	return "wss://nos.lol"
+}()
 
+func TestConnectContext(t *testing.T) {
 	// relay client
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	r, err := RelayConnect(ctx, url)
+	r, err := RelayConnect(ctx, testRelayURL)
 	assert.NoError(t, err)
 
 	defer r.Close()
 }
 
 func TestConnectContextCanceled(t *testing.T) {
-	url := os.Getenv("TEST_RELAY_URL")
-	if url == "" {
-		t.Fatal("please set the environment: $TEST_RELAY_URL")
-	}
-
 	// relay client
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // make ctx expired
-	_, err := RelayConnect(ctx, url)
+	_, err := RelayConnect(ctx, testRelayURL)
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
 func TestPublish(t *testing.T) {
-	url := os.Getenv("TEST_RELAY_URL")
-	if url == "" {
-		t.Fatal("please set the environment: $TEST_RELAY_URL")
-	}
-
 	// test note to be sent over websocket
 	priv, pub := makeKeyPair(t)
 	textNote := Event{
@@ -59,7 +52,7 @@ func TestPublish(t *testing.T) {
 	assert.NoError(t, err)
 
 	// connect a client and send the text note
-	rl := mustRelayConnect(t, url)
+	rl := mustRelayConnect(t, testRelayURL)
 	err = rl.Publish(context.Background(), textNote)
 	assert.NoError(t, err)
 }

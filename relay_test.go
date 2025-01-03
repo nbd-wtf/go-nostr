@@ -149,8 +149,8 @@ func TestConnectWithOrigin(t *testing.T) {
 	defer ws.Close()
 
 	// relay client
-	r := NewRelay(context.Background(), NormalizeURL(ws.URL))
-	r.RequestHeader = http.Header{"origin": {"https://example.com"}}
+	r := NewRelay(context.Background(), NormalizeURL(ws.URL),
+		WithRequestHeader(http.Header{"origin": {"https://example.com"}}))
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	err := r.Connect(ctx)

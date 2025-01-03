@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -31,7 +32,7 @@ type SimplePool struct {
 	// custom things not often used
 	penaltyBoxMu sync.Mutex
 	penaltyBox   map[string][2]float64
-	userAgent    string
+	relayOptions []RelayOption
 }
 
 type DirectedFilters struct {
@@ -67,6 +68,17 @@ func NewSimplePool(ctx context.Context, opts ...PoolOption) *SimplePool {
 	}
 
 	return pool
+}
+
+// WithRelayOptions sets options that will be used on every relay instance created by this pool.
+func WithRelayOptions(ropts ...RelayOption) withRelayOptionsOpt {
+	return ropts
+}
+
+type withRelayOptionsOpt []RelayOption
+
+func (h withRelayOptionsOpt) ApplyPoolOption(pool *SimplePool) {
+	pool.relayOptions = h
 }
 
 // WithAuthHandler must be a function that signs the auth event when called.
@@ -129,20 +141,11 @@ func (h WithAuthorKindQueryMiddleware) ApplyPoolOption(pool *SimplePool) {
 	pool.queryMiddleware = h
 }
 
-// WithUserAgent sets the user-agent header for all relay connections in the pool.
-func WithUserAgent(userAgent string) withUserAgentOpt { return withUserAgentOpt(userAgent) }
-
-type withUserAgentOpt string
-
-func (h withUserAgentOpt) ApplyPoolOption(pool *SimplePool) {
-	pool.userAgent = string(h)
-}
-
 var (
 	_ PoolOption = (WithAuthHandler)(nil)
 	_ PoolOption = (WithEventMiddleware)(nil)
 	_ PoolOption = WithPenaltyBox()
-	_ PoolOption = WithUserAgent("")
+	_ PoolOption = WithRelayOptions(WithRequestHeader(http.Header{}))
 )
 
 func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
@@ -169,9 +172,7 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	ctx, cancel := context.WithTimeout(pool.Context, time.Second*15)
 	defer cancel()
 
-	relay = NewRelay(context.Background(), url)
-	relay.RequestHeader.Set("User-Agent", pool.userAgent)
-
+	relay = NewRelay(context.Background(), url, pool.relayOptions...)
 	if err := relay.Connect(ctx); err != nil {
 		if pool.penaltyBox != nil {
 			// putting relay in penalty box
