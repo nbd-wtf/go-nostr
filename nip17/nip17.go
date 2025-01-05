@@ -55,7 +55,7 @@ func PublishMessage(
 		}
 
 		err = r.Publish(ctx, event)
-		if strings.HasPrefix(err.Error(), "auth-required:") {
+		if err != nil && strings.HasPrefix(err.Error(), "auth-required:") {
 			authErr := r.Auth(ctx, func(ae *nostr.Event) error { return kr.SignEvent(ctx, ae) })
 			if authErr == nil {
 				err = r.Publish(ctx, event)
