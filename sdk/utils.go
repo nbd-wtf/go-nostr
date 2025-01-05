@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -25,4 +26,18 @@ func IsVirtualRelay(url string) bool {
 	}
 
 	return false
+}
+
+// BatchSizePerNumberOfQueries tries to make an educated guess for the batch size given the total filter limit and
+// the number of abstract queries we'll be conducting at the same time
+func BatchSizePerNumberOfQueries(totalFilterLimit int, numberOfQueries int) int {
+	if numberOfQueries == 1 || totalFilterLimit*numberOfQueries < 50 {
+		return totalFilterLimit
+	}
+
+	return int(
+		math.Ceil(
+			math.Pow(float64(totalFilterLimit), 0.80) / math.Pow(float64(numberOfQueries), 0.71),
+		),
+	)
 }
