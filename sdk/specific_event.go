@@ -12,33 +12,53 @@ import (
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
+// FetchSpecificEventFromInput tries to get a specific event from a NIP-19 code using whatever means necessary.
+func (sys *System) FetchSpecificEventFromInput(
+	ctx context.Context,
+	input string,
+	withRelays bool,
+) (event *nostr.Event, successRelays []string, err error) {
+	var pointer nostr.Pointer
+
+	_, data, err := nip19.Decode(input)
+	if err == nil {
+		switch p := data.(type) {
+		case nostr.EventPointer:
+			pointer = p
+		case nostr.EntityPointer:
+			pointer = p
+		case string:
+			pointer = nostr.EventPointer{ID: input}
+		default:
+			return nil, nil, fmt.Errorf("invalid code '%s'", input)
+		}
+	} else {
+		if nostr.IsValid32ByteHex(input) {
+			pointer = nostr.EventPointer{ID: input}
+		} else {
+			return nil, nil, fmt.Errorf("failed to decode '%s': %w", input, err)
+		}
+	}
+
+	return sys.FetchSpecificEvent(ctx, pointer, withRelays)
+}
+
 // FetchSpecificEvent tries to get a specific event from a NIP-19 code using whatever means necessary.
 func (sys *System) FetchSpecificEvent(
 	ctx context.Context,
-	code string,
+	pointer nostr.Pointer,
 	withRelays bool,
 ) (event *nostr.Event, successRelays []string, err error) {
 	// this is for deciding what relays will go on nevent and nprofile later
 	priorityRelays := make([]string, 0, 8)
 
-	author := ""
-
 	var filter nostr.Filter
+	author := ""
 	relays := make([]string, 0, 10)
 	fallback := make([]string, 0, 10)
 	successRelays = make([]string, 0, 10)
 
-	prefix, data, err := nip19.Decode(code)
-	if err != nil {
-		if nostr.IsValid32ByteHex(code) {
-			data = code
-			prefix = "note"
-		} else {
-			return nil, nil, fmt.Errorf("failed to decode %w", err)
-		}
-	}
-
-	switch v := data.(type) {
+	switch v := pointer.(type) {
 	case nostr.EventPointer:
 		author = v.Author
 		filter.IDs = []string{v.ID}
@@ -56,13 +76,6 @@ func (sys *System) FetchSpecificEvent(
 		relays = appendUnique(relays, sys.FallbackRelays.Next())
 		fallback = append(fallback, sys.FallbackRelays.Next(), sys.FallbackRelays.Next())
 		priorityRelays = append(priorityRelays, v.Relays...)
-	case string:
-		if prefix == "note" {
-			filter.IDs = []string{v}
-			relays = append(relays, sys.JustIDRelays.Next(), sys.JustIDRelays.Next())
-			fallback = appendUnique(fallback,
-				sys.FallbackRelays.Next(), sys.JustIDRelays.Next(), sys.FallbackRelays.Next())
-		}
 	}
 
 	// try to fetch in our internal eventstore first
@@ -97,14 +110,14 @@ attempts:
 		slowWithRelays bool
 	}{
 		{
-			label:  "fetch-" + prefix,
+			label:  "fetchspecific",
 			relays: relays,
 			// set this to true if the caller wants relays, so we won't return immediately
 			//   but will instead wait a little while to see if more relays respond
 			slowWithRelays: withRelays,
 		},
 		{
-			label:          "fetchf-" + prefix,
+			label:          "fetchspecific",
 			relays:         fallback,
 			slowWithRelays: false,
 		},
@@ -159,7 +172,7 @@ attempts:
 	}
 
 	if result == nil {
-		return nil, nil, fmt.Errorf("couldn't find this %s", prefix)
+		return nil, nil, fmt.Errorf("couldn't find this %v", pointer)
 	}
 
 	// save stuff in cache and in internal store
