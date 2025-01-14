@@ -34,7 +34,6 @@ func fetchGenericList[I TagItemWithValue](
 	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericList[I]],
-	skipFetch bool,
 ) (fl GenericList[I], fromInternal bool) {
 	// we have 24 mutexes, so we can load up to 24 lists at the same time, but if we do the same exact
 	// call that will do it only once, the subsequent ones will wait for a result to be cached
@@ -67,17 +66,15 @@ func fetchGenericList[I TagItemWithValue](
 		return v, true
 	}
 
-	if !skipFetch {
-		thunk := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
-		evt, err := thunk()
-		if err == nil {
-			items := parseItemsFromEventTags(evt, parseTag)
-			v.Items = items
-			sys.StoreRelay.Publish(ctx, *evt)
-		}
-		cache.SetWithTTL(pubkey, v, time.Hour*6)
-		valueWasJustCached[lockIdx] = true
+	thunk := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
+	evt, err := thunk()
+	if err == nil {
+		items := parseItemsFromEventTags(evt, parseTag)
+		v.Items = items
+		sys.StoreRelay.Publish(ctx, *evt)
 	}
+	cache.SetWithTTL(pubkey, v, time.Hour*6)
+	valueWasJustCached[lockIdx] = true
 
 	return v, false
 }

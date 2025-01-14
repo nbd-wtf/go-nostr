@@ -13,12 +13,12 @@ type EventRef struct{ nostr.Pointer }
 func (e EventRef) Value() string { return e.Pointer.AsTagReference() }
 
 func (sys *System) FetchBookmarkList(ctx context.Context, pubkey string) GenericList[EventRef] {
-	ml, _ := fetchGenericList(sys, ctx, pubkey, 10003, kind_10003, parseEventRef, sys.BookmarkListCache, false)
+	ml, _ := fetchGenericList(sys, ctx, pubkey, 10003, kind_10003, parseEventRef, sys.BookmarkListCache)
 	return ml
 }
 
 func (sys *System) FetchPinList(ctx context.Context, pubkey string) GenericList[EventRef] {
-	ml, _ := fetchGenericList(sys, ctx, pubkey, 10001, kind_10001, parseEventRef, sys.PinListCache, false)
+	ml, _ := fetchGenericList(sys, ctx, pubkey, 10001, kind_10001, parseEventRef, sys.PinListCache)
 	return ml
 }
 

@@ -18,7 +18,7 @@ func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) 
 	}
 
 	// if we have it cached that means we have at least tried to fetch recently and it won't be tried again
-	fetchGenericList(sys, ctx, pubkey, 10002, kind_10002, parseRelayFromKind10002, sys.RelayListCache, false)
+	fetchGenericList(sys, ctx, pubkey, 10002, kind_10002, parseRelayFromKind10002, sys.RelayListCache)
 
 	relays := sys.Hints.TopN(pubkey, 6)
 	if len(relays) == 0 {

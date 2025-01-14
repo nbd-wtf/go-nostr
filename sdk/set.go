@@ -26,7 +26,6 @@ func fetchGenericSets[I TagItemWithValue](
 	addressableIndex addressableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericSets[I]],
-	skipFetch bool,
 ) (fl GenericSets[I], fromInternal bool) {
 	// we have 24 mutexes, so we can load up to 24 lists at the same time, but if we do the same exact
 	// call that will do it only once, the subsequent ones will wait for a result to be cached
@@ -59,19 +58,17 @@ func fetchGenericSets[I TagItemWithValue](
 		return v, true
 	}
 
-	if !skipFetch {
-		thunk := sys.addressableLoaders[addressableIndex].Load(ctx, pubkey)
-		events, err := thunk()
-		if err == nil {
-			sets := parseSetsFromEvents(events, parseTag)
-			v.Sets = sets
-			for _, evt := range events {
-				sys.StoreRelay.Publish(ctx, *evt)
-			}
+	thunk := sys.addressableLoaders[addressableIndex].Load(ctx, pubkey)
+	events, err := thunk()
+	if err == nil {
+		sets := parseSetsFromEvents(events, parseTag)
+		v.Sets = sets
+		for _, evt := range events {
+			sys.StoreRelay.Publish(ctx, *evt)
 		}
-		cache.SetWithTTL(pubkey, v, time.Hour*6)
-		valueWasJustCached[lockIdx] = true
 	}
+	cache.SetWithTTL(pubkey, v, time.Hour*6)
+	valueWasJustCached[lockIdx] = true
 
 	return v, false
 }

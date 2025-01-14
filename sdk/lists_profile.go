@@ -17,17 +17,17 @@ type ProfileRef struct {
 func (f ProfileRef) Value() string { return f.Pubkey }
 
 func (sys *System) FetchFollowList(ctx context.Context, pubkey string) GenericList[ProfileRef] {
-	fl, _ := fetchGenericList(sys, ctx, pubkey, 3, kind_3, parseProfileRef, sys.FollowListCache, false)
+	fl, _ := fetchGenericList(sys, ctx, pubkey, 3, kind_3, parseProfileRef, sys.FollowListCache)
 	return fl
 }
 
 func (sys *System) FetchMuteList(ctx context.Context, pubkey string) GenericList[ProfileRef] {
-	ml, _ := fetchGenericList(sys, ctx, pubkey, 10000, kind_10000, parseProfileRef, sys.MuteListCache, false)
+	ml, _ := fetchGenericList(sys, ctx, pubkey, 10000, kind_10000, parseProfileRef, sys.MuteListCache)
 	return ml
 }
 
 func (sys *System) FetchFollowSets(ctx context.Context, pubkey string) GenericSets[ProfileRef] {
-	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30000, kind_30000, parseProfileRef, sys.FollowSetsCache, false)
+	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30000, kind_30000, parseProfileRef, sys.FollowSetsCache)
 	return ml
 }
 

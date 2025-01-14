@@ -19,22 +19,22 @@ type RelayURL string
 func (r RelayURL) Value() string { return string(r) }
 
 func (sys *System) FetchRelayList(ctx context.Context, pubkey string) GenericList[Relay] {
-	ml, _ := fetchGenericList(sys, ctx, pubkey, 10002, kind_10002, parseRelayFromKind10002, sys.RelayListCache, false)
+	ml, _ := fetchGenericList(sys, ctx, pubkey, 10002, kind_10002, parseRelayFromKind10002, sys.RelayListCache)
 	return ml
 }
 
 func (sys *System) FetchBlockedRelayList(ctx context.Context, pubkey string) GenericList[RelayURL] {
-	ml, _ := fetchGenericList(sys, ctx, pubkey, 10006, kind_10006, parseRelayURL, sys.BlockedRelayListCache, false)
+	ml, _ := fetchGenericList(sys, ctx, pubkey, 10006, kind_10006, parseRelayURL, sys.BlockedRelayListCache)
 	return ml
 }
 
 func (sys *System) FetchSearchRelayList(ctx context.Context, pubkey string) GenericList[RelayURL] {
-	ml, _ := fetchGenericList(sys, ctx, pubkey, 10007, kind_10007, parseRelayURL, sys.SearchRelayListCache, false)
+	ml, _ := fetchGenericList(sys, ctx, pubkey, 10007, kind_10007, parseRelayURL, sys.SearchRelayListCache)
 	return ml
 }
 
 func (sys *System) FetchRelaySets(ctx context.Context, pubkey string) GenericSets[RelayURL] {
-	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30002, kind_30002, parseRelayURL, sys.RelaySetsCache, false)
+	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30002, kind_30002, parseRelayURL, sys.RelaySetsCache)
 	return ml
 }
 

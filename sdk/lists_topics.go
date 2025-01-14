@@ -11,12 +11,12 @@ type Topic string
 func (r Topic) Value() string { return string(r) }
 
 func (sys *System) FetchTopicList(ctx context.Context, pubkey string) GenericList[Topic] {
-	ml, _ := fetchGenericList(sys, ctx, pubkey, 10015, kind_10015, parseTopicString, sys.TopicListCache, false)
+	ml, _ := fetchGenericList(sys, ctx, pubkey, 10015, kind_10015, parseTopicString, sys.TopicListCache)
 	return ml
 }
 
 func (sys *System) FetchTopicSets(ctx context.Context, pubkey string) GenericSets[Topic] {
-	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30015, kind_30015, parseTopicString, sys.TopicSetsCache, false)
+	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30015, kind_30015, parseTopicString, sys.TopicSetsCache)
 	return ml
 }
 
