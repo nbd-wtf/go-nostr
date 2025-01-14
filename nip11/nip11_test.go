@@ -28,6 +28,13 @@ func TestAddSupportedNIP(t *testing.T) {
 	assert.Contains(t, info.SupportedNIPs, 0, 1, 2, 12, 13, 17, 18, 19, 44)
 }
 
+func TestAddSupportedNIPs(t *testing.T) {
+	info := RelayInformationDocument{}
+	info.AddSupportedNIPs([]int{0, 1, 2, 12, 13, 17, 18, 19, 44})
+
+	assert.Contains(t, info.SupportedNIPs, 0, 1, 2, 12, 13, 17, 18, 19, 44)
+}
+
 func TestFetch(t *testing.T) {
 	tests := []struct {
 		inputURL     string
@@ -38,6 +45,9 @@ func TestFetch(t *testing.T) {
 		{"wss://nostr.wine", false, "", "wss://nostr.wine"},
 		{"https://nostr.wine", false, "", "wss://nostr.wine"},
 		{"nostr.wine", false, "", "wss://nostr.wine"},
+		{"jellyfish.land", false, "", "wss://jellyfish.land"},
+		{"https://jellyfish.land", false, "", "wss://jellyfish.land"},
+		{"wss://jellyfish.land", false, "", "wss://jellyfish.land"},
 		{"wlenwqkeqwe.asjdaskd", true, "", "wss://wlenwqkeqwe.asjdaskd"},
 	}
 
