@@ -15,14 +15,15 @@ type RelayInformationDocument struct {
 	Software      string `json:"software"`
 	Version       string `json:"version"`
 
-	Limitation     *RelayLimitationDocument `json:"limitation,omitempty"`
-	RelayCountries []string                 `json:"relay_countries,omitempty"`
-	LanguageTags   []string                 `json:"language_tags,omitempty"`
-	Tags           []string                 `json:"tags,omitempty"`
-	PostingPolicy  string                   `json:"posting_policy,omitempty"`
-	PaymentsURL    string                   `json:"payments_url,omitempty"`
-	Fees           *RelayFeesDocument       `json:"fees,omitempty"`
-	Icon           string                   `json:"icon"`
+	Limitation     *RelayLimitationDocument  `json:"limitation,omitempty"`
+	RelayCountries []string                  `json:"relay_countries,omitempty"`
+	LanguageTags   []string                  `json:"language_tags,omitempty"`
+	Tags           []string                  `json:"tags,omitempty"`
+	PostingPolicy  string                    `json:"posting_policy,omitempty"`
+	PaymentsURL    string                    `json:"payments_url,omitempty"`
+	Fees           *RelayFeesDocument        `json:"fees,omitempty"`
+	Retention      []*RelayRetentionDocument `json:"retention,omitempty"`
+	Icon           string                    `json:"icon"`
 }
 
 func (info *RelayInformationDocument) AddSupportedNIP(number int) {
@@ -32,6 +33,12 @@ func (info *RelayInformationDocument) AddSupportedNIP(number int) {
 	}
 
 	info.SupportedNIPs = append(info.SupportedNIPs, number)
+}
+
+func (info *RelayInformationDocument) AddSupportedNIPs(numbers []int) {
+	for _, n := range numbers {
+		info.AddSupportedNIP(n)
+	}
 }
 
 type RelayLimitationDocument struct {
@@ -63,4 +70,10 @@ type RelayFeesDocument struct {
 		Amount int    `json:"amount"`
 		Unit   string `json:"unit"`
 	} `json:"publication,omitempty"`
+}
+
+type RelayRetentionDocument struct {
+	Time  int64   `json:"time,omitempty"`
+	Count int     `json:"count,omitempty"`
+	Kinds [][]int `json:"kinds,omitempty"`
 }
