@@ -220,6 +220,17 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 			message := buf.Bytes()
 			debugLogf("{%s} received %v\n", r.URL, message)
+
+			// if this is an "EVENT" we will have this preparser logic that should speed things up a little
+			// as we skip handling duplicate events
+			subid := extractSubID(message)
+			subscription, ok := r.Subscriptions.Load(subIdToSerial(subid))
+			if ok && subscription.CheckDuplicate != nil {
+				if !subscription.CheckDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
+					continue
+				}
+			}
+
 			envelope := ParseMessage(message)
 			if envelope == nil {
 				if r.customHandler != nil {
@@ -242,11 +253,8 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				}
 				r.challenge = *env.Challenge
 			case *EventEnvelope:
-				if env.SubscriptionID == nil {
-					continue
-				}
-
-				if subscription, ok := r.Subscriptions.Load(subIdToSerial(*env.SubscriptionID)); !ok {
+				// we already have the subscription from the pre-check above, so we can just reuse it
+				if subscription == nil {
 					// InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
 					continue
 				} else {

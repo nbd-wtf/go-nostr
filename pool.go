@@ -26,8 +26,9 @@ type SimplePool struct {
 	authHandler func(context.Context, RelayEvent) error
 	cancel      context.CancelFunc
 
-	eventMiddleware func(RelayEvent)
-	queryMiddleware func(relay string, pubkey string, kind int)
+	eventMiddleware     func(RelayEvent)
+	duplicateMiddleware func(relay string, id string)
+	queryMiddleware     func(relay string, pubkey string, kind int)
 
 	// custom things not often used
 	penaltyBoxMu sync.Mutex
@@ -133,6 +134,13 @@ func (h WithEventMiddleware) ApplyPoolOption(pool *SimplePool) {
 	pool.eventMiddleware = h
 }
 
+// WithDuplicateMiddleware is a function that will be called with all duplicate ids received.
+type WithDuplicateMiddleware func(relay string, id string)
+
+func (h WithDuplicateMiddleware) ApplyPoolOption(pool *SimplePool) {
+	pool.duplicateMiddleware = h
+}
+
 // WithQueryMiddleware is a function that will be called with every combination of relay+pubkey+kind queried
 // in a .SubMany*() call -- when applicable (i.e. when the query contains a pubkey and a kind).
 type WithAuthorKindQueryMiddleware func(relay string, pubkey string, kind int)
@@ -222,26 +230,6 @@ func (pool *SimplePool) SubMany(
 	filters Filters,
 	opts ...SubscriptionOption,
 ) chan RelayEvent {
-	return pool.subMany(ctx, urls, filters, true, opts)
-}
-
-// SubManyNonUnique is like SubMany, but returns duplicate events if they come from different relays
-func (pool *SimplePool) SubManyNonUnique(
-	ctx context.Context,
-	urls []string,
-	filters Filters,
-	opts ...SubscriptionOption,
-) chan RelayEvent {
-	return pool.subMany(ctx, urls, filters, false, opts)
-}
-
-func (pool *SimplePool) subMany(
-	ctx context.Context,
-	urls []string,
-	filters Filters,
-	unique bool,
-	opts []SubscriptionOption,
-) chan RelayEvent {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // do this so `go vet` will stop complaining
 	events := make(chan RelayEvent)
@@ -299,8 +287,15 @@ func (pool *SimplePool) subMany(
 				hasAuthed = false
 
 			subscribe:
-				sub, err = relay.Subscribe(ctx, filters, opts...)
-				if err != nil {
+				sub = relay.PrepareSubscription(ctx, filters, opts...)
+				sub.CheckDuplicate = func(id, relay string) bool {
+					_, exists := seenAlready.Load(id)
+					if exists && pool.duplicateMiddleware != nil {
+						pool.duplicateMiddleware(relay, id)
+					}
+					return exists
+				}
+				if err := sub.Fire(); err != nil {
 					goto reconnect
 				}
 
@@ -331,11 +326,7 @@ func (pool *SimplePool) subMany(
 							mh(ie)
 						}
 
-						if unique {
-							if _, seen := seenAlready.LoadOrStore(evt.ID, evt.CreatedAt); seen {
-								continue
-							}
-						}
+						seenAlready.Store(evt.ID, evt.CreatedAt)
 
 						select {
 						case events <- ie:
@@ -345,12 +336,11 @@ func (pool *SimplePool) subMany(
 					case <-ticker.C:
 						if eose {
 							old := Timestamp(time.Now().Add(-seenAlreadyDropTick).Unix())
-							seenAlready.Range(func(id string, value Timestamp) bool {
+							for id, value := range seenAlready.Range {
 								if value < old {
 									seenAlready.Delete(id)
 								}
-								return true
-							})
+							}
 						}
 					case reason := <-sub.ClosedReason:
 						if strings.HasPrefix(reason, "auth-required:") && pool.authHandler != nil && !hasAuthed {
@@ -390,26 +380,6 @@ func (pool *SimplePool) SubManyEose(
 	filters Filters,
 	opts ...SubscriptionOption,
 ) chan RelayEvent {
-	return pool.subManyEose(ctx, urls, filters, true, opts)
-}
-
-// SubManyEoseNonUnique is like SubManyEose, but returns duplicate events if they come from different relays
-func (pool *SimplePool) SubManyEoseNonUnique(
-	ctx context.Context,
-	urls []string,
-	filters Filters,
-	opts ...SubscriptionOption,
-) chan RelayEvent {
-	return pool.subManyEose(ctx, urls, filters, false, opts)
-}
-
-func (pool *SimplePool) subManyEose(
-	ctx context.Context,
-	urls []string,
-	filters Filters,
-	unique bool,
-	opts []SubscriptionOption,
-) chan RelayEvent {
 	ctx, cancel := context.WithCancel(ctx)
 
 	events := make(chan RelayEvent)
@@ -448,8 +418,15 @@ func (pool *SimplePool) subManyEose(
 			hasAuthed := false
 
 		subscribe:
-			sub, err := relay.Subscribe(ctx, filters, opts...)
-			if sub == nil {
+			sub := relay.PrepareSubscription(ctx, filters, opts...)
+			sub.CheckDuplicate = func(id, relay string) bool {
+				_, exists := seenAlready.Load(id)
+				if exists && pool.duplicateMiddleware != nil {
+					pool.duplicateMiddleware(relay, id)
+				}
+				return exists
+			}
+			if err := sub.Fire(); err != nil {
 				debugLogf("error subscribing to %s with %v: %s", relay, filters, err)
 				return
 			}
@@ -483,11 +460,7 @@ func (pool *SimplePool) subManyEose(
 						mh(ie)
 					}
 
-					if unique {
-						if _, seen := seenAlready.LoadOrStore(evt.ID, true); seen {
-							continue
-						}
-					}
+					seenAlready.Store(evt.ID, true)
 
 					select {
 					case events <- ie:
@@ -548,14 +521,14 @@ func (pool *SimplePool) QuerySingle(ctx context.Context, urls []string, filter F
 func (pool *SimplePool) batchedSubMany(
 	ctx context.Context,
 	dfs []DirectedFilters,
-	subFn func(context.Context, []string, Filters, bool, []SubscriptionOption) chan RelayEvent,
+	subFn func(context.Context, []string, Filters, ...SubscriptionOption) chan RelayEvent,
 	opts []SubscriptionOption,
 ) chan RelayEvent {
 	res := make(chan RelayEvent)
 
 	for _, df := range dfs {
 		go func(df DirectedFilters) {
-			for ie := range subFn(ctx, []string{df.Relay}, df.Filters, true, opts) {
+			for ie := range subFn(ctx, []string{df.Relay}, df.Filters, opts...) {
 				res <- ie
 			}
 		}(df)
@@ -570,7 +543,7 @@ func (pool *SimplePool) BatchedSubMany(
 	dfs []DirectedFilters,
 	opts ...SubscriptionOption,
 ) chan RelayEvent {
-	return pool.batchedSubMany(ctx, dfs, pool.subMany, opts)
+	return pool.batchedSubMany(ctx, dfs, pool.SubMany, opts)
 }
 
 // BatchedSubManyEose is like BatchedSubMany, but ends upon receiving EOSE from all relays.
@@ -579,5 +552,5 @@ func (pool *SimplePool) BatchedSubManyEose(
 	dfs []DirectedFilters,
 	opts ...SubscriptionOption,
 ) chan RelayEvent {
-	return pool.batchedSubMany(ctx, dfs, pool.subManyEose, opts)
+	return pool.batchedSubMany(ctx, dfs, pool.SubManyEose, opts)
 }

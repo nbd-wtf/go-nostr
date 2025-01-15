@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 	"sync"
@@ -116,4 +117,37 @@ func isLowerHex(thing string) bool {
 		return false
 	}
 	return true
+}
+
+func extractSubID(jsonStr []byte) string {
+	// look for "EVENT" pattern
+	start := bytes.Index(jsonStr, []byte(`"EVENT"`))
+	if start == -1 {
+		return ""
+	}
+
+	// move to the next quote
+	offset := bytes.Index(jsonStr[start+7:], []byte{'"'})
+	start += 7 + offset + 1
+
+	// find the ending quote
+	end := bytes.Index(jsonStr[start:], []byte{'"'})
+
+	// get the contents
+	return string(jsonStr[start : start+end])
+}
+
+func extractEventID(jsonStr []byte) string {
+	// look for "id": pattern
+	start := bytes.Index(jsonStr, []byte(`"id":`))
+	if start == -1 {
+		return ""
+	}
+
+	// move to the next quote
+	offset := bytes.Index(jsonStr[start+4:], []byte{'"'})
+	start += 4 + offset + 1
+
+	// get 64 characters of the id
+	return string(jsonStr[start : start+64])
 }
