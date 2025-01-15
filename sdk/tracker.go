@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"encoding/hex"
 	"net/url"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -107,4 +108,32 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 			}
 		}
 	}
+}
+
+func (sys *System) TrackEventRelays(ie nostr.RelayEvent) {
+	// decode the event ID hex into bytes
+	idBytes, err := hex.DecodeString(ie.ID)
+	if err != nil || len(idBytes) < 8 {
+		return
+	}
+
+	// store only first 8 bytes of event ID as key
+	key := idBytes[:8]
+
+	// store the relay URL as value
+	sys.KVStore.Set(key, []byte(ie.Relay.URL))
+}
+
+func (sys *System) TrackEventRelaysD(relay, id string) {
+	// decode the event ID hex into bytes
+	idBytes, err := hex.DecodeString(id)
+	if err != nil || len(idBytes) < 8 {
+		return
+	}
+
+	// store only first 8 bytes of event ID as key
+	key := idBytes[:8]
+
+	// store the relay URL as value
+	sys.KVStore.Set(key, []byte(relay))
 }
