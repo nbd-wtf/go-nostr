@@ -12,9 +12,12 @@ import (
 	cache_memory "github.com/nbd-wtf/go-nostr/sdk/cache/memory"
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 	"github.com/nbd-wtf/go-nostr/sdk/hints/memoryh"
+	"github.com/nbd-wtf/go-nostr/sdk/kvstore"
+	kvstore_memory "github.com/nbd-wtf/go-nostr/sdk/kvstore/memory"
 )
 
 type System struct {
+	KVStore               kvstore.KVStore
 	MetadataCache         cache.Cache32[ProfileMetadata]
 	RelayListCache        cache.Cache32[GenericList[Relay]]
 	FollowListCache       cache.Cache32[GenericList[ProfileRef]]
@@ -63,6 +66,7 @@ func (rs *RelayStream) Next() string {
 
 func NewSystem(mods ...SystemModifier) *System {
 	sys := &System{
+		KVStore:               kvstore_memory.NewStore(),
 		MetadataCache:         cache_memory.New32[ProfileMetadata](8000),
 		RelayListCache:        cache_memory.New32[GenericList[Relay]](8000),
 		FollowListCache:       cache_memory.New32[GenericList[ProfileRef]](1000),
@@ -127,7 +131,11 @@ func NewSystem(mods ...SystemModifier) *System {
 	return sys
 }
 
-func (sys *System) Close() {}
+func (sys *System) Close() {
+	if sys.KVStore != nil {
+		sys.KVStore.Close()
+	}
+}
 
 func WithHintsDB(hdb hints.HintsDB) SystemModifier {
 	return func(sys *System) {
@@ -198,5 +206,14 @@ func WithFollowListCache(cache cache.Cache32[GenericList[ProfileRef]]) SystemMod
 func WithMetadataCache(cache cache.Cache32[ProfileMetadata]) SystemModifier {
 	return func(sys *System) {
 		sys.MetadataCache = cache
+	}
+}
+
+func WithKVStore(store kvstore.KVStore) SystemModifier {
+	return func(sys *System) {
+		if sys.KVStore != nil {
+			sys.KVStore.Close()
+		}
+		sys.KVStore = store
 	}
 }
