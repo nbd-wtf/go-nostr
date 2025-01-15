@@ -225,8 +225,8 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			// as we skip handling duplicate events
 			subid := extractSubID(message)
 			subscription, ok := r.Subscriptions.Load(subIdToSerial(subid))
-			if ok && subscription.CheckDuplicate != nil {
-				if !subscription.CheckDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
+			if ok && subscription.checkDuplicate != nil {
+				if !subscription.checkDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
 					continue
 				}
 			}
@@ -426,6 +426,8 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		switch o := opt.(type) {
 		case WithLabel:
 			label = string(o)
+		case WithCheckDuplicate:
+			sub.checkDuplicate = o
 		}
 	}
 

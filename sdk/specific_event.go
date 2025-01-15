@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
@@ -125,30 +124,8 @@ attempts:
 		// actually fetch the event here
 		countdown := 6.0
 		subManyCtx := ctx
-		subMany := sys.Pool.SubManyEose
-		if attempt.slowWithRelays {
-			subMany = sys.Pool.SubManyEoseNonUnique
-		}
 
-		if attempt.slowWithRelays {
-			// keep track of where we have actually found the event so we can show that
-			var cancel context.CancelFunc
-			subManyCtx, cancel = context.WithTimeout(ctx, time.Second*6)
-			defer cancel()
-
-			go func() {
-				for {
-					time.Sleep(100 * time.Millisecond)
-					if countdown <= 0 {
-						cancel()
-						break
-					}
-					countdown -= 0.1
-				}
-			}()
-		}
-
-		for ie := range subMany(
+		for ie := range sys.Pool.SubManyEose(
 			subManyCtx,
 			attempt.relays,
 			nostr.Filters{filter},

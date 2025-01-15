@@ -33,7 +33,7 @@ type Subscription struct {
 
 	// if it is not nil, CheckDuplicate will be called for every event received
 	// if it returns true that event will not be processed further.
-	CheckDuplicate func(id string, relay string) bool
+	checkDuplicate func(id string, relay string) bool
 
 	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
@@ -62,7 +62,15 @@ type WithLabel string
 
 func (_ WithLabel) IsSubscriptionOption() {}
 
-var _ SubscriptionOption = (WithLabel)("")
+// WithCheckDuplicate sets checkDuplicate on the subscription
+type WithCheckDuplicate func(relay, id string) bool
+
+func (_ WithCheckDuplicate) IsSubscriptionOption() {}
+
+var (
+	_ SubscriptionOption = (WithLabel)("")
+	_ SubscriptionOption = (WithCheckDuplicate)(nil)
+)
 
 func (sub *Subscription) start() {
 	<-sub.Context.Done()
