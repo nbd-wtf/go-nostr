@@ -88,9 +88,8 @@ func (sys System) FetchProfileFromInput(ctx context.Context, nip19OrNip05Code st
 		hintType = hints.LastInNprofile
 	}
 	for _, r := range p.Relays {
-		nm := nostr.NormalizeURL(r)
-		if !IsVirtualRelay(nm) {
-			sys.Hints.Save(p.PublicKey, nm, hintType, nostr.Now())
+		if !IsVirtualRelay(r) {
+			sys.Hints.Save(p.PublicKey, nostr.NormalizeURL(r), hintType, nostr.Now())
 		}
 	}
 

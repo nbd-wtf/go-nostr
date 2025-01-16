@@ -91,7 +91,7 @@ func (sys *System) FetchSpecificEvent(
 		// (we do this after fetching author outbox relays because we are already going to prioritize these hints)
 		now := nostr.Now()
 		for _, relay := range priorityRelays {
-			sys.Hints.Save(author, relay, hints.LastInNevent, now)
+			sys.Hints.Save(author, nostr.NormalizeURL(relay), hints.LastInNevent, now)
 		}
 
 		// arrange these

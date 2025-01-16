@@ -20,12 +20,16 @@ func (sys *System) TrackQueryAttempts(relay string, author string, kind int) {
 	sys.Hints.Save(author, relay, hints.LastFetchAttempt, nostr.Now())
 }
 
-func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
+func (sys *System) TrackEventHintsAndRelays(ie nostr.RelayEvent) {
 	if IsVirtualRelay(ie.Relay.URL) {
 		return
 	}
 	if ie.Kind < 30000 && ie.Kind >= 20000 {
 		return
+	}
+
+	if ie.Kind != 0 && ie.Kind != 10002 {
+		sys.trackEventRelayCommon(ie.ID, ie.Relay.URL, false)
 	}
 
 	switch ie.Kind {
@@ -43,7 +47,7 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 				continue
 			}
 			if len(tag) == 2 || (tag[2] == "" || tag[2] == "write") {
-				sys.Hints.Save(ie.PubKey, tag[1], hints.LastInRelayList, ie.CreatedAt)
+				sys.Hints.Save(ie.PubKey, nostr.NormalizeURL(tag[1]), hints.LastInRelayList, ie.CreatedAt)
 			}
 		}
 	case nostr.KindFollowList:
@@ -59,11 +63,11 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 				continue
 			}
 			if tag[0] == "p" && nostr.IsValidPublicKey(tag[1]) {
-				sys.Hints.Save(tag[1], tag[2], hints.LastInTag, ie.CreatedAt)
+				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInTag, ie.CreatedAt)
 			}
 		}
 	default:
-		// everything else may have hints
+		// everything else we track by relays and also check for hints
 		sys.Hints.Save(ie.PubKey, ie.Relay.URL, hints.MostRecentEventFetched, ie.CreatedAt)
 
 		for _, tag := range ie.Tags {
@@ -77,7 +81,7 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 				continue
 			}
 			if tag[0] == "p" && nostr.IsValidPublicKey(tag[1]) {
-				sys.Hints.Save(tag[1], tag[2], hints.LastInTag, ie.CreatedAt)
+				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInTag, ie.CreatedAt)
 			}
 		}
 
@@ -91,7 +95,7 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 						continue
 					}
 					if nostr.IsValidPublicKey(ref.Profile.PublicKey) {
-						sys.Hints.Save(ref.Profile.PublicKey, relay, hints.LastInNprofile, ie.CreatedAt)
+						sys.Hints.Save(ref.Profile.PublicKey, nostr.NormalizeURL(relay), hints.LastInNprofile, ie.CreatedAt)
 					}
 				}
 			} else if ref.Event != nil && nostr.IsValidPublicKey(ref.Event.Author) {
@@ -102,17 +106,16 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 					if p, err := url.Parse(relay); err != nil || (p.Scheme != "wss" && p.Scheme != "ws") {
 						continue
 					}
-					sys.Hints.Save(ref.Event.Author, relay, hints.LastInNevent, ie.CreatedAt)
+					sys.Hints.Save(ref.Event.Author, nostr.NormalizeURL(relay), hints.LastInNevent, ie.CreatedAt)
 				}
 			}
 		}
 	}
 }
 
-func (sys *System) TrackEventRelays(ie nostr.RelayEvent) {
-	sys.trackEventRelayCommon(ie.ID, ie.Relay.URL)
-}
-
 func (sys *System) TrackEventRelaysD(relay, id string) {
-	sys.trackEventRelayCommon(id, relay)
+	if IsVirtualRelay(relay) {
+		return
+	}
+	sys.trackEventRelayCommon(id, relay, true /* we pass this flag so we'll skip creating entries for events that didn't pass the checks on the function above -- i.e. ephemeral events */)
 }

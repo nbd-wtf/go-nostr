@@ -43,9 +43,8 @@ type System struct {
 
 	StoreRelay nostr.RelayStore
 
-	replaceableLoaders   []*dataloader.Loader[string, *nostr.Event]
-	addressableLoaders   []*dataloader.Loader[string, []*nostr.Event]
-	outboxShortTermCache cache.Cache32[[]string]
+	replaceableLoaders []*dataloader.Loader[string, *nostr.Event]
+	addressableLoaders []*dataloader.Loader[string, []*nostr.Event]
 }
 
 type SystemModifier func(sys *System)
@@ -105,14 +104,11 @@ func NewSystem(mods ...SystemModifier) *System {
 			"wss://search.nos.today",
 		),
 		Hints: memoryh.NewHintDB(),
-
-		outboxShortTermCache: cache_memory.New32[[]string](1000),
 	}
 
 	sys.Pool = nostr.NewSimplePool(context.Background(),
 		nostr.WithAuthorKindQueryMiddleware(sys.TrackQueryAttempts),
-		nostr.WithEventMiddleware(sys.TrackEventHints),
-		nostr.WithEventMiddleware(sys.TrackEventRelays),
+		nostr.WithEventMiddleware(sys.TrackEventHintsAndRelays),
 		nostr.WithDuplicateMiddleware(sys.TrackEventRelaysD),
 		nostr.WithPenaltyBox(),
 	)

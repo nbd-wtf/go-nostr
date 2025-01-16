@@ -3,18 +3,26 @@ package sdk
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
 )
 
+var outboxShortTermCache = [256]ostcEntry{}
+
+type ostcEntry struct {
+	pubkey string
+	relays []string
+	when   time.Time
+}
+
 func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) []string {
-	if relays, ok := sys.outboxShortTermCache.Get(pubkey); ok {
-		if len(relays) > n {
-			relays = relays[0:n]
-		}
-		return relays
+	ostcIndex, _ := strconv.ParseUint(pubkey[12:14], 16, 8)
+	now := time.Now()
+	if entry := outboxShortTermCache[ostcIndex]; entry.pubkey == pubkey && entry.when.Add(time.Minute*2).After(now) {
+		return entry.relays
 	}
 
 	// if we have it cached that means we have at least tried to fetch recently and it won't be tried again
@@ -25,7 +33,11 @@ func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) 
 		return []string{"wss://relay.damus.io", "wss://nos.lol"}
 	}
 
-	sys.outboxShortTermCache.SetWithTTL(pubkey, relays, time.Minute*2)
+	// we save a copy of this slice to this cache (must be a copy otherwise
+	// we will have a reference to a thing that the caller to this function may change at will)
+	relaysCopy := make([]string, len(relays))
+	copy(relaysCopy, relays)
+	outboxShortTermCache[ostcIndex] = ostcEntry{pubkey, relaysCopy, now}
 
 	if len(relays) > n {
 		relays = relays[0:n]

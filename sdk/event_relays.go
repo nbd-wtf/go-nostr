@@ -1,9 +1,11 @@
 package sdk
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"slices"
+
+	"github.com/nbd-wtf/go-nostr/sdk/kvstore"
 )
 
 const eventRelayPrefix = byte('r')
@@ -19,15 +21,18 @@ func makeEventRelayKey(eventID []byte) []byte {
 func encodeRelayList(relays []string) []byte {
 	totalSize := 0
 	for _, relay := range relays {
-		totalSize += 2 + len(relay) // 2 bytes for length prefix
+		totalSize += 1 + len(relay) // 1 byte for length prefix
 	}
 
 	buf := make([]byte, totalSize)
 	offset := 0
 
 	for _, relay := range relays {
-		binary.LittleEndian.PutUint16(buf[offset:], uint16(len(relay)))
-		offset += 2
+		if len(relay) > 256 {
+			continue
+		}
+		buf[offset] = uint8(len(relay))
+		offset += 1
 		copy(buf[offset:], relay)
 		offset += len(relay)
 	}
@@ -40,12 +45,12 @@ func decodeRelayList(data []byte) []string {
 	offset := 0
 
 	for offset < len(data) {
-		if offset+2 > len(data) {
+		if offset+1 > len(data) {
 			return nil // malformed
 		}
 
-		length := int(binary.LittleEndian.Uint16(data[offset:]))
-		offset += 2
+		length := int(data[offset])
+		offset += 1
 
 		if offset+length > len(data) {
 			return nil // malformed
@@ -59,7 +64,7 @@ func decodeRelayList(data []byte) []string {
 	return relays
 }
 
-func (sys *System) trackEventRelayCommon(eventID string, relay string) {
+func (sys *System) trackEventRelayCommon(eventID string, relay string, onlyIfItExists bool) {
 	// decode the event ID hex into bytes
 	idBytes, err := hex.DecodeString(eventID)
 	if err != nil || len(idBytes) < 8 {
@@ -74,20 +79,22 @@ func (sys *System) trackEventRelayCommon(eventID string, relay string) {
 		var relays []string
 		if data != nil {
 			relays = decodeRelayList(data)
-		} else {
-			relays = make([]string, 0, 1)
-		}
 
-		// check if relay is already in list
-		for _, r := range relays {
-			if r == relay {
-				return data, nil // no change needed
+			// check if relay is already in list
+			if slices.Contains(relays, relay) {
+				return nil, kvstore.NoOp // no change needed
 			}
-		}
 
-		// append new relay
-		relays = append(relays, relay)
-		return encodeRelayList(relays), nil
+			// append new relay
+			relays = append(relays, relay)
+			return encodeRelayList(relays), nil
+		} else if onlyIfItExists {
+			// when this flag exists and nothing was found we won't create anything
+			return nil, kvstore.NoOp
+		} else {
+			// nothing exists, so create it
+			return encodeRelayList([]string{relay}), nil
+		}
 	})
 }
 

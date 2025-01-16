@@ -202,7 +202,7 @@ func (sys *System) batchReplaceableRelayQueries(
 			defer wg.Done()
 			n := len(filter.Authors)
 
-			ctx, cancel := context.WithTimeout(ctx, time.Millisecond*450+time.Millisecond*50*time.Duration(n))
+			ctx, cancel := context.WithTimeout(ctx, time.Millisecond*950+time.Millisecond*50*time.Duration(n))
 			defer cancel()
 
 			received := 0

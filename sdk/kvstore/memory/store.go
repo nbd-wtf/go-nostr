@@ -22,7 +22,7 @@ func NewStore() *Store {
 func (s *Store) Get(key []byte) ([]byte, error) {
 	s.RLock()
 	defer s.RUnlock()
-	
+
 	if val, ok := s.data[string(key)]; ok {
 		// Return a copy to prevent modification of stored data
 		cp := make([]byte, len(val))
@@ -35,7 +35,7 @@ func (s *Store) Get(key []byte) ([]byte, error) {
 func (s *Store) Set(key []byte, value []byte) error {
 	s.Lock()
 	defer s.Unlock()
-	
+
 	// Store a copy to prevent modification of stored data
 	cp := make([]byte, len(value))
 	copy(cp, value)
@@ -69,7 +69,9 @@ func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
 	}
 
 	newVal, err := f(val)
-	if err != nil {
+	if err == kvstore.NoOp {
+		return nil
+	} else if err != nil {
 		return err
 	}
 

@@ -104,7 +104,9 @@ func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
 		}
 
 		newVal, err := f(val)
-		if err != nil {
+		if err == kvstore.NoOp {
+			return nil
+		} else if err != nil {
 			return err
 		}
 

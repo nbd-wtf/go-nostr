@@ -287,7 +287,7 @@ func (pool *SimplePool) SubMany(
 				hasAuthed = false
 
 			subscribe:
-				sub, err = relay.Subscribe(ctx, filters, append(opts, WithCheckDuplicate(func(relay, id string) bool {
+				sub, err = relay.Subscribe(ctx, filters, append(opts, WithCheckDuplicate(func(id, relay string) bool {
 					_, exists := seenAlready.Load(id)
 					if exists && pool.duplicateMiddleware != nil {
 						pool.duplicateMiddleware(relay, id)
@@ -417,7 +417,7 @@ func (pool *SimplePool) SubManyEose(
 			hasAuthed := false
 
 		subscribe:
-			sub, err := relay.Subscribe(ctx, filters, append(opts, WithCheckDuplicate(func(relay, id string) bool {
+			sub, err := relay.Subscribe(ctx, filters, append(opts, WithCheckDuplicate(func(id, relay string) bool {
 				_, exists := seenAlready.Load(id)
 				if exists && pool.duplicateMiddleware != nil {
 					pool.duplicateMiddleware(relay, id)

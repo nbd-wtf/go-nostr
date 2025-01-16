@@ -226,7 +226,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			subid := extractSubID(message)
 			subscription, ok := r.Subscriptions.Load(subIdToSerial(subid))
 			if ok && subscription.checkDuplicate != nil {
-				if !subscription.checkDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
+				if subscription.checkDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
 					continue
 				}
 			}

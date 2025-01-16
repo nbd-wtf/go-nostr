@@ -63,7 +63,7 @@ type WithLabel string
 func (_ WithLabel) IsSubscriptionOption() {}
 
 // WithCheckDuplicate sets checkDuplicate on the subscription
-type WithCheckDuplicate func(relay, id string) bool
+type WithCheckDuplicate func(id, relay string) bool
 
 func (_ WithCheckDuplicate) IsSubscriptionOption() {}
 
