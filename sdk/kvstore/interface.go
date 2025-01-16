@@ -13,4 +13,8 @@ type KVStore interface {
 	
 	// Close releases any resources held by the store
 	Close() error
+
+	// Scan iterates through all keys with the given prefix.
+	// For each key-value pair, fn is called. If fn returns false, iteration stops.
+	Scan(prefix []byte, fn func(key []byte, value []byte) bool) error
 }

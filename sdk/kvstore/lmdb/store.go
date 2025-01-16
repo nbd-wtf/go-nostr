@@ -90,3 +90,23 @@ func (s *Store) Close() error {
 	s.env.Close()
 	return nil
 }
+
+func (s *Store) Scan(prefix []byte, fn func(key []byte, value []byte) bool) error {
+	return s.env.View(func(txn *lmdb.Txn) error {
+		cursor, err := txn.OpenCursor(s.dbi)
+		if err != nil {
+			return err
+		}
+		defer cursor.Close()
+
+		for k, v, err := cursor.Get(prefix, nil, lmdb.SetRange); err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {
+			if !bytes.HasPrefix(k, prefix) {
+				break
+			}
+			if !fn(k, v) {
+				break
+			}
+		}
+		return nil
+	})
+}

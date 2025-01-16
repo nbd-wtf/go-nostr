@@ -57,3 +57,28 @@ func (s *Store) Delete(key []byte) error {
 func (s *Store) Close() error {
 	return s.db.Close()
 }
+
+func (s *Store) Scan(prefix []byte, fn func(key []byte, value []byte) bool) error {
+	return s.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				k := item.Key()
+				if !fn(k, v) {
+					return badger.ErrStopIteration
+				}
+				return nil
+			})
+			if err == badger.ErrStopIteration {
+				break
+			}
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

@@ -56,3 +56,18 @@ func (s *Store) Close() error {
 	s.data = nil
 	return nil
 }
+
+func (s *Store) Scan(prefix []byte, fn func(key []byte, value []byte) bool) error {
+	s.RLock()
+	defer s.RUnlock()
+
+	prefixStr := string(prefix)
+	for k, v := range s.data {
+		if strings.HasPrefix(k, prefixStr) {
+			if !fn([]byte(k), v) {
+				break
+			}
+		}
+	}
+	return nil
+}

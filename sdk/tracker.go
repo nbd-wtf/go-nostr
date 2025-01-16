@@ -110,6 +110,17 @@ func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
 	}
 }
 
+const eventRelayPrefix = byte('r')
+
+func makeEventRelayKey(eventID []byte, relay string) []byte {
+	// Format: 'r' + first 8 bytes of event ID + relay URL
+	key := make([]byte, 1+8+len(relay))
+	key[0] = eventRelayPrefix
+	copy(key[1:], eventID[:8])
+	copy(key[9:], relay)
+	return key
+}
+
 func (sys *System) TrackEventRelays(ie nostr.RelayEvent) {
 	// decode the event ID hex into bytes
 	idBytes, err := hex.DecodeString(ie.ID)
@@ -117,11 +128,9 @@ func (sys *System) TrackEventRelays(ie nostr.RelayEvent) {
 		return
 	}
 
-	// store only first 8 bytes of event ID as key
-	key := idBytes[:8]
-
-	// store the relay URL as value
-	sys.KVStore.Set(key, []byte(ie.Relay.URL))
+	// store with prefix + eventid + relay format
+	key := makeEventRelayKey(idBytes, ie.Relay.URL)
+	sys.KVStore.Set(key, nil) // value is not needed since relay is in key
 }
 
 func (sys *System) TrackEventRelaysD(relay, id string) {
@@ -131,9 +140,7 @@ func (sys *System) TrackEventRelaysD(relay, id string) {
 		return
 	}
 
-	// store only first 8 bytes of event ID as key
-	key := idBytes[:8]
-
-	// store the relay URL as value
-	sys.KVStore.Set(key, []byte(relay))
+	// store with prefix + eventid + relay format
+	key := makeEventRelayKey(idBytes, relay)
+	sys.KVStore.Set(key, nil) // value is not needed since relay is in key
 }
