@@ -64,7 +64,7 @@ func decodeRelayList(data []byte) []string {
 	return relays
 }
 
-func (sys *System) trackEventRelayCommon(eventID string, relay string, onlyIfItExists bool) {
+func (sys *System) trackEventRelay(eventID string, relay string, onlyIfItExists bool) {
 	// decode the event ID hex into bytes
 	idBytes, err := hex.DecodeString(eventID)
 	if err != nil || len(idBytes) < 8 {

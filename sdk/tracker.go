@@ -20,6 +20,8 @@ func (sys *System) TrackQueryAttempts(relay string, author string, kind int) {
 	sys.Hints.Save(author, relay, hints.LastFetchAttempt, nostr.Now())
 }
 
+// TrackEventHintsAndRelays is meant to be as an argument to WithEventMiddleware() when you're interested
+// in tracking relays associated to event ids as well as feeding hints to the HintsDB.
 func (sys *System) TrackEventHintsAndRelays(ie nostr.RelayEvent) {
 	if IsVirtualRelay(ie.Relay.URL) {
 		return
@@ -29,9 +31,26 @@ func (sys *System) TrackEventHintsAndRelays(ie nostr.RelayEvent) {
 	}
 
 	if ie.Kind != 0 && ie.Kind != 10002 {
-		sys.trackEventRelayCommon(ie.ID, ie.Relay.URL, false)
+		sys.trackEventRelay(ie.ID, ie.Relay.URL, false)
 	}
 
+	sys.trackEventHints(ie)
+}
+
+// TrackEventHints is meant to be used standalone as an argument to WithEventMiddleware() when you're not interested
+// in tracking relays associated to event ids.
+func (sys *System) TrackEventHints(ie nostr.RelayEvent) {
+	if IsVirtualRelay(ie.Relay.URL) {
+		return
+	}
+	if ie.Kind < 30000 && ie.Kind >= 20000 {
+		return
+	}
+
+	sys.trackEventHints(ie)
+}
+
+func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 	switch ie.Kind {
 	case nostr.KindProfileMetadata:
 		// this could be anywhere so it doesn't count
@@ -113,9 +132,10 @@ func (sys *System) TrackEventHintsAndRelays(ie nostr.RelayEvent) {
 	}
 }
 
+// TrackEventRelaysD is a companion to TrackEventRelays meant to be used with WithDuplicateMiddleware()
 func (sys *System) TrackEventRelaysD(relay, id string) {
 	if IsVirtualRelay(relay) {
 		return
 	}
-	sys.trackEventRelayCommon(id, relay, true /* we pass this flag so we'll skip creating entries for events that didn't pass the checks on the function above -- i.e. ephemeral events */)
+	sys.trackEventRelay(id, relay, true /* we pass this flag so we'll skip creating entries for events that didn't pass the checks on the function above -- i.e. ephemeral events */)
 }
