@@ -21,6 +21,9 @@ func makeEventRelayKey(eventID []byte) []byte {
 func encodeRelayList(relays []string) []byte {
 	totalSize := 0
 	for _, relay := range relays {
+		if len(relay) > 256 {
+			continue
+		}
 		totalSize += 1 + len(relay) // 1 byte for length prefix
 	}
 
@@ -41,7 +44,7 @@ func encodeRelayList(relays []string) []byte {
 }
 
 func decodeRelayList(data []byte) []string {
-	relays := make([]string, 0)
+	relays := make([]string, 0, 6)
 	offset := 0
 
 	for offset < len(data) {
