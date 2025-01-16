@@ -57,17 +57,29 @@ func (s *Store) Close() error {
 	return nil
 }
 
-func (s *Store) Scan(prefix []byte, fn func(key []byte, value []byte) bool) error {
-	s.RLock()
-	defer s.RUnlock()
+func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
+	s.Lock()
+	defer s.Unlock()
 
-	prefixStr := string(prefix)
-	for k, v := range s.data {
-		if strings.HasPrefix(k, prefixStr) {
-			if !fn([]byte(k), v) {
-				break
-			}
-		}
+	var val []byte
+	if v, ok := s.data[string(key)]; ok {
+		// Return a copy to prevent modification of stored data
+		val = make([]byte, len(v))
+		copy(val, v)
+	}
+
+	newVal, err := f(val)
+	if err != nil {
+		return err
+	}
+
+	if newVal == nil {
+		delete(s.data, string(key))
+	} else {
+		// Store a copy to prevent modification of stored data
+		cp := make([]byte, len(newVal))
+		copy(cp, newVal)
+		s.data[string(key)] = cp
 	}
 	return nil
 }

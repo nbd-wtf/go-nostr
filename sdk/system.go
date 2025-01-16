@@ -139,33 +139,6 @@ func (sys *System) Close() {
 	}
 }
 
-// GetEventRelays returns all known relay URLs that have been seen to carry the given event.
-func (sys *System) GetEventRelays(eventID string) ([]string, error) {
-	// decode the event ID hex into bytes
-	idBytes, err := hex.DecodeString(eventID)
-	if err != nil || len(idBytes) < 8 {
-		return nil, fmt.Errorf("invalid event id")
-	}
-
-	// create prefix for scanning: 'r' + first 8 bytes of event ID
-	prefix := make([]byte, 9)
-	prefix[0] = eventRelayPrefix
-	copy(prefix[1:], idBytes[:8])
-
-	relays := make([]string, 0)
-	err = sys.KVStore.Scan(prefix, func(key []byte, value []byte) bool {
-		// extract relay URL from key (everything after prefix)
-		relay := string(key[9:])
-		relays = append(relays, relay)
-		return true
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return relays, nil
-}
-
 func WithHintsDB(hdb hints.HintsDB) SystemModifier {
 	return func(sys *System) {
 		sys.Hints = hdb

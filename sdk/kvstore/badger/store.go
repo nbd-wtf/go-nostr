@@ -58,27 +58,31 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) Scan(prefix []byte, fn func(key []byte, value []byte) bool) error {
-	return s.db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
-		defer it.Close()
-
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			item := it.Item()
-			err := item.Value(func(v []byte) error {
-				k := item.Key()
-				if !fn(k, v) {
-					return badger.ErrStopIteration
-				}
+func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
+	return s.db.Update(func(txn *badger.Txn) error {
+		var val []byte
+		item, err := txn.Get(key)
+		if err == nil {
+			err = item.Value(func(v []byte) error {
+				val = make([]byte, len(v))
+				copy(val, v)
 				return nil
 			})
-			if err == badger.ErrStopIteration {
-				break
-			}
 			if err != nil {
 				return err
 			}
+		} else if err != badger.ErrKeyNotFound {
+			return err
 		}
-		return nil
+
+		newVal, err := f(val)
+		if err != nil {
+			return err
+		}
+
+		if newVal == nil {
+			return txn.Delete(key)
+		}
+		return txn.Set(key, newVal)
 	})
 }

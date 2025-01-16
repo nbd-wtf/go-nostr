@@ -91,22 +91,26 @@ func (s *Store) Close() error {
 	return nil
 }
 
-func (s *Store) Scan(prefix []byte, fn func(key []byte, value []byte) bool) error {
-	return s.env.View(func(txn *lmdb.Txn) error {
-		cursor, err := txn.OpenCursor(s.dbi)
+func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
+	return s.env.Update(func(txn *lmdb.Txn) error {
+		var val []byte
+		v, err := txn.Get(s.dbi, key)
+		if err == nil {
+			// make a copy since v is only valid during the transaction
+			val = make([]byte, len(v))
+			copy(val, v)
+		} else if !lmdb.IsNotFound(err) {
+			return err
+		}
+
+		newVal, err := f(val)
 		if err != nil {
 			return err
 		}
-		defer cursor.Close()
 
-		for k, v, err := cursor.Get(prefix, nil, lmdb.SetRange); err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {
-			if !bytes.HasPrefix(k, prefix) {
-				break
-			}
-			if !fn(k, v) {
-				break
-			}
+		if newVal == nil {
+			return txn.Del(s.dbi, key, nil)
 		}
-		return nil
+		return txn.Put(s.dbi, key, newVal, 0)
 	})
 }
