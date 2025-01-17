@@ -55,12 +55,10 @@ func TestFollowListRecursion(t *testing.T) {
 	results := make(chan result)
 	go func() {
 		for _, item := range followList.Items {
-			go func() {
-				fl := sys.FetchFollowList(ctx, item.Pubkey)
-				meta := sys.FetchProfileMetadata(ctx, item.Pubkey)
-				fmt.Println("  ~", item.Pubkey, meta.Name, len(fl.Items))
-				results <- result{item.Pubkey, fl, meta}
-			}()
+			fl := sys.FetchFollowList(ctx, item.Pubkey)
+			meta := sys.FetchProfileMetadata(ctx, item.Pubkey)
+			fmt.Println("  ~", item.Pubkey, meta.Name, len(fl.Items))
+			results <- result{item.Pubkey, fl, meta}
 		}
 	}()
 

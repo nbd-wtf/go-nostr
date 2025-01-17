@@ -186,7 +186,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			select {
 			case <-ticker.C:
 				if r.Connection != nil {
-					err := r.Connection.Ping(ctx)
+					err := r.Connection.Ping(r.connectionContext)
 					if err != nil {
 						InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
 						r.Close() // this should trigger a context cancelation
@@ -213,6 +213,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 		for {
 			buf.Reset()
+
 			if err := conn.ReadMessage(r.connectionContext, buf); err != nil {
 				r.ConnectionError = err
 				r.close(err)

@@ -3,9 +3,11 @@ package nostr
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	ws "github.com/coder/websocket"
 )
@@ -51,5 +53,7 @@ func (c *Connection) Close() error {
 }
 
 func (c *Connection) Ping(ctx context.Context) error {
+	ctx, cancel := context.WithTimeoutCause(ctx, time.Millisecond*800, errors.New("ping took too long"))
+	defer cancel()
 	return c.conn.Ping(ctx)
 }
