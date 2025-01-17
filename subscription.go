@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -38,7 +39,7 @@ type Subscription struct {
 	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
 	eosed  atomic.Bool
-	cancel context.CancelFunc
+	cancel context.CancelCauseFunc
 
 	// this keeps track of the events we've received before the EOSE that we must dispatch before
 	// closing the EndOfStoredEvents channel
@@ -74,8 +75,9 @@ var (
 
 func (sub *Subscription) start() {
 	<-sub.Context.Done()
+
 	// the subscription ends once the context is canceled (if not already)
-	sub.Unsub() // this will set sub.live to false
+	sub.unsub(errors.New("context done on start()")) // this will set sub.live to false
 
 	// do this so we don't have the possibility of closing the Events channel and then trying to send to it
 	sub.mu.Lock()
@@ -123,15 +125,19 @@ func (sub *Subscription) handleClosed(reason string) {
 	go func() {
 		sub.ClosedReason <- reason
 		sub.live.Store(false) // set this so we don't send an unnecessary CLOSE to the relay
-		sub.Unsub()
+		sub.unsub(fmt.Errorf("CLOSED received: %s", reason))
 	}()
 }
 
 // Unsub closes the subscription, sending "CLOSE" to relay as in NIP-01.
 // Unsub() also closes the channel sub.Events and makes a new one.
 func (sub *Subscription) Unsub() {
+	sub.unsub(errors.New("Unsub() called"))
+}
+
+func (sub *Subscription) unsub(err error) {
 	// cancel the context (if it's not canceled already)
-	sub.cancel()
+	sub.cancel(err)
 
 	// mark subscription as closed and send a CLOSE to the relay (naïve sync.Once implementation)
 	if sub.live.CompareAndSwap(true, false) {
@@ -169,8 +175,9 @@ func (sub *Subscription) Fire() error {
 
 	sub.live.Store(true)
 	if err := <-sub.Relay.Write(reqb); err != nil {
-		sub.cancel()
-		return fmt.Errorf("failed to write: %w", err)
+		err := fmt.Errorf("failed to write: %w", err)
+		sub.cancel(err)
+		return err
 	}
 
 	return nil

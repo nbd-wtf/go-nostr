@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,7 +31,7 @@ type Relay struct {
 
 	ConnectionError         error
 	connectionContext       context.Context // will be canceled when the connection closes
-	connectionContextCancel context.CancelFunc
+	connectionContextCancel context.CancelCauseFunc
 
 	challenge                     string       // NIP-42 challenge, we only keep the last
 	noticeHandler                 func(string) // NIP-01 NOTICEs
@@ -51,7 +52,7 @@ type writeRequest struct {
 
 // NewRelay returns a new relay. The relay connection will be closed when the context is canceled.
 func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	r := &Relay{
 		URL:                           NormalizeURL(url),
 		connectionContext:             ctx,
@@ -150,7 +151,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
+		ctx, cancel = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("connection took too long"))
 		defer cancel()
 	}
 
@@ -175,7 +176,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 		// close all subscriptions
 		for _, sub := range r.Subscriptions.Range {
-			sub.Unsub()
+			sub.unsub(fmt.Errorf("relay connection closed: %w / %w", context.Cause(r.connectionContext), r.ConnectionError))
 		}
 	}()
 
@@ -214,7 +215,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			buf.Reset()
 			if err := conn.ReadMessage(r.connectionContext, buf); err != nil {
 				r.ConnectionError = err
-				r.Close()
+				r.close(err)
 				break
 			}
 
@@ -407,7 +408,7 @@ func (r *Relay) Subscribe(ctx context.Context, filters Filters, opts ...Subscrip
 // Failure to do that will result in a huge number of halted goroutines being created.
 func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts ...SubscriptionOption) *Subscription {
 	current := subscriptionIDCounter.Add(1)
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 
 	sub := &Subscription{
 		Relay:             r,
@@ -431,7 +432,7 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 		}
 	}
 
-	// subscription id calculation
+	// subscription id computation
 	buf := subIdPool.Get().([]byte)[:0]
 	buf = strconv.AppendInt(buf, sub.counter, 10)
 	buf = append(buf, ':')
@@ -462,7 +463,7 @@ func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan *Event, er
 			case <-ctx.Done():
 			case <-r.Context().Done():
 			}
-			sub.Unsub()
+			sub.unsub(errors.New("QueryEvents() ended"))
 			return
 		}
 	}()
@@ -474,7 +475,7 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) 
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
+		ctx, cancel = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("QuerySync() took too long"))
 		defer cancel()
 	}
 
@@ -512,12 +513,12 @@ func (r *Relay) countInternal(ctx context.Context, filters Filters, opts ...Subs
 		return CountEnvelope{}, err
 	}
 
-	defer sub.Unsub()
+	defer sub.unsub(errors.New("countInternal() ended"))
 
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 7*time.Second)
+		ctx, cancel = context.WithTimeoutCause(ctx, 7*time.Second, errors.New("countInternal took too long"))
 		defer cancel()
 	}
 
@@ -532,13 +533,17 @@ func (r *Relay) countInternal(ctx context.Context, filters Filters, opts ...Subs
 }
 
 func (r *Relay) Close() error {
+	return r.close(errors.New("Close() called"))
+}
+
+func (r *Relay) close(reason error) error {
 	r.closeMutex.Lock()
 	defer r.closeMutex.Unlock()
 
 	if r.connectionContextCancel == nil {
 		return fmt.Errorf("relay already closed")
 	}
-	r.connectionContextCancel()
+	r.connectionContextCancel(reason)
 	r.connectionContextCancel = nil
 
 	if r.Connection == nil {

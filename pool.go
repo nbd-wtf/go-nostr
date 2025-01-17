@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -24,7 +25,7 @@ type SimplePool struct {
 	Context context.Context
 
 	authHandler func(context.Context, RelayEvent) error
-	cancel      context.CancelFunc
+	cancel      context.CancelCauseFunc
 
 	eventMiddleware     func(RelayEvent)
 	duplicateMiddleware func(relay string, id string)
@@ -36,8 +37,8 @@ type SimplePool struct {
 	relayOptions []RelayOption
 }
 
-type DirectedFilters struct {
-	Filters
+type DirectedFilter struct {
+	Filter
 	Relay string
 }
 
@@ -55,7 +56,7 @@ type PoolOption interface {
 }
 
 func NewSimplePool(ctx context.Context, opts ...PoolOption) *SimplePool {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 
 	pool := &SimplePool{
 		Relays: xsync.NewMapOf[string, *Relay](),
@@ -177,7 +178,11 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 
 	// try to connect
 	// we use this ctx here so when the pool dies everything dies
-	ctx, cancel := context.WithTimeout(pool.Context, time.Second*15)
+	ctx, cancel := context.WithTimeoutCause(
+		pool.Context,
+		time.Second*15,
+		errors.New("connecting to the relay took too long"),
+	)
 	defer cancel()
 
 	relay = NewRelay(context.Background(), url, pool.relayOptions...)
@@ -379,17 +384,36 @@ func (pool *SimplePool) SubManyEose(
 	filters Filters,
 	opts ...SubscriptionOption,
 ) chan RelayEvent {
-	ctx, cancel := context.WithCancel(ctx)
+	seenAlready := xsync.NewMapOf[string, bool]()
+	return pool.subManyEoseNonOverwriteCheckDuplicate(ctx, urls, filters, WithCheckDuplicate(func(id, relay string) bool {
+		_, exists := seenAlready.Load(id)
+		if exists && pool.duplicateMiddleware != nil {
+			pool.duplicateMiddleware(relay, id)
+		}
+		return exists
+	}), seenAlready, opts...)
+}
+
+func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
+	ctx context.Context,
+	urls []string,
+	filters Filters,
+	wcd WithCheckDuplicate,
+	seenAlready *xsync.MapOf[string, bool],
+	opts ...SubscriptionOption,
+) chan RelayEvent {
+	ctx, cancel := context.WithCancelCause(ctx)
 
 	events := make(chan RelayEvent)
-	seenAlready := xsync.NewMapOf[string, bool]()
 	wg := sync.WaitGroup{}
 	wg.Add(len(urls))
+
+	opts = append(opts, wcd)
 
 	go func() {
 		// this will happen when all subscriptions get an eose (or when they die)
 		wg.Wait()
-		cancel()
+		cancel(errors.New("all subscriptions ended"))
 		close(events)
 	}()
 
@@ -411,19 +435,14 @@ func (pool *SimplePool) SubManyEose(
 
 			relay, err := pool.EnsureRelay(nm)
 			if err != nil {
+				debugLogf("error connecting to %s with %v: %s", relay, filters, err)
 				return
 			}
 
 			hasAuthed := false
 
 		subscribe:
-			sub, err := relay.Subscribe(ctx, filters, append(opts, WithCheckDuplicate(func(id, relay string) bool {
-				_, exists := seenAlready.Load(id)
-				if exists && pool.duplicateMiddleware != nil {
-					pool.duplicateMiddleware(relay, id)
-				}
-				return exists
-			}))...)
+			sub, err := relay.Subscribe(ctx, filters, opts...)
 			if err != nil {
 				debugLogf("error subscribing to %s with %v: %s", relay, filters, err)
 				return
@@ -508,47 +527,52 @@ func (pool *SimplePool) CountMany(
 
 // QuerySingle returns the first event returned by the first relay, cancels everything else.
 func (pool *SimplePool) QuerySingle(ctx context.Context, urls []string, filter Filter) *RelayEvent {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(ctx)
 	for ievt := range pool.SubManyEose(ctx, urls, Filters{filter}) {
+		cancel(errors.New("got the first event and ended successfully"))
 		return &ievt
 	}
+	cancel(errors.New("SubManyEose() didn't get yield events"))
 	return nil
 }
 
-func (pool *SimplePool) batchedSubMany(
+func (pool *SimplePool) BatchedSubManyEose(
 	ctx context.Context,
-	dfs []DirectedFilters,
-	subFn func(context.Context, []string, Filters, ...SubscriptionOption) chan RelayEvent,
-	opts []SubscriptionOption,
+	dfs []DirectedFilter,
+	opts ...SubscriptionOption,
 ) chan RelayEvent {
 	res := make(chan RelayEvent)
+	wg := sync.WaitGroup{}
+	wg.Add(len(dfs))
+	seenAlready := xsync.NewMapOf[string, bool]()
 
 	for _, df := range dfs {
-		go func(df DirectedFilters) {
-			for ie := range subFn(ctx, []string{df.Relay}, df.Filters, opts...) {
+		go func(df DirectedFilter) {
+			for ie := range pool.subManyEoseNonOverwriteCheckDuplicate(ctx,
+				[]string{df.Relay},
+				Filters{df.Filter},
+				WithCheckDuplicate(func(id, relay string) bool {
+					_, exists := seenAlready.Load(id)
+					if exists && pool.duplicateMiddleware != nil {
+						pool.duplicateMiddleware(relay, id)
+					}
+					return exists
+				}), seenAlready, opts...) {
 				res <- ie
 			}
+
+			wg.Done()
 		}(df)
 	}
+
+	go func() {
+		wg.Wait()
+		close(res)
+	}()
 
 	return res
 }
 
-// BatchedSubMany fires subscriptions only to specific relays, but batches them when they are the same.
-func (pool *SimplePool) BatchedSubMany(
-	ctx context.Context,
-	dfs []DirectedFilters,
-	opts ...SubscriptionOption,
-) chan RelayEvent {
-	return pool.batchedSubMany(ctx, dfs, pool.SubMany, opts)
-}
-
-// BatchedSubManyEose is like BatchedSubMany, but ends upon receiving EOSE from all relays.
-func (pool *SimplePool) BatchedSubManyEose(
-	ctx context.Context,
-	dfs []DirectedFilters,
-	opts ...SubscriptionOption,
-) chan RelayEvent {
-	return pool.batchedSubMany(ctx, dfs, pool.SubManyEose, opts)
+func (pool *SimplePool) Close(reason string) {
+	pool.cancel(fmt.Errorf("pool closed with reason: '%s'", reason))
 }

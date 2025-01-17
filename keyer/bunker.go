@@ -2,6 +2,7 @@ package keyer
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -18,7 +19,7 @@ func NewBunkerSignerFromBunkerClient(bc *nip46.BunkerClient) BunkerSigner {
 }
 
 func (bs BunkerSigner) GetPublicKey(ctx context.Context) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctx, cancel := context.WithTimeoutCause(ctx, time.Second*30, errors.New("get_public_key took too long"))
 	defer cancel()
 	pk, err := bs.bunker.GetPublicKey(ctx)
 	if err != nil {
@@ -28,7 +29,7 @@ func (bs BunkerSigner) GetPublicKey(ctx context.Context) (string, error) {
 }
 
 func (bs BunkerSigner) SignEvent(ctx context.Context, evt *nostr.Event) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	ctx, cancel := context.WithTimeoutCause(ctx, time.Second*30, errors.New("sign_event took too long"))
 	defer cancel()
 	return bs.bunker.SignEvent(ctx, evt)
 }

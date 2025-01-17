@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -11,6 +12,10 @@ import (
 	"github.com/graph-gophers/dataloader/v7"
 	"github.com/nbd-wtf/go-nostr"
 )
+
+// this is used as a hack to signal that these replaceable loader queries shouldn't use the full
+// context timespan when they're being made from inside determineRelaysToQuery
+var contextForSub10002Query = context.WithValue(context.Background(), "", "")
 
 type replaceableIndex int
 
@@ -49,26 +54,39 @@ func (sys *System) initializeReplaceableDataloaders() {
 
 func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[string, *nostr.Event] {
 	return dataloader.NewBatchedLoader(
-		func(_ context.Context, pubkeys []string) []*dataloader.Result[*nostr.Event] {
-			return sys.batchLoadReplaceableEvents(kind, pubkeys)
+		func(ctx context.Context, pubkeys []string) []*dataloader.Result[*nostr.Event] {
+			var cancel context.CancelFunc
+
+			if ctx == contextForSub10002Query {
+				ctx, cancel = context.WithTimeoutCause(context.Background(), time.Millisecond*2300,
+					errors.New("fetching relays in subloader took too long"),
+				)
+			} else {
+				ctx, cancel = context.WithTimeoutCause(context.Background(), time.Second*6,
+					errors.New("batch replaceable load took too long"),
+				)
+				defer cancel()
+			}
+
+			return sys.batchLoadReplaceableEvents(ctx, kind, pubkeys)
 		},
 		dataloader.WithBatchCapacity[string, *nostr.Event](60),
 		dataloader.WithClearCacheOnBatch[string, *nostr.Event](),
+		dataloader.WithCache(&dataloader.NoCache[string, *nostr.Event]{}),
 		dataloader.WithWait[string, *nostr.Event](time.Millisecond*350),
 	)
 }
 
 func (sys *System) batchLoadReplaceableEvents(
+	ctx context.Context,
 	kind int,
 	pubkeys []string,
 ) []*dataloader.Result[*nostr.Event] {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
-	defer cancel()
-
 	batchSize := len(pubkeys)
 	results := make([]*dataloader.Result[*nostr.Event], batchSize)
-	keyPositions := make(map[string]int)          // { [pubkey]: slice_index }
-	relayFilters := make(map[string]nostr.Filter) // { [relayUrl]: filter }
+	keyPositions := make(map[string]int) // { [pubkey]: slice_index }
+	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
+	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(pubkeys))
@@ -108,15 +126,24 @@ func (sys *System) batchLoadReplaceableEvents(
 			cm.Lock()
 			for _, relay := range relays {
 				// each relay will have a custom filter
-				filter, ok := relayFilters[relay]
-				if !ok {
-					filter = nostr.Filter{
-						Kinds:   []int{kind},
-						Authors: make([]string, 0, batchSize-i /* this and all pubkeys after this can be added */),
+				idx, ok := relayFilterIndex[relay]
+				var dfilter nostr.DirectedFilter
+				if ok {
+					dfilter = relayFilter[idx]
+				} else {
+					dfilter = nostr.DirectedFilter{
+						Relay: relay,
+						Filter: nostr.Filter{
+							Kinds:   []int{kind},
+							Authors: make([]string, 0, batchSize-i /* this and all pubkeys after this can be added */),
+						},
 					}
+					idx = len(relayFilter)
+					relayFilterIndex[relay] = idx
+					relayFilter = append(relayFilter, dfilter)
 				}
-				filter.Authors = append(filter.Authors, pubkey)
-				relayFilters[relay] = filter
+				dfilter.Authors = append(dfilter.Authors, pubkey)
+				relayFilter[idx] = dfilter
 			}
 			cm.Unlock()
 		}(i, pubkey)
@@ -124,18 +151,18 @@ func (sys *System) batchLoadReplaceableEvents(
 
 	// query all relays with the prepared filters
 	wg.Wait()
-	multiSubs := sys.batchReplaceableRelayQueries(ctx, relayFilters)
+	multiSubs := sys.Pool.BatchedSubManyEose(ctx, relayFilter, nostr.WithLabel("repl~"+strconv.Itoa(kind)))
 	for {
 		select {
-		case evt, more := <-multiSubs:
+		case ie, more := <-multiSubs:
 			if !more {
 				return results
 			}
 
 			// insert this event at the desired position
-			pos := keyPositions[evt.PubKey] // @unchecked: it must succeed because it must be a key we passed
-			if results[pos].Data == nil || results[pos].Data.CreatedAt < evt.CreatedAt {
-				results[pos] = &dataloader.Result[*nostr.Event]{Data: evt}
+			pos := keyPositions[ie.PubKey] // @unchecked: it must succeed because it must be a key we passed
+			if results[pos].Data == nil || results[pos].Data.CreatedAt < ie.CreatedAt {
+				results[pos] = &dataloader.Result[*nostr.Event]{Data: ie.Event}
 			}
 		case <-ctx.Done():
 			return results
@@ -153,11 +180,13 @@ func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, ki
 		if len(relays) == 0 {
 			relays = []string{"wss://relay.damus.io", "wss://nos.lol"}
 		}
-	} else if kind == 0 || kind == 3 {
-		// leave room for two hardcoded relays because people are stupid
-		relays = sys.FetchOutboxRelays(ctx, pubkey, 1)
 	} else {
-		relays = sys.FetchOutboxRelays(ctx, pubkey, 3)
+		if kind == 0 || kind == 3 {
+			// leave room for two hardcoded relays because people are stupid
+			relays = sys.FetchOutboxRelays(contextForSub10002Query, pubkey, 1)
+		} else {
+			relays = sys.FetchOutboxRelays(contextForSub10002Query, pubkey, 3)
+		}
 	}
 
 	// use a different set of extra relays depending on the kind
@@ -181,46 +210,4 @@ func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, ki
 	}
 
 	return relays
-}
-
-// batchReplaceableRelayQueries subscribes to multiple relays using a different filter for each and returns
-// a single channel with all results. it closes on EOSE or when all the expected events were returned.
-//
-// the number of expected events is given by the number of pubkeys in the .Authors filter field.
-// because of that, batchReplaceableRelayQueries is only suitable for querying replaceable events -- and
-// care must be taken to not include the same pubkey more than once in the filter .Authors array.
-func (sys *System) batchReplaceableRelayQueries(
-	ctx context.Context,
-	relayFilters map[string]nostr.Filter,
-) <-chan *nostr.Event {
-	all := make(chan *nostr.Event)
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(relayFilters))
-	for url, filter := range relayFilters {
-		go func(url string, filter nostr.Filter) {
-			defer wg.Done()
-			n := len(filter.Authors)
-
-			ctx, cancel := context.WithTimeout(ctx, time.Millisecond*950+time.Millisecond*50*time.Duration(n))
-			defer cancel()
-
-			received := 0
-			for ie := range sys.Pool.SubManyEose(ctx, []string{url}, nostr.Filters{filter}, nostr.WithLabel("repl")) {
-				all <- ie.Event
-				received++
-				if received >= n {
-					// we got all events we asked for, unless the relay is shitty and sent us two from the same
-					return
-				}
-			}
-		}(url, filter)
-	}
-
-	go func() {
-		wg.Wait()
-		close(all)
-	}()
-
-	return all
 }

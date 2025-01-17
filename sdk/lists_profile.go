@@ -48,11 +48,11 @@ func parseProfileRef(tag nostr.Tag) (fw ProfileRef, ok bool) {
 		if _, err := url.Parse(tag[2]); err == nil {
 			fw.Relay = nostr.NormalizeURL(tag[2])
 		}
+
 		if len(tag) > 3 {
 			fw.Petname = strings.TrimSpace(tag[3])
 		}
-		return fw, true
 	}
 
-	return fw, false
+	return fw, true
 }

@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -37,6 +38,7 @@ func (sys *System) createAddressableDataloader(kind int) *dataloader.Loader[stri
 		},
 		dataloader.WithBatchCapacity[string, []*nostr.Event](60),
 		dataloader.WithClearCacheOnBatch[string, []*nostr.Event](),
+		dataloader.WithCache(&dataloader.NoCache[string, []*nostr.Event]{}),
 		dataloader.WithWait[string, []*nostr.Event](time.Millisecond*350),
 	)
 }
@@ -45,13 +47,16 @@ func (sys *System) batchLoadAddressableEvents(
 	kind int,
 	pubkeys []string,
 ) []*dataloader.Result[[]*nostr.Event] {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
+	ctx, cancel := context.WithTimeoutCause(context.Background(), time.Second*6,
+		errors.New("batch addressable load took too long"),
+	)
 	defer cancel()
 
 	batchSize := len(pubkeys)
 	results := make([]*dataloader.Result[[]*nostr.Event], batchSize)
-	keyPositions := make(map[string]int)          // { [pubkey]: slice_index }
-	relayFilters := make(map[string]nostr.Filter) // { [relayUrl]: filter }
+	keyPositions := make(map[string]int) // { [pubkey]: slice_index }
+	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
+	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(pubkeys))
@@ -91,49 +96,60 @@ func (sys *System) batchLoadAddressableEvents(
 			cm.Lock()
 			for _, relay := range relays {
 				// each relay will have a custom filter
-				filter, ok := relayFilters[relay]
-				if !ok {
-					filter = nostr.Filter{
-						Kinds:   []int{kind},
-						Authors: make([]string, 0, batchSize-i /* this and all pubkeys after this can be added */),
+				idx, ok := relayFilterIndex[relay]
+				var dfilter nostr.DirectedFilter
+				if ok {
+					dfilter = relayFilter[idx]
+				} else {
+					dfilter = nostr.DirectedFilter{
+						Relay: relay,
+						Filter: nostr.Filter{
+							Kinds:   []int{kind},
+							Authors: make([]string, 0, batchSize-i /* this and all pubkeys after this can be added */),
+						},
 					}
+					idx = len(relayFilter)
+					relayFilterIndex[relay] = idx
+					relayFilter = append(relayFilter, dfilter)
 				}
-				filter.Authors = append(filter.Authors, pubkey)
-				relayFilters[relay] = filter
+				dfilter.Authors = append(dfilter.Authors, pubkey)
+				relayFilter[idx] = dfilter
 			}
 			cm.Unlock()
 		}(i, pubkey)
 	}
 
-	// query all relays with the prepared filters
+	// wait for relay batches to be prepared
 	wg.Wait()
-	multiSubs := sys.batchAddressableRelayQueries(ctx, relayFilters)
+
+	// query all relays with the prepared filters
+	multiSubs := sys.Pool.BatchedSubManyEose(ctx, relayFilter)
 nextEvent:
 	for {
 		select {
-		case evt, more := <-multiSubs:
+		case ie, more := <-multiSubs:
 			if !more {
 				return results
 			}
 
 			// insert this event at the desired position
-			pos := keyPositions[evt.PubKey] // @unchecked: it must succeed because it must be a key we passed
+			pos := keyPositions[ie.PubKey] // @unchecked: it must succeed because it must be a key we passed
 
 			events := results[pos].Data
 			if events == nil {
 				// no events found, so just add this and end
-				results[pos] = &dataloader.Result[[]*nostr.Event]{Data: []*nostr.Event{evt}}
+				results[pos] = &dataloader.Result[[]*nostr.Event]{Data: []*nostr.Event{ie.Event}}
 				continue nextEvent
 			}
 
 			// there are events, so look for a match
-			d := evt.Tags.GetD()
+			d := ie.Tags.GetD()
 			for i, event := range events {
 				if event.Tags.GetD() == d {
 					// there is a match
-					if event.CreatedAt < evt.CreatedAt {
+					if event.CreatedAt < ie.CreatedAt {
 						// ...and this one is newer, so replace
-						events[i] = evt
+						events[i] = ie.Event
 					} else {
 						// ... but this one is older, so ignore
 					}
@@ -143,42 +159,10 @@ nextEvent:
 			}
 
 			// there is no match, so add to the end
-			events = append(events, evt)
+			events = append(events, ie.Event)
 			results[pos].Data = events
 		case <-ctx.Done():
 			return results
 		}
 	}
-}
-
-// batchAddressableRelayQueries is like batchReplaceableRelayQueries, except it doesn't count results to
-// try to exit early.
-func (sys *System) batchAddressableRelayQueries(
-	ctx context.Context,
-	relayFilters map[string]nostr.Filter,
-) <-chan *nostr.Event {
-	all := make(chan *nostr.Event)
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(relayFilters))
-	for url, filter := range relayFilters {
-		go func(url string, filter nostr.Filter) {
-			defer wg.Done()
-			n := len(filter.Authors)
-
-			ctx, cancel := context.WithTimeout(ctx, time.Millisecond*450+time.Millisecond*50*time.Duration(n))
-			defer cancel()
-
-			for ie := range sys.Pool.SubManyEose(ctx, []string{url}, nostr.Filters{filter}, nostr.WithLabel("addr")) {
-				all <- ie.Event
-			}
-		}(url, filter)
-	}
-
-	go func() {
-		wg.Wait()
-		close(all)
-	}()
-
-	return all
 }
