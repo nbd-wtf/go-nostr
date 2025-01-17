@@ -106,31 +106,41 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm 
 
 	res, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{0}, Authors: []string{pubkey}})
 	if len(res) != 0 {
-		if m, err := ParseMetadata(res[0]); err == nil {
-			m.PubKey = pubkey
-			m.Event = res[0]
-			sys.MetadataCache.SetWithTTL(pubkey, m, time.Hour*6)
-			return m
+		// ok, we found something locally
+		pm, _ = ParseMetadata(res[0])
+		pm.PubKey = pubkey
+		pm.Event = res[0]
+
+		// but if we haven't tried fetching from the network recently we should do it
+		lastFetchKey := makeLastFetchKey(0, pubkey)
+		lastFetchData, _ := sys.KVStore.Get(lastFetchKey)
+		if nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
+			newM := sys.tryFetchMetadataFromNetwork(ctx, pubkey)
+			if newM != nil && newM.Event.CreatedAt > pm.Event.CreatedAt {
+				pm = *newM
+			}
+
+			// even if we didn't find anything register this because we tried
+			// (and we still have the previous event in our local store)
+			sys.KVStore.Set(lastFetchKey, encodeTimestamp(nostr.Now()))
 		}
-	}
 
-	pm.PubKey = pubkey
-
-	thunk0 := sys.replaceableLoaders[kind_0].Load(ctx, pubkey)
-	evt, err := thunk0()
-	if err == nil {
-		pm, _ = ParseMetadata(evt)
-
-		// save on store even if the metadata json is malformed
-		if pm.Event != nil {
-			sys.StoreRelay.Publish(ctx, *pm.Event)
-		}
-	}
-
-	// save on cache even if the metadata isn't found (unless the context was canceled)
-	if err == nil || err != context.Canceled {
+		// and finally save this to cache
 		sys.MetadataCache.SetWithTTL(pubkey, pm, time.Hour*6)
+
+		return pm
 	}
+
+	if newM := sys.tryFetchMetadataFromNetwork(ctx, pubkey); newM != nil {
+		pm = *newM
+
+		// we'll only save this if we got something which means we found at least one event
+		lastFetchKey := makeLastFetchKey(0, pubkey)
+		sys.KVStore.Set(lastFetchKey, encodeTimestamp(nostr.Now()))
+	}
+
+	// save cache even if we didn't get anything
+	sys.MetadataCache.SetWithTTL(pubkey, pm, time.Hour*6)
 
 	return pm
 }
@@ -157,6 +167,25 @@ func (sys *System) FetchUserEvents(ctx context.Context, filter nostr.Filter) (ma
 	wg.Wait()
 
 	return results, nil
+}
+
+func (sys *System) tryFetchMetadataFromNetwork(ctx context.Context, pubkey string) *ProfileMetadata {
+	thunk0 := sys.replaceableLoaders[kind_0].Load(ctx, pubkey)
+	evt, err := thunk0()
+	if err != nil {
+		return nil
+	}
+
+	pm, err := ParseMetadata(evt)
+	if err != nil {
+		return nil
+	}
+
+	pm.PubKey = pubkey
+	pm.Event = evt
+	sys.StoreRelay.Publish(ctx, *evt)
+	sys.MetadataCache.SetWithTTL(pubkey, pm, time.Hour*6)
+	return &pm
 }
 
 func ParseMetadata(event *nostr.Event) (meta ProfileMetadata, err error) {

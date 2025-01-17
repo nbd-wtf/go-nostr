@@ -49,27 +49,69 @@ func fetchGenericSets[I TagItemWithValue](
 
 	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{actualKind}, Authors: []string{pubkey}})
 	if len(events) != 0 {
+		// ok, we found something locally
 		sets := parseSetsFromEvents(events, parseTag)
 		v.Events = events
 		v.Sets = sets
+
+		// but if we haven't tried fetching from the network recently we should do it
+		lastFetchKey := makeLastFetchKey(actualKind, pubkey)
+		lastFetchData, _ := sys.KVStore.Get(lastFetchKey)
+		if nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
+			newV := tryFetchSetsFromNetwork(ctx, sys, pubkey, addressableIndex, parseTag)
+
+			// unlike for lists, when fetching sets we will blindly trust whatever we get from the network
+			v = *newV
+
+			// even if we didn't find anything register this because we tried
+			// (and we still have the previous event in our local store)
+			sys.KVStore.Set(lastFetchKey, encodeTimestamp(nostr.Now()))
+		}
+
+		// and finally save this to cache
 		cache.SetWithTTL(pubkey, v, time.Hour*6)
 		valueWasJustCached[lockIdx] = true
+
 		return v, true
 	}
 
-	thunk := sys.addressableLoaders[addressableIndex].Load(ctx, pubkey)
-	events, err := thunk()
-	if err == nil {
-		sets := parseSetsFromEvents(events, parseTag)
-		v.Sets = sets
-		for _, evt := range events {
-			sys.StoreRelay.Publish(ctx, *evt)
-		}
+	if newV := tryFetchSetsFromNetwork(ctx, sys, pubkey, addressableIndex, parseTag); newV != nil {
+		v = *newV
+
+		// we'll only save this if we got something which means we found at least one event
+		lastFetchKey := makeLastFetchKey(actualKind, pubkey)
+		sys.KVStore.Set(lastFetchKey, encodeTimestamp(nostr.Now()))
 	}
+
+	// save cache even if we didn't get anything
 	cache.SetWithTTL(pubkey, v, time.Hour*6)
 	valueWasJustCached[lockIdx] = true
 
 	return v, false
+}
+
+func tryFetchSetsFromNetwork[I TagItemWithValue](
+	ctx context.Context,
+	sys *System,
+	pubkey string,
+	addressableIndex addressableIndex,
+	parseTag func(nostr.Tag) (I, bool),
+) *GenericSets[I] {
+	thunk := sys.addressableLoaders[addressableIndex].Load(ctx, pubkey)
+	events, err := thunk()
+	if err != nil {
+		return nil
+	}
+
+	v := &GenericSets[I]{
+		PubKey: pubkey,
+		Events: events,
+		Sets:   parseSetsFromEvents(events, parseTag),
+	}
+	for _, evt := range events {
+		sys.StoreRelay.Publish(ctx, *evt)
+	}
+	return v
 }
 
 func parseSetsFromEvents[I TagItemWithValue](

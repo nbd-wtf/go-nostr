@@ -60,25 +60,68 @@ func fetchGenericList[I TagItemWithValue](
 
 	events, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{actualKind}, Authors: []string{pubkey}})
 	if len(events) != 0 {
+		// ok, we found something locally
 		items := parseItemsFromEventTags(events[0], parseTag)
 		v.Event = events[0]
 		v.Items = items
+
+		// but if we haven't tried fetching from the network recently we should do it
+		lastFetchKey := makeLastFetchKey(actualKind, pubkey)
+		lastFetchData, _ := sys.KVStore.Get(lastFetchKey)
+		if nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
+			newV := tryFetchListFromNetwork(ctx, sys, pubkey, replaceableIndex, parseTag)
+			if newV != nil && newV.Event.CreatedAt > v.Event.CreatedAt {
+				v = *newV
+			}
+
+			// even if we didn't find anything register this because we tried
+			// (and we still have the previous event in our local store)
+			sys.KVStore.Set(lastFetchKey, encodeTimestamp(nostr.Now()))
+		}
+
+		// and finally save this to cache
 		cache.SetWithTTL(pubkey, v, time.Hour*6)
 		valueWasJustCached[lockIdx] = true
+
 		return v, true
 	}
 
-	thunk := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
-	evt, err := thunk()
-	if err == nil {
-		items := parseItemsFromEventTags(evt, parseTag)
-		v.Items = items
-		sys.StoreRelay.Publish(ctx, *evt)
+	if newV := tryFetchListFromNetwork(ctx, sys, pubkey, replaceableIndex, parseTag); newV != nil {
+		v = *newV
+
+		// we'll only save this if we got something which means we found at least one event
+		lastFetchKey := makeLastFetchKey(actualKind, pubkey)
+		sys.KVStore.Set(lastFetchKey, encodeTimestamp(nostr.Now()))
 	}
+
+	// save cache even if we didn't get anything
 	cache.SetWithTTL(pubkey, v, time.Hour*6)
 	valueWasJustCached[lockIdx] = true
 
 	return v, false
+}
+
+func tryFetchListFromNetwork[I TagItemWithValue](
+	ctx context.Context,
+	sys *System,
+	pubkey string,
+	replaceableIndex replaceableIndex,
+	parseTag func(nostr.Tag) (I, bool),
+) *GenericList[I] {
+	thunk := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
+	evt, err := thunk()
+	if err != nil {
+		return nil
+	}
+
+	v := &GenericList[I]{
+		PubKey: pubkey,
+		Event:  evt,
+		Items:  parseItemsFromEventTags(evt, parseTag),
+	}
+	sys.StoreRelay.Publish(ctx, *evt)
+
+	return v
 }
 
 func parseItemsFromEventTags[I TagItemWithValue](
