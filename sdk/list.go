@@ -3,6 +3,7 @@ package sdk
 import (
 	"context"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -22,8 +23,8 @@ type TagItemWithValue interface {
 }
 
 var (
-	genericListMutexes = [24]sync.Mutex{}
-	valueWasJustCached = [24]bool{}
+	genericListMutexes = [60]sync.Mutex{}
+	valueWasJustCached = [60]bool{}
 )
 
 func fetchGenericList[I TagItemWithValue](
@@ -35,10 +36,11 @@ func fetchGenericList[I TagItemWithValue](
 	parseTag func(nostr.Tag) (I, bool),
 	cache cache.Cache32[GenericList[I]],
 ) (fl GenericList[I], fromInternal bool) {
-	// we have 24 mutexes, so we can load up to 24 lists at the same time, but if we do the same exact
+	// we have 60 mutexes, so we can load up to 60 lists at the same time, but if we do the same exact
 	// call that will do it only once, the subsequent ones will wait for a result to be cached
 	// and then return it from cache -- 13 is an arbitrary index for the pubkey
-	lockIdx := (int(pubkey[13]) + int(replaceableIndex)) % 24
+	n, _ := strconv.ParseUint(pubkey[14:16], 16, 8)
+	lockIdx := (n + uint64(actualKind)) % 60
 	genericListMutexes[lockIdx].Lock()
 
 	if valueWasJustCached[lockIdx] {
@@ -48,7 +50,7 @@ func fetchGenericList[I TagItemWithValue](
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	defer genericListMutexes[lockIdx].Unlock()
+	genericListMutexes[lockIdx].Unlock()
 
 	if v, ok := cache.Get(pubkey); ok {
 		return v, true

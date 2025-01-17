@@ -36,7 +36,7 @@ func (sys *System) createAddressableDataloader(kind int) *dataloader.Loader[stri
 		func(_ context.Context, pubkeys []string) []*dataloader.Result[[]*nostr.Event] {
 			return sys.batchLoadAddressableEvents(kind, pubkeys)
 		},
-		dataloader.WithBatchCapacity[string, []*nostr.Event](60),
+		dataloader.WithBatchCapacity[string, []*nostr.Event](30),
 		dataloader.WithClearCacheOnBatch[string, []*nostr.Event](),
 		dataloader.WithCache(&dataloader.NoCache[string, []*nostr.Event]{}),
 		dataloader.WithWait[string, []*nostr.Event](time.Millisecond*350),
@@ -86,7 +86,7 @@ func (sys *System) batchLoadAddressableEvents(
 			}
 
 			// gather relays we'll use for this pubkey
-			relays := sys.determineRelaysToQuery(ctx, pubkey, kind)
+			relays := sys.determineRelaysToQuery(pubkey, kind)
 
 			// by default we will return an error (this will be overwritten when we find an event)
 			results[i] = &dataloader.Result[[]*nostr.Event]{

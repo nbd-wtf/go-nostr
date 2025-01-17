@@ -435,7 +435,7 @@ func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
 
 			relay, err := pool.EnsureRelay(nm)
 			if err != nil {
-				debugLogf("error connecting to %s with %v: %s", relay, filters, err)
+				debugLogf("error connecting to %s with %v: %s", nm, filters, err)
 				return
 			}
 

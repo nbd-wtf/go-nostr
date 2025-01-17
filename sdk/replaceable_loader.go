@@ -70,7 +70,7 @@ func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[stri
 
 			return sys.batchLoadReplaceableEvents(ctx, kind, pubkeys)
 		},
-		dataloader.WithBatchCapacity[string, *nostr.Event](60),
+		dataloader.WithBatchCapacity[string, *nostr.Event](30),
 		dataloader.WithClearCacheOnBatch[string, *nostr.Event](),
 		dataloader.WithCache(&dataloader.NoCache[string, *nostr.Event]{}),
 		dataloader.WithWait[string, *nostr.Event](time.Millisecond*350),
@@ -116,7 +116,7 @@ func (sys *System) batchLoadReplaceableEvents(
 			}
 
 			// gather relays we'll use for this pubkey
-			relays := sys.determineRelaysToQuery(ctx, pubkey, kind)
+			relays := sys.determineRelaysToQuery(pubkey, kind)
 
 			// by default we will return an error (this will be overwritten when we find an event)
 			results[i] = &dataloader.Result[*nostr.Event]{
@@ -170,7 +170,7 @@ func (sys *System) batchLoadReplaceableEvents(
 	}
 }
 
-func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, kind int) []string {
+func (sys *System) determineRelaysToQuery(pubkey string, kind int) []string {
 	var relays []string
 
 	// search in specific relays for user

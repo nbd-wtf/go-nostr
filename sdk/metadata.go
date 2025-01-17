@@ -122,7 +122,7 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm 
 		pm, _ = ParseMetadata(evt)
 
 		// save on store even if the metadata json is malformed
-		if sys.StoreRelay != nil && pm.Event != nil {
+		if pm.Event != nil {
 			sys.StoreRelay.Publish(ctx, *pm.Event)
 		}
 	}
