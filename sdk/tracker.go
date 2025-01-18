@@ -82,7 +82,7 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 				continue
 			}
 			if tag[0] == "p" && nostr.IsValidPublicKey(tag[1]) {
-				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInTag, ie.CreatedAt)
+				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInHint, ie.CreatedAt)
 			}
 		}
 	default:
@@ -100,7 +100,7 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 				continue
 			}
 			if tag[0] == "p" && nostr.IsValidPublicKey(tag[1]) {
-				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInTag, ie.CreatedAt)
+				sys.Hints.Save(tag[1], nostr.NormalizeURL(tag[2]), hints.LastInHint, ie.CreatedAt)
 			}
 		}
 
@@ -114,7 +114,7 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 						continue
 					}
 					if nostr.IsValidPublicKey(ref.Profile.PublicKey) {
-						sys.Hints.Save(ref.Profile.PublicKey, nostr.NormalizeURL(relay), hints.LastInNprofile, ie.CreatedAt)
+						sys.Hints.Save(ref.Profile.PublicKey, nostr.NormalizeURL(relay), hints.LastInHint, ie.CreatedAt)
 					}
 				}
 			} else if ref.Event != nil && nostr.IsValidPublicKey(ref.Event.Author) {
@@ -125,7 +125,7 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 					if p, err := url.Parse(relay); err != nil || (p.Scheme != "wss" && p.Scheme != "ws") {
 						continue
 					}
-					sys.Hints.Save(ref.Event.Author, nostr.NormalizeURL(relay), hints.LastInNevent, ie.CreatedAt)
+					sys.Hints.Save(ref.Event.Author, nostr.NormalizeURL(relay), hints.LastInHint, ie.CreatedAt)
 				}
 			}
 		}

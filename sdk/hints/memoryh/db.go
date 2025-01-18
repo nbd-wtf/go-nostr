@@ -114,7 +114,7 @@ type RelaysForPubKey struct {
 
 type RelayEntry struct {
 	Relay      int
-	Timestamps [7]nostr.Timestamp
+	Timestamps [4]nostr.Timestamp
 }
 
 func (re RelayEntry) Sum() int64 {

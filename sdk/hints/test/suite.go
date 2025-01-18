@@ -23,21 +23,21 @@ func runTestWith(t *testing.T, hdb hints.HintsDB) {
 
 	// key1: finding out
 	// add some random parameters things and see what we get
-	hdb.Save(key1, relayA, hints.LastInTag, nostr.Now()-60*hour)
+	hdb.Save(key1, relayA, hints.LastInHint, nostr.Now()-60*hour)
 	hdb.Save(key1, relayB, hints.LastInRelayList, nostr.Now()-day*10)
-	hdb.Save(key1, relayB, hints.LastInNevent, nostr.Now()-day*30)
-	hdb.Save(key1, relayA, hints.LastInNprofile, nostr.Now()-hour*10)
+	hdb.Save(key1, relayB, hints.LastInHint, nostr.Now()-day*30)
+	hdb.Save(key1, relayA, hints.LastInHint, nostr.Now()-hour*6)
 	hdb.PrintScores()
 
 	require.Equal(t, []string{relayB, relayA}, hdb.TopN(key1, 3))
 
 	hdb.Save(key1, relayA, hints.LastFetchAttempt, nostr.Now()-5*hour)
-	hdb.Save(key1, relayC, hints.LastInNIP05, nostr.Now()-5*hour)
+	hdb.Save(key1, relayC, hints.LastInHint, nostr.Now()-5*hour)
 	hdb.PrintScores()
 
 	require.Equal(t, []string{relayB, relayC, relayA}, hdb.TopN(key1, 3))
 
-	hdb.Save(key1, relayC, hints.LastInTag, nostr.Now()-5*hour)
+	hdb.Save(key1, relayA, hints.LastInHint, nostr.Now()-1*hour)
 	hdb.Save(key1, relayC, hints.LastFetchAttempt, nostr.Now()-5*hour)
 	hdb.PrintScores()
 
@@ -54,10 +54,7 @@ func runTestWith(t *testing.T, hdb hints.HintsDB) {
 	hdb.Save(key2, relayB, hints.LastInRelayList, nostr.Now()-day*25)
 
 	// but it's old, recently we only see hints for relay C
-	hdb.Save(key2, relayC, hints.LastInTag, nostr.Now()-5*hour)
-	hdb.Save(key2, relayC, hints.LastInNIP05, nostr.Now()-5*hour)
-	hdb.Save(key2, relayC, hints.LastInNevent, nostr.Now()-5*hour)
-	hdb.Save(key2, relayC, hints.LastInNprofile, nostr.Now()-5*hour)
+	hdb.Save(key2, relayC, hints.LastInHint, nostr.Now()-4*hour)
 
 	// at this point we just barely see C coming first
 	hdb.PrintScores()
@@ -66,9 +63,9 @@ func runTestWith(t *testing.T, hdb hints.HintsDB) {
 	// yet a different thing for key3
 	// it doesn't have relay lists published because it's banned everywhere
 	// all it has are references to its posts from others
-	hdb.Save(key3, relayA, hints.LastInTag, nostr.Now()-day*2)
-	hdb.Save(key3, relayB, hints.LastInNevent, nostr.Now()-day)
-	hdb.Save(key3, relayB, hints.LastInTag, nostr.Now()-day)
+	hdb.Save(key3, relayA, hints.LastInHint, nostr.Now()-day*2)
+	hdb.Save(key3, relayB, hints.LastInHint, nostr.Now()-day)
+	hdb.Save(key3, relayB, hints.LastInHint, nostr.Now()-day)
 	hdb.PrintScores()
 	require.Equal(t, []string{relayB, relayA}, hdb.TopN(key3, 3))
 
@@ -88,22 +85,16 @@ func runTestWith(t *testing.T, hdb hints.HintsDB) {
 	hdb.Save(key4, relayA, hints.LastInRelayList, banDate)
 	hdb.Save(key4, relayA, hints.LastFetchAttempt, banDate)
 	hdb.Save(key4, relayA, hints.MostRecentEventFetched, banDate)
-	hdb.Save(key4, relayA, hints.LastInNprofile, banDate+8*day)
-	hdb.Save(key4, relayA, hints.LastInNIP05, banDate+5*day)
+	hdb.Save(key4, relayA, hints.LastInHint, banDate+12*day)
 	hdb.Save(key4, relayB, hints.LastInRelayList, banDate)
 	hdb.Save(key4, relayB, hints.LastFetchAttempt, banDate)
 	hdb.Save(key4, relayB, hints.MostRecentEventFetched, banDate)
-	hdb.Save(key4, relayB, hints.LastInNevent, banDate+5*day)
-	hdb.Save(key4, relayB, hints.LastInNIP05, banDate+8*day)
-	hdb.Save(key4, relayB, hints.LastInNprofile, banDate+5*day)
+	hdb.Save(key4, relayB, hints.LastInHint, banDate+2*day)
 	hdb.PrintScores()
 	require.Equal(t, []string{relayA, relayB}, hdb.TopN(key4, 3))
 
 	// information about the new relay starts to spread through relay hints in tags only
-	hdb.Save(key4, relayC, hints.LastInTag, nostr.Now()-5*day)
-	hdb.Save(key4, relayC, hints.LastInTag, nostr.Now()-5*day)
-	hdb.Save(key4, relayC, hints.LastInNevent, nostr.Now()-5*day)
-	hdb.Save(key4, relayC, hints.LastInNIP05, nostr.Now()-5*day)
+	hdb.Save(key4, relayC, hints.LastInHint, nostr.Now()-3*day)
 
 	// as long as we see one tag hint the new relay will already be in our map
 	hdb.PrintScores()

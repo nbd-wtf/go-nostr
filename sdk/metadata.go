@@ -3,7 +3,6 @@ package sdk
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -83,13 +82,9 @@ func (sys System) FetchProfileFromInput(ctx context.Context, nip19OrNip05Code st
 		return ProfileMetadata{}, fmt.Errorf("couldn't decode profile reference")
 	}
 
-	hintType := hints.LastInNIP05
-	if strings.HasPrefix(nip19OrNip05Code, "nprofile") {
-		hintType = hints.LastInNprofile
-	}
 	for _, r := range p.Relays {
 		if !IsVirtualRelay(r) {
-			sys.Hints.Save(p.PublicKey, nostr.NormalizeURL(r), hintType, nostr.Now())
+			sys.Hints.Save(p.PublicKey, nostr.NormalizeURL(r), hints.LastInHint, nostr.Now())
 		}
 	}
 
