@@ -28,9 +28,3 @@ func encodeTimestamp(t nostr.Timestamp) []byte {
 func decodeTimestamp(b []byte) nostr.Timestamp {
 	return nostr.Timestamp(binary.BigEndian.Uint32(b))
 }
-
-// shouldRefreshFromNetwork checks if we should try fetching from network
-func shouldRefreshFromNetwork(lastFetchData []byte) bool {
-	lastFetch := decodeTimestamp(lastFetchData)
-	return nostr.Now()-lastFetch > 7*24*60*60
-}

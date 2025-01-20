@@ -24,7 +24,7 @@ func (s *Store) Get(key []byte) ([]byte, error) {
 	defer s.RUnlock()
 
 	if val, ok := s.data[string(key)]; ok {
-		// Return a copy to prevent modification of stored data
+		// return a copy to prevent modification of stored data
 		cp := make([]byte, len(val))
 		copy(cp, val)
 		return cp, nil
@@ -36,7 +36,7 @@ func (s *Store) Set(key []byte, value []byte) error {
 	s.Lock()
 	defer s.Unlock()
 
-	// Store a copy to prevent modification of stored data
+	// store a copy to prevent modification of stored data
 	cp := make([]byte, len(value))
 	copy(cp, value)
 	s.data[string(key)] = cp

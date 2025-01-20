@@ -3,7 +3,6 @@ package sdk
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -138,30 +137,6 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm 
 	sys.MetadataCache.SetWithTTL(pubkey, pm, time.Hour*6)
 
 	return pm
-}
-
-// FetchUserEvents fetches events from each users' outbox relays, grouping queries when possible.
-func (sys *System) FetchUserEvents(ctx context.Context, filter nostr.Filter) (map[string][]*nostr.Event, error) {
-	filters, err := sys.ExpandQueriesByAuthorAndRelays(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to expand queries: %w", err)
-	}
-
-	results := make(map[string][]*nostr.Event)
-	wg := sync.WaitGroup{}
-	wg.Add(len(filters))
-	for relayURL, filter := range filters {
-		go func(relayURL string, filter nostr.Filter) {
-			defer wg.Done()
-			filter.Limit = filter.Limit * len(filter.Authors) // hack
-			for ie := range sys.Pool.SubManyEose(ctx, []string{relayURL}, nostr.Filters{filter}, nostr.WithLabel("userevts")) {
-				results[ie.PubKey] = append(results[ie.PubKey], ie.Event)
-			}
-		}(relayURL, filter)
-	}
-	wg.Wait()
-
-	return results, nil
 }
 
 func (sys *System) tryFetchMetadataFromNetwork(ctx context.Context, pubkey string) *ProfileMetadata {
