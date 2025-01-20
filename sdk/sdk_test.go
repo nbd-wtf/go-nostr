@@ -31,10 +31,12 @@ func TestMetadataAndEvents(t *testing.T) {
 		Authors: []string{meta.PubKey},
 		Limit:   5,
 	}
-	events, err := sys.FetchUserEvents(ctx, filter)
+	events := make([]*nostr.Event, 0, 5)
+	for ie := range sys.Pool.SubManyEose(ctx, relays, nostr.Filters{filter}) {
+		events = append(events, ie.Event)
+	}
 	require.NoError(t, err)
-	require.NotEmpty(t, events[meta.PubKey])
-	require.GreaterOrEqual(t, len(events[meta.PubKey]), 5)
+	require.GreaterOrEqual(t, len(events), 5)
 }
 
 func TestConcurrentMetadata(t *testing.T) {

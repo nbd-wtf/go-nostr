@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -33,10 +34,16 @@ func (sys *System) StreamLiveFeed(
 ) (<-chan *nostr.Event, error) {
 	events := make(chan *nostr.Event)
 
+	active := atomic.Int32{}
+	active.Add(int32(len(pubkeys)))
+
 	// start a subscription for each relay group
 	for _, pubkey := range pubkeys {
 		relays := sys.FetchOutboxRelays(ctx, pubkey, 2)
 		if len(relays) == 0 {
+			if active.Add(-1) == 0 {
+				close(events)
+			}
 			continue
 		}
 
@@ -59,9 +66,9 @@ func (sys *System) StreamLiveFeed(
 			Kinds:   kinds,
 		}
 
-		sub := sys.Pool.SubMany(ctx, relays, nostr.Filters{filter})
-		for evt := range sub {
-			go func() {
+		go func() {
+			sub := sys.Pool.SubMany(ctx, relays, nostr.Filters{filter})
+			for evt := range sub {
 				sys.StoreRelay.Publish(ctx, *evt.Event)
 				if latest < evt.CreatedAt {
 					latest = evt.CreatedAt
@@ -73,9 +80,14 @@ func (sys *System) StreamLiveFeed(
 					oldest = evt.CreatedAt
 					sys.KVStore.Set(oldestKey, encodeTimestamp(oldest))
 				}
-			}()
-			events <- evt.Event
-		}
+
+				events <- evt.Event
+			}
+
+			if active.Add(-1) == 0 {
+				close(events)
+			}
+		}()
 	}
 
 	return events, nil
