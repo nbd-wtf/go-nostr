@@ -57,7 +57,7 @@ func fetchGenericSets[I TagItemWithValue](
 		// but if we haven't tried fetching from the network recently we should do it
 		lastFetchKey := makeLastFetchKey(actualKind, pubkey)
 		lastFetchData, _ := sys.KVStore.Get(lastFetchKey)
-		if nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
+		if lastFetchData == nil || nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
 			newV := tryFetchSetsFromNetwork(ctx, sys, pubkey, addressableIndex, parseTag)
 
 			// unlike for lists, when fetching sets we will blindly trust whatever we get from the network

@@ -108,7 +108,7 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm 
 		// but if we haven't tried fetching from the network recently we should do it
 		lastFetchKey := makeLastFetchKey(0, pubkey)
 		lastFetchData, _ := sys.KVStore.Get(lastFetchKey)
-		if nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
+		if lastFetchData == nil || nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
 			newM := sys.tryFetchMetadataFromNetwork(ctx, pubkey)
 			if newM != nil && newM.Event.CreatedAt > pm.Event.CreatedAt {
 				pm = *newM
