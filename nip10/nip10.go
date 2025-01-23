@@ -12,7 +12,12 @@ func GetThreadRoot(tags nostr.Tags) *nostr.Tag {
 	return tags.GetFirst([]string{"e", ""})
 }
 
+// Deprecated: this was misnamed, use GetImmediateParent instead.
 func GetImmediateReply(tags nostr.Tags) *nostr.Tag {
+	return GetImmediateParent(tags)
+}
+
+func GetImmediateParent(tags nostr.Tags) *nostr.Tag {
 	var root *nostr.Tag
 	var lastE *nostr.Tag
 
