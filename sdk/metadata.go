@@ -98,6 +98,8 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm 
 		return v
 	}
 
+	pm.PubKey = pubkey
+
 	res, _ := sys.StoreRelay.QuerySync(ctx, nostr.Filter{Kinds: []int{0}, Authors: []string{pubkey}})
 	if len(res) != 0 {
 		// ok, we found something locally
