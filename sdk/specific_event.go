@@ -19,15 +19,15 @@ func (sys *System) FetchSpecificEventFromInput(
 ) (event *nostr.Event, successRelays []string, err error) {
 	var pointer nostr.Pointer
 
-	_, data, err := nip19.Decode(input)
+	prefix, data, err := nip19.Decode(input)
 	if err == nil {
-		switch p := data.(type) {
-		case nostr.EventPointer:
-			pointer = p
-		case nostr.EntityPointer:
-			pointer = p
-		case string:
-			pointer = nostr.EventPointer{ID: input}
+		switch prefix {
+		case "nevent":
+			pointer = data.(nostr.EventPointer)
+		case "naddr":
+			pointer = data.(nostr.EntityPointer)
+		case "note":
+			pointer = nostr.EventPointer{ID: data.(string)}
 		default:
 			return nil, nil, fmt.Errorf("invalid code '%s'", input)
 		}
