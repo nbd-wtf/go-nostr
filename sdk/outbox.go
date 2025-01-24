@@ -41,3 +41,19 @@ func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) 
 
 	return relays
 }
+
+func (sys *System) FetchInboxRelays(ctx context.Context, pubkey string, n int) []string {
+	rl := sys.FetchRelayList(ctx, pubkey)
+	if len(rl.Items) == 0 || len(rl.Items) > 7 {
+		return []string{"wss://relay.damus.io", "wss://nos.lol"}
+	}
+
+	relays := make([]string, 0, n)
+	for _, r := range rl.Items {
+		if r.Inbox {
+			relays = append(relays, r.URL)
+		}
+	}
+
+	return relays
+}
