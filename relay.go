@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -187,7 +188,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			case <-ticker.C:
 				if r.Connection != nil {
 					err := r.Connection.Ping(r.connectionContext)
-					if err != nil {
+					if err != nil && !strings.Contains(err.Error(), "failed to wait for pong") {
 						InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
 						r.Close() // this should trigger a context cancelation
 						return
