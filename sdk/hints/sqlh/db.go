@@ -47,19 +47,91 @@ func NewSQLHints(db *sql.DB, driverName string) (SQLHints, error) {
 		}
 	}
 
-	_, err := sh.Exec(`CREATE TABLE IF NOT EXISTS nostr_sdk_pubkey_relays (pubkey text, relay text, ` + cols.String())
-	if err != nil {
+	// db migrations
+	if txn, err := sh.Beginx(); err != nil {
 		return SQLHints{}, err
-	}
+	} else {
+		if _, err := txn.Exec(`CREATE TABLE IF NOT EXISTS nostr_sdk_db_version (version int)`); err != nil {
+			txn.Rollback()
+			return SQLHints{}, err
+		}
+		var version int
+		if err := txn.Get(&version, `SELECT version FROM nostr_sdk_db_version`); err != nil && err != sql.ErrNoRows {
+			txn.Rollback()
+			return SQLHints{}, err
+		}
 
-	_, err = sh.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS pkr ON nostr_sdk_pubkey_relays (pubkey, relay)`)
-	if err != nil {
-		return SQLHints{}, err
-	}
+		if version == 0 {
+			if _, err := txn.Exec(`INSERT INTO nostr_sdk_db_version VALUES (0)`); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+			version = 1
+			if _, err := txn.Exec(
+				`CREATE TABLE IF NOT EXISTS nostr_sdk_pubkey_relays (pubkey text, relay text, ` +
+					cols.String(),
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+			if _, err := txn.Exec(
+				`CREATE UNIQUE INDEX IF NOT EXISTS pkr ON nostr_sdk_pubkey_relays (pubkey, relay)`,
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+			if _, err := txn.Exec(
+				`CREATE INDEX IF NOT EXISTS bypk ON nostr_sdk_pubkey_relays (pubkey)`,
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+		}
 
-	_, err = sh.Exec(`CREATE INDEX IF NOT EXISTS bypk ON nostr_sdk_pubkey_relays (pubkey)`)
-	if err != nil {
-		return SQLHints{}, err
+		if version == 1 {
+			version = 2
+			if _, err := txn.Exec(
+				`ALTER TABLE nostr_sdk_pubkey_relays DROP COLUMN last_in_tag`,
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+			if _, err := txn.Exec(
+				`ALTER TABLE nostr_sdk_pubkey_relays DROP COLUMN last_in_nprofile`,
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+			if _, err := txn.Exec(
+				`ALTER TABLE nostr_sdk_pubkey_relays DROP COLUMN last_in_nevent`,
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+			if _, err := txn.Exec(
+				`ALTER TABLE nostr_sdk_pubkey_relays DROP COLUMN last_in_nip05`,
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+			if _, err := txn.Exec(
+				`ALTER TABLE nostr_sdk_pubkey_relays ADD COLUMN last_in_hint integer`,
+			); err != nil {
+				txn.Rollback()
+				return SQLHints{}, err
+			}
+		}
+
+		if _, err := txn.Exec(
+			fmt.Sprintf(`UPDATE nostr_sdk_db_version SET version = %d`, version),
+		); err != nil {
+			txn.Rollback()
+			return SQLHints{}, err
+		}
+		if err := txn.Commit(); err != nil {
+			txn.Rollback()
+			return SQLHints{}, err
+		}
 	}
 
 	// prepare statements
