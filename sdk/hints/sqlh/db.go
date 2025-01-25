@@ -33,20 +33,6 @@ func NewSQLHints(db *sql.DB, driverName string) (SQLHints, error) {
 		return sh, fmt.Errorf("unknown database driver '%s'", driverName)
 	}
 
-	// create table and indexes
-	cols := strings.Builder{}
-	cols.Grow(len(hints.KeyBasePoints) * 20)
-	for i := range hints.KeyBasePoints {
-		name := hints.HintKey(i).String()
-		cols.WriteString(name)
-		cols.WriteString(" integer")
-		if i == len(hints.KeyBasePoints)-1 {
-			cols.WriteString(")")
-		} else {
-			cols.WriteString(",")
-		}
-	}
-
 	// db migrations
 	if txn, err := sh.Beginx(); err != nil {
 		return SQLHints{}, err
@@ -68,8 +54,17 @@ func NewSQLHints(db *sql.DB, driverName string) (SQLHints, error) {
 			}
 			version = 1
 			if _, err := txn.Exec(
-				`CREATE TABLE IF NOT EXISTS nostr_sdk_pubkey_relays (pubkey text, relay text, ` +
-					cols.String(),
+				`CREATE TABLE IF NOT EXISTS nostr_sdk_pubkey_relays (` +
+					`pubkey text, ` +
+					`relay text, ` +
+					`last_fetch_attempt integer, ` +
+					`most_recent_event_fetched integer, ` +
+					`last_in_relay_list integer, ` +
+					`last_in_tag integer, ` +
+					`last_in_nprofile integer, ` +
+					`last_in_nevent integer, ` +
+					`last_in_nip05 integer ` +
+					`)`,
 			); err != nil {
 				txn.Rollback()
 				return SQLHints{}, err
