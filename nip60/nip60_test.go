@@ -2,10 +2,11 @@ package nip60
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/elnosh/gonuts/cashu"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/keyer"
 	"github.com/stretchr/testify/require"
@@ -17,26 +18,27 @@ func TestWalletRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 
 	// create initial wallets with arbitrary data
+	sk1, _ := btcec.NewPrivateKey()
 	wallet1 := Wallet{
 		Identifier:  "wallet1",
 		Name:        "My First Wallet",
 		Description: "Test wallet number one",
-		PrivateKey:  "secret123",
+		PrivateKey:  sk1,
 		Relays:      []string{"wss://relay1.example.com", "wss://relay2.example.com"},
 		Mints:       []string{"https://mint1.example.com"},
 		Tokens: []Token{
 			{
 				Mint: "https://mint1.example.com",
-				Proofs: []Proof{
-					{ID: "proof1", Amount: 100, Secret: "secret1", C: "c1"},
-					{ID: "proof2", Amount: 200, Secret: "secret2", C: "c2"},
+				Proofs: []cashu.Proof{
+					{Id: "proof1", Amount: 100, Secret: "secret1", C: "c1"},
+					{Id: "proof2", Amount: 200, Secret: "secret2", C: "c2"},
 				},
 				mintedAt: nostr.Now(),
 			},
 			{
 				Mint: "https://mint2.example.com",
-				Proofs: []Proof{
-					{ID: "proof3", Amount: 500, Secret: "secret3", C: "c3"},
+				Proofs: []cashu.Proof{
+					{Id: "proof3", Amount: 500, Secret: "secret3", C: "c3"},
 				},
 				mintedAt: nostr.Now(),
 			},
@@ -55,18 +57,19 @@ func TestWalletRoundtrip(t *testing.T) {
 		},
 	}
 
+	sk2, _ := btcec.NewPrivateKey()
 	wallet2 := Wallet{
 		Identifier:  "wallet2",
 		Name:        "Second Wallet",
 		Description: "Test wallet number two",
-		PrivateKey:  "secret456",
+		PrivateKey:  sk2,
 		Relays:      []string{"wss://relay3.example.com"},
 		Mints:       []string{"https://mint2.example.com"},
 		Tokens: []Token{
 			{
 				Mint: "https://mint2.example.com",
-				Proofs: []Proof{
-					{ID: "proof3", Amount: 500, Secret: "secret3", C: "c3"},
+				Proofs: []cashu.Proof{
+					{Id: "proof3", Amount: 500, Secret: "secret3", C: "c3"},
 				},
 				mintedAt: nostr.Now(),
 			},
@@ -125,13 +128,15 @@ func TestWalletRoundtrip(t *testing.T) {
 
 		// load wallets from events
 		errorChan := make(chan error)
-		walletStash := LoadWallets(ctx, kr, eventChan, errorChan)
+		walletStash := LoadStash(ctx, kr, eventChan, errorChan)
 
 		var errorChanErr error
 		go func() {
 			for {
 				errorChanErr = <-errorChan
-				fmt.Println(errorChanErr)
+				if errorChanErr != nil {
+					return
+				}
 			}
 		}()
 
@@ -143,6 +148,7 @@ func TestWalletRoundtrip(t *testing.T) {
 		loadedWallet1 := walletStash.wallets[wallet1.Identifier]
 		require.Equal(t, wallet1.Name, loadedWallet1.Name)
 		require.Equal(t, wallet1.Description, loadedWallet1.Description)
+		require.Equal(t, wallet1.Mints, loadedWallet1.Mints)
 		require.Equal(t, wallet1.PrivateKey, loadedWallet1.PrivateKey)
 		require.Len(t, loadedWallet1.Tokens, len(wallet1.Tokens))
 		require.Len(t, loadedWallet1.History, len(wallet1.History))
@@ -150,6 +156,7 @@ func TestWalletRoundtrip(t *testing.T) {
 		loadedWallet2 := walletStash.wallets[wallet2.Identifier]
 		require.Equal(t, wallet2.Name, loadedWallet2.Name)
 		require.Equal(t, wallet2.Description, loadedWallet2.Description)
+		require.Equal(t, wallet2.Mints, loadedWallet2.Mints)
 		require.Equal(t, wallet2.PrivateKey, loadedWallet2.PrivateKey)
 		require.Len(t, loadedWallet2.Tokens, len(wallet2.Tokens))
 		require.Len(t, loadedWallet2.History, len(wallet2.History))

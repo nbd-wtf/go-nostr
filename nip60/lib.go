@@ -17,7 +17,15 @@ type WalletStash struct {
 	pendingHistory map[string][]HistoryEntry // history entries not yet assigned to a wallet
 }
 
-func LoadWallets(
+func NewStash() *WalletStash {
+	return &WalletStash{
+		wallets:        make(map[string]*Wallet, 1),
+		pendingTokens:  make(map[string][]Token),
+		pendingHistory: make(map[string][]HistoryEntry),
+	}
+}
+
+func LoadStash(
 	ctx context.Context,
 	kr nostr.Keyer,
 	events <-chan *nostr.Event,

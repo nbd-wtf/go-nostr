@@ -2,10 +2,13 @@ package nip60
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
 
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -13,19 +16,20 @@ type Wallet struct {
 	Identifier  string
 	Description string
 	Name        string
-	PrivateKey  string
+	PrivateKey  *btcec.PrivateKey
+	PublicKey   *btcec.PublicKey
 	Relays      []string
 	Mints       []string
 	Tokens      []Token
 	History     []HistoryEntry
 
-	temporaryBalance uint32
+	temporaryBalance uint64
 }
 
-func (w Wallet) Balance() uint32 {
-	var sum uint32
+func (w Wallet) Balance() uint64 {
+	var sum uint64
 	for _, token := range w.Tokens {
-		sum += token.Amount()
+		sum += token.Proofs.Amount()
 	}
 	return sum
 }
@@ -44,7 +48,7 @@ func (w Wallet) ToPublishableEvents(ctx context.Context, kr nostr.Keyer, skipExi
 
 	evt.Content, err = kr.Encrypt(
 		ctx,
-		fmt.Sprintf(`[["balance","%d","sat"],["privkey","%s"]]`, w.Balance(), w.PrivateKey),
+		fmt.Sprintf(`[["balance","%d","sat"],["privkey","%x"]]`, w.Balance(), w.PrivateKey.Serialize()),
 		pk,
 	)
 	if err != nil {
@@ -63,6 +67,9 @@ func (w Wallet) ToPublishableEvents(ctx context.Context, kr nostr.Keyer, skipExi
 	}
 	for _, relay := range w.Relays {
 		evt.Tags = append(evt.Tags, nostr.Tag{"relay", relay})
+	}
+	for _, mint := range w.Mints {
+		evt.Tags = append(evt.Tags, nostr.Tag{"mint", mint})
 	}
 
 	err = kr.SignEvent(ctx, &evt)
@@ -141,6 +148,7 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 		}
 		switch tag[0] {
 		case "d":
+			essential++
 			w.Identifier = tag[1]
 		case "name":
 			w.Name = tag[1]
@@ -154,9 +162,16 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 		case "relay":
 			w.Relays = append(w.Relays, tag[1])
 		case "mint":
+			essential++
 			w.Mints = append(w.Mints, tag[1])
 		case "privkey":
-			w.PrivateKey = tag[1]
+			essential++
+			skb, err := hex.DecodeString(tag[1])
+			if err != nil {
+				return fmt.Errorf("failed to parse private key: %w", err)
+			}
+			w.PrivateKey = secp256k1.PrivKeyFromBytes(skb)
+			w.PublicKey = w.PrivateKey.PubKey()
 		case "balance":
 			if len(tag) < 3 {
 				return fmt.Errorf("'balance' tag must have at least 3 items")
@@ -164,12 +179,16 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 			if tag[2] != "sat" {
 				return fmt.Errorf("only 'sat' wallets are supported")
 			}
-			v, err := strconv.ParseUint(tag[1], 10, 32)
+			v, err := strconv.ParseUint(tag[1], 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid 'balance' %s: %w", tag[1], err)
 			}
-			w.temporaryBalance = uint32(v)
+			w.temporaryBalance = v
 		}
+	}
+
+	if essential < 4 {
+		return fmt.Errorf("missing essential tags %s", evt)
 	}
 
 	return nil

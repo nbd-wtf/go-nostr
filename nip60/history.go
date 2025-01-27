@@ -11,7 +11,7 @@ import (
 
 type HistoryEntry struct {
 	In     bool // in = received, out = sent
-	Amount uint32
+	Amount uint64
 
 	tokenEventIDs []string
 	nutZaps       []bool
@@ -120,11 +120,11 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 			if tag[2] != "sat" {
 				return fmt.Errorf("only 'sat' wallets are supported")
 			}
-			v, err := strconv.ParseUint(tag[1], 10, 32)
+			v, err := strconv.ParseUint(tag[1], 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid 'amount' %s: %w", tag[1], err)
 			}
-			h.Amount = uint32(v)
+			h.Amount = v
 		case "e":
 			essential++
 			if len(tag) < 4 {

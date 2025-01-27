@@ -5,30 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/elnosh/gonuts/cashu"
 	"github.com/nbd-wtf/go-nostr"
 )
 
 type Token struct {
-	Mint   string  `json:"mint"`
-	Proofs []Proof `json:"proofs"`
+	Mint   string       `json:"mint"`
+	Proofs cashu.Proofs `json:"proofs"`
 
 	mintedAt nostr.Timestamp
 	event    *nostr.Event
-}
-
-type Proof struct {
-	ID     string `json:"id"`
-	Amount uint32 `json:"amount"`
-	Secret string `json:"secret"`
-	C      string `json:"C"`
-}
-
-func (t Token) Amount() uint32 {
-	var sum uint32
-	for _, p := range t.Proofs {
-		sum += p.Amount
-	}
-	return sum
 }
 
 func (t Token) toEvent(ctx context.Context, kr nostr.Keyer, walletId string, evt *nostr.Event) error {
