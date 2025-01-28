@@ -22,7 +22,7 @@ import (
 	"github.com/elnosh/gonuts/crypto"
 )
 
-func calculateFee(inputs cashu.Proofs, keysets []nut02.Keyset) uint {
+func calculateFee(inputs cashu.Proofs, keysets []nut02.Keyset) uint64 {
 	var n uint = 0
 next:
 	for _, proof := range inputs {
@@ -35,13 +35,14 @@ next:
 
 		panic(fmt.Errorf("spending a proof we don't have the keyset for? %v // %v", proof, keysets))
 	}
-	return (n + 999) / 1000
+	return uint64((n + 999) / 1000)
 }
 
 // returns blinded messages, secrets - [][]byte, and list of r
 func createBlindedMessages(
 	splitAmounts []uint64,
 	keysetId string,
+	spendingCondition *nut10.SpendingCondition,
 ) (cashu.BlindedMessages, []string, []*secp256k1.PrivateKey, error) {
 	splitLen := len(splitAmounts)
 	blindedMessages := make(cashu.BlindedMessages, splitLen)
@@ -49,11 +50,23 @@ func createBlindedMessages(
 	rs := make([]*secp256k1.PrivateKey, splitLen)
 
 	for i, amt := range splitAmounts {
-		var secret string
-		var r *secp256k1.PrivateKey
-		secret, r, err := generateRandomSecret()
+		r, err := secp256k1.GeneratePrivateKey()
 		if err != nil {
 			return nil, nil, nil, err
+		}
+
+		var secret string
+		if spendingCondition != nil {
+			secret, err = nut10.NewSecretFromSpendingCondition(*spendingCondition)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		} else {
+			secretBytes := make([]byte, 32)
+			if _, err := rand.Read(secretBytes); err != nil {
+				return nil, nil, nil, err
+			}
+			secret = hex.EncodeToString(secretBytes)
 		}
 
 		B_, r, err := crypto.BlindMessage(secret, r)
@@ -67,22 +80,6 @@ func createBlindedMessages(
 	}
 
 	return blindedMessages, secrets, rs, nil
-}
-
-func generateRandomSecret() (string, *secp256k1.PrivateKey, error) {
-	r, err := secp256k1.GeneratePrivateKey()
-	if err != nil {
-		return "", nil, err
-	}
-
-	secretBytes := make([]byte, 32)
-	_, err = rand.Read(secretBytes)
-	if err != nil {
-		return "", nil, err
-	}
-	secret := hex.EncodeToString(secretBytes)
-
-	return secret, r, nil
 }
 
 func splitWalletTarget(proofs cashu.Proofs, amountToSplit uint64, mint string) []uint64 {

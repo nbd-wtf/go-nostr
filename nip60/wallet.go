@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -24,9 +25,10 @@ type Wallet struct {
 	History     []HistoryEntry
 
 	temporaryBalance uint64
+	tokensMu         sync.Mutex
 }
 
-func (w Wallet) Balance() uint64 {
+func (w *Wallet) Balance() uint64 {
 	var sum uint64
 	for _, token := range w.Tokens {
 		sum += token.Proofs.Amount()
@@ -34,14 +36,14 @@ func (w Wallet) Balance() uint64 {
 	return sum
 }
 
-func (w Wallet) DisplayName() string {
+func (w *Wallet) DisplayName() string {
 	if w.Name != "" {
 		return fmt.Sprintf("%s (%s)", w.Name, w.Identifier)
 	}
 	return w.Identifier
 }
 
-func (w Wallet) ToPublishableEvents(
+func (w *Wallet) ToPublishableEvents(
 	ctx context.Context,
 	kr nostr.Keyer,
 	skipExisting bool,
@@ -91,6 +93,7 @@ func (w Wallet) ToPublishableEvents(
 	events := make([]nostr.Event, 0, 1+len(w.Tokens))
 	events = append(events, evt)
 
+	w.tokensMu.Lock()
 	for _, t := range w.Tokens {
 		var evt nostr.Event
 
@@ -108,6 +111,7 @@ func (w Wallet) ToPublishableEvents(
 
 		events = append(events, evt)
 	}
+	w.tokensMu.Unlock()
 
 	for _, h := range w.History {
 		var evt nostr.Event

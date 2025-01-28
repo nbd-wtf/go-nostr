@@ -90,9 +90,12 @@ func LoadStash(
 				for _, he := range wl.pendingHistory[wallet.Identifier] {
 					wallet.History = append(wallet.History, he)
 				}
+
+				wallet.tokensMu.Lock()
 				for _, token := range wl.pendingTokens[wallet.Identifier] {
 					wallet.Tokens = append(wallet.Tokens, token)
 				}
+				wallet.tokensMu.Unlock()
 
 				wl.wallets[wallet.Identifier] = wallet
 
@@ -124,7 +127,9 @@ func LoadStash(
 				}
 
 				if wallet, ok := wl.wallets[spl[2]]; ok {
+					wallet.tokensMu.Lock()
 					wallet.Tokens = append(wallet.Tokens, token)
+					wallet.tokensMu.Unlock()
 				} else {
 					wl.pendingTokens[spl[2]] = append(wl.pendingTokens[spl[2]], token)
 				}

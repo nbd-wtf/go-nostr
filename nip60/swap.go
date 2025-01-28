@@ -3,132 +3,110 @@ package nip60
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/elnosh/gonuts/cashu"
-	"github.com/elnosh/gonuts/cashu/nuts/nut02"
-	"github.com/elnosh/gonuts/cashu/nuts/nut04"
-	"github.com/elnosh/gonuts/cashu/nuts/nut05"
+	"github.com/elnosh/gonuts/cashu/nuts/nut03"
+	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 	"github.com/nbd-wtf/go-nostr/nip60/client"
 )
 
-// lightningMeltMint does the lightning dance of moving funds between mints
-func lightningMeltMint(
+type SwapOption func(*swapSettings)
+
+func WithSignedOutputs() SwapOption {
+	return func(ss *swapSettings) {
+		ss.mustSignOutputs = true
+	}
+}
+
+func WithSpendingCondition(sc nut10.SpendingCondition) SwapOption {
+	return func(ss *swapSettings) {
+		ss.spendingCondition = &sc
+	}
+}
+
+type swapSettings struct {
+	spendingCondition *nut10.SpendingCondition
+	mustSignOutputs   bool
+}
+
+func (w *Wallet) SwapProofs(
 	ctx context.Context,
+	mint string,
 	proofs cashu.Proofs,
-	from string,
-	fromKeysets []nut02.Keyset,
-	to string,
-) (newProofs cashu.Proofs, err error, canTryWithAnotherTargetMint bool, manualActionRequired bool) {
-	// get active keyset of target mint
-	keyset, err := client.GetActiveKeyset(ctx, to)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get keyset keys for %s: %w", to, err), true, false
+	targetAmount uint64,
+	opts ...SwapOption,
+) (principal cashu.Proofs, change cashu.Proofs, err error) {
+	var ss swapSettings
+	for _, opt := range opts {
+		opt(&ss)
 	}
 
-	// unblind the signatures from the promises and build the proofs
-	keysetKeys, err := parseKeysetKeys(keyset.Keys)
+	// fetch all this keyset drama first
+	keysets, err := client.GetAllKeysets(ctx, mint)
 	if err != nil {
-		return nil, fmt.Errorf("target mint %s sent us an invalid keyset: %w", to, err), true, false
+		return nil, nil, fmt.Errorf("failed to get all keysets for %s: %w", mint, err)
+	}
+	activeKeyset, err := client.GetActiveKeyset(ctx, mint)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get active keyset for %s: %w", mint, err)
+	}
+	ksKeys, err := parseKeysetKeys(activeKeyset.Keys)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse keys for %s: %w", mint, err)
 	}
 
-	// now we start the melt-mint process in multiple attempts
-	invoicePct := 0.99
+	// decide the shape of the proofs we'll swap for
 	proofsAmount := proofs.Amount()
-	amount := float64(proofsAmount) * invoicePct
-	fee := uint64(calculateFee(proofs, fromKeysets))
-	var meltQuote string
-	var mintQuote string
-	for range 10 {
-		// request _mint_ quote to the 'to' mint -- this will generate an invoice
-		mintResp, err := client.PostMintQuoteBolt11(ctx, to, nut04.PostMintQuoteBolt11Request{
-			Amount: uint64(amount) - fee,
-			Unit:   cashu.Sat.String(),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error requesting mint quote from %s: %w", to, err), true, false
-		}
-
-		// request _melt_ quote from the 'from' mint
-		// this melt will pay the invoice generated from the previous mint quote request
-		meltResp, err := client.PostMeltQuoteBolt11(ctx, from, nut05.PostMeltQuoteBolt11Request{
-			Request: mintResp.Request,
-			Unit:    cashu.Sat.String(),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error requesting melt quote from %s: %w", from, err), false, false
-		}
-
-		// if amount in proofs is less than amount asked from mint in melt request,
-		// lower the amount for mint request (because of lighting fees?)
-		if meltResp.Amount+meltResp.FeeReserve+fee > proofsAmount {
-			invoicePct -= 0.01
-			amount *= invoicePct
-		} else {
-			meltQuote = meltResp.Quote
-			mintQuote = mintResp.Quote
-			goto meltworked
-		}
+	var (
+		principalAmount uint64
+		changeAmount    uint64
+	)
+	fee := calculateFee(proofs, keysets)
+	if targetAmount < proofsAmount {
+		// we'll get the exact target, then a change, and fee will be taken from the change
+		changeAmount = proofsAmount - targetAmount - fee
+	} else if targetAmount == proofsAmount {
+		// we're swapping everything, so take the fee from the principal
+		principalAmount = targetAmount - fee
+	} else {
+		return nil, nil, fmt.Errorf("can't swap for more than we are sending: %d > %d",
+			targetAmount, proofsAmount)
 	}
+	splits := make([]uint64, 0, len(proofs)*2)
+	splits = append(splits, cashu.AmountSplit(principalAmount)...)
+	changeStartIndex := len(splits)
+	splits = append(splits, cashu.AmountSplit(changeAmount)...)
 
-	return nil, fmt.Errorf("stop trying to do the melt because the mint part is too expensive"), true, false
-
-meltworked:
-	// request from mint to pay invoice from the mint quote request
-	_, err = client.PostMeltBolt11(ctx, from, nut05.PostMeltBolt11Request{
-		Quote:  meltQuote,
-		Inputs: proofs,
-	})
+	// prepare message to send to mint
+	outputs, secrets, rs, err := createBlindedMessages(splits, activeKeyset.Id, ss.spendingCondition)
 	if err != nil {
-		return nil, fmt.Errorf("error melting token: %v", err), false, true
+		return nil, nil, fmt.Errorf("failed to create blinded message: %w", err)
 	}
 
-	sleepTime := time.Millisecond * 200
-	failures := 0
-	for range 12 {
-		sleepTime *= 2
-		time.Sleep(sleepTime)
-
-		// check if the _mint_ invoice was paid
-		mintQuoteStatusResp, err := client.GetMintQuoteState(ctx, to, mintQuote)
-		if err != nil {
-			failures++
-			if failures > 10 {
-				return nil, fmt.Errorf(
-					"target mint %s failed to answer to our mint quote checks (%s): %w; a manual fix is needed",
-					to, meltQuote, err,
-				), false, true
+	if ss.mustSignOutputs {
+		for i, output := range outputs {
+			outputs[i].Witness, err = signOutput(w.PrivateKey, output)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to sign output message %d: %w", i, err)
 			}
 		}
-
-		// if it wasn't paid try again
-		if mintQuoteStatusResp.State != nut04.Paid {
-			continue
-		}
-
-		// if it got paid make proceed to get proofs
-		split := []uint64{1, 2, 3, 4}
-		blindedMessages, secrets, rs, err := createBlindedMessages(split, keyset.Id)
-		if err != nil {
-			return nil, fmt.Errorf("error creating blinded messages: %v", err), false, true
-		}
-
-		// request mint to sign the blinded messages
-		mintResponse, err := client.PostMintBolt11(ctx, to, nut04.PostMintBolt11Request{
-			Quote:   mintQuote,
-			Outputs: blindedMessages,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("mint request to %s failed (%s): %w", to, mintQuote, err), false, true
-		}
-
-		proofs, err := constructProofs(mintResponse.Signatures, blindedMessages, secrets, rs, keysetKeys)
-		if err != nil {
-			return nil, fmt.Errorf("error constructing proofs: %w", err), false, true
-		}
-
-		return proofs, nil, false, false
 	}
 
-	return nil, fmt.Errorf("we gave up waiting for the invoice at %s to be paid: %s", to, meltQuote), false, true
+	req := nut03.PostSwapRequest{
+		Inputs:  proofs,
+		Outputs: outputs,
+	}
+
+	res, err := client.PostSwap(ctx, mint, req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to claim received tokens at %s: %w", mint, err)
+	}
+
+	// build the proofs locally from mint's response
+	newProofs, err := constructProofs(res.Signatures, req.Outputs, secrets, rs, ksKeys)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to construct proofs: %w", err)
+	}
+
+	return newProofs[0:changeStartIndex], newProofs[changeStartIndex:], nil
 }

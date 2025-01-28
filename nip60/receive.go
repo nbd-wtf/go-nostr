@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elnosh/gonuts/cashu"
-	"github.com/elnosh/gonuts/cashu/nuts/nut02"
-	"github.com/elnosh/gonuts/cashu/nuts/nut03"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip60/client"
@@ -21,9 +18,9 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	}
 
 	source := "http" + nostr.NormalizeURL(token.Mint())[2:]
-	swap := slices.Contains(w.Mints, source)
+	lightningSwap := slices.Contains(w.Mints, source)
 	proofs := token.Proofs()
-	isp2pk := false
+	swapOpts := make([]SwapOption, 0, 1)
 
 	for i, proof := range proofs {
 		if proof.Secret != "" {
@@ -31,7 +28,7 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 			if err == nil {
 				switch nut10Secret.Kind {
 				case nut10.P2PK:
-					isp2pk = true
+					swapOpts = append(swapOpts, WithSignedOutputs())
 					proofs[i].Witness, err = signInput(w.PrivateKey, w.PublicKey, proof, nut10Secret)
 					if err != nil {
 						return fmt.Errorf("failed to sign locked proof %d: %w", i, err)
@@ -49,58 +46,18 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	if err != nil {
 		return fmt.Errorf("failed to get %s keysets: %w", source, err)
 	}
-	var sourceActiveKeyset nut02.Keyset
-	var sourceActiveKeys map[uint64]*btcec.PublicKey
-	for _, keyset := range sourceKeysets {
-		if keyset.Unit == cashu.Sat.String() && keyset.Active {
-			sourceActiveKeyset = keyset
-			sourceActiveKeysHex, err := client.GetKeysetById(ctx, source, keyset.Id)
-			if err != nil {
-				return fmt.Errorf("failed to get keyset keys for %s: %w", keyset.Id, err)
-			}
-			sourceActiveKeys, err = parseKeysetKeys(sourceActiveKeysHex)
-		}
-	}
 
 	// get new proofs
-	splits := make([]uint64, len(proofs))
-	for i, p := range proofs { // TODO: do the fee stuff here because it won't always be free
-		splits[i] = p.Amount
-	}
-
-	outputs, secrets, rs, err := createBlindedMessages(splits, sourceActiveKeyset.Id)
+	_, newProofs, err := w.SwapProofs(ctx, source, proofs, proofs.Amount(), swapOpts...)
 	if err != nil {
-		return fmt.Errorf("failed to create blinded message: %w", err)
+		return err
 	}
 
-	if isp2pk {
-		for i, output := range outputs {
-			outputs[i].Witness, err = signOutput(w.PrivateKey, output)
-			if err != nil {
-				return fmt.Errorf("failed to sign output message %d: %w", i, err)
-			}
-		}
-	}
-
-	req := nut03.PostSwapRequest{
-		Inputs:  proofs,
-		Outputs: outputs,
-	}
-
-	res, err := client.PostSwap(ctx, source, req)
-	if err != nil {
-		return fmt.Errorf("failed to claim received tokens at %s: %w", source, err)
-	}
-
-	newProofs, err := constructProofs(res.Signatures, req.Outputs, secrets, rs, sourceActiveKeys)
-	if err != nil {
-		return fmt.Errorf("failed to construct proofs: %w", err)
-	}
-	newMint := source
+	newMint := source // if we don't have to do a lightning swap then new mint will be the same as old mint
 
 	// if we have to swap to our own mint we do it now by getting a bolt11 invoice from our mint
 	// and telling the current mint to pay it
-	if swap {
+	if lightningSwap {
 		for _, targetMint := range w.Mints {
 			swappedProofs, err, tryAnother, needsManualAction := lightningMeltMint(
 				ctx,
@@ -132,11 +89,13 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	}
 
 saveproofs:
+	w.tokensMu.Lock()
 	w.Tokens = append(w.Tokens, Token{
 		Mint:     newMint,
 		Proofs:   newProofs,
 		mintedAt: nostr.Now(),
 	})
+	w.tokensMu.Unlock()
 
 	return nil
 }
