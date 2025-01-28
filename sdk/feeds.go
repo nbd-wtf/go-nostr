@@ -121,7 +121,7 @@ func (sys *System) FetchFeedPage(
 			filter.Since = &oldest
 		}
 
-		if filter.Since != nil && *filter.Until < until {
+		if filter.Since != nil && *filter.Since < until {
 			// eligible for a local query
 			filter.Until = &until
 			res, err := sys.StoreRelay.QuerySync(ctx, filter)
@@ -156,7 +156,7 @@ func (sys *System) FetchFeedPage(
 				events = append(events, ie.Event)
 			}
 			wg.Done()
-			if oldest != 0 && oldest < *filter.Until {
+			if oldest != 0 && filter.Until != nil && oldest < *filter.Until {
 				sys.KVStore.Set(oldestKey, encodeTimestamp(oldest))
 			}
 		}()
