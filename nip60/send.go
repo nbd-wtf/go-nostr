@@ -130,24 +130,50 @@ found:
 	}
 
 	// delete spent tokens and save our change
-	newTokens := make([]Token, 0, len(w.Tokens))
-	for i, token := range w.Tokens {
-		if slices.Contains(target.tokenIndexes, i) {
-			continue
-		}
-		newTokens = append(newTokens, token)
-	}
-	w.Tokens = append(newTokens, Token{
+	updatedTokens := make([]Token, 0, len(w.Tokens))
+
+	changeToken := Token{
 		mintedAt: nostr.Now(),
 		Mint:     target.mint,
 		Proofs:   changeProofs,
-	})
+		Deleted:  make([]string, 0, len(target.tokenIndexes)),
+		event:    &nostr.Event{},
+	}
+
+	for i, token := range w.Tokens {
+		if slices.Contains(target.tokenIndexes, i) {
+			if token.event != nil {
+				token.Deleted = append(token.Deleted, token.event.ID)
+
+				deleteEvent := nostr.Event{
+					CreatedAt: nostr.Now(),
+					Kind:      5,
+					Tags:      nostr.Tags{{"e", token.event.ID}},
+				}
+				w.wl.kr.SignEvent(ctx, &deleteEvent)
+				w.wl.Changes <- deleteEvent
+			}
+			continue
+		}
+		updatedTokens = append(updatedTokens, token)
+	}
+
+	if err := changeToken.toEvent(ctx, w.wl.kr, w.Identifier, changeToken.event); err != nil {
+		return "", fmt.Errorf("failed to make change token: %w", err)
+	}
+	w.wl.Changes <- *changeToken.event
+
+	w.Tokens = append(updatedTokens, changeToken)
 
 	// serialize token we're sending out
 	token, err := cashu.NewTokenV4(proofsToSend, target.mint, cashu.Sat, true)
 	if err != nil {
 		return "", err
 	}
+
+	wevt := nostr.Event{}
+	w.toEvent(ctx, w.wl.kr, &wevt)
+	w.wl.Changes <- wevt
 
 	return token.Serialize()
 }

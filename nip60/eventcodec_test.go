@@ -98,11 +98,33 @@ func TestWalletRoundtrip(t *testing.T) {
 	}
 
 	// convert wallets to events
-	events1, err := wallet1.ToPublishableEvents(ctx, kr, false)
-	require.NoError(t, err)
+	events := [][]nostr.Event{
+		make([]nostr.Event, 0, 4),
+		make([]nostr.Event, 0, 4),
+	}
 
-	events2, err := wallet2.ToPublishableEvents(ctx, kr, false)
-	require.NoError(t, err)
+	for i, w := range []*Wallet{&wallet1, &wallet2} {
+		evt := nostr.Event{}
+		err := w.toEvent(ctx, kr, &evt)
+		require.NoError(t, err)
+		events[i] = append(events[i], evt)
+
+		for _, token := range w.Tokens {
+			evt = nostr.Event{}
+			err = token.toEvent(ctx, kr, w.Identifier, &evt)
+			require.NoError(t, err)
+			events[i] = append(events[i], evt)
+		}
+
+		for _, he := range w.History {
+			evt = nostr.Event{}
+			err = he.toEvent(ctx, kr, w.Identifier, &evt)
+			require.NoError(t, err)
+			events[i] = append(events[i], evt)
+		}
+	}
+
+	events1, events2 := events[0], events[1]
 
 	// combine all events
 	allEvents := append(events1, events2...)
@@ -127,13 +149,12 @@ func TestWalletRoundtrip(t *testing.T) {
 		}()
 
 		// load wallets from events
-		errorChan := make(chan error)
-		walletStash := LoadStash(ctx, kr, eventChan, errorChan)
+		walletStash := loadStash(ctx, kr, eventChan, make(chan struct{}))
 
 		var errorChanErr error
 		go func() {
 			for {
-				errorChanErr = <-errorChan
+				errorChanErr = <-walletStash.Processed
 				if errorChanErr != nil {
 					return
 				}

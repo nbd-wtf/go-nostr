@@ -89,13 +89,25 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	}
 
 saveproofs:
-	w.tokensMu.Lock()
-	w.Tokens = append(w.Tokens, Token{
+	newToken := Token{
 		Mint:     newMint,
 		Proofs:   newProofs,
 		mintedAt: nostr.Now(),
-	})
+		event:    &nostr.Event{},
+	}
+	if err := newToken.toEvent(ctx, w.wl.kr, w.Identifier, newToken.event); err != nil {
+		return fmt.Errorf("failed to make new token: %w", err)
+	}
+
+	w.wl.Changes <- *newToken.event
+
+	w.tokensMu.Lock()
+	w.Tokens = append(w.Tokens, newToken)
 	w.tokensMu.Unlock()
+
+	wevt := nostr.Event{}
+	w.toEvent(ctx, w.wl.kr, &wevt)
+	w.wl.Changes <- wevt
 
 	return nil
 }

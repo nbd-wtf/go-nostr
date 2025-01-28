@@ -14,6 +14,8 @@ import (
 )
 
 type Wallet struct {
+	wl *WalletStash
+
 	Identifier  string
 	Description string
 	Name        string
@@ -26,6 +28,9 @@ type Wallet struct {
 
 	temporaryBalance uint64
 	tokensMu         sync.Mutex
+
+	event                 *nostr.Event
+	tokensPendingDeletion []string
 }
 
 func (w *Wallet) Balance() uint64 {
@@ -43,20 +48,14 @@ func (w *Wallet) DisplayName() string {
 	return w.Identifier
 }
 
-func (w *Wallet) ToPublishableEvents(
-	ctx context.Context,
-	kr nostr.Keyer,
-	skipExisting bool,
-) ([]nostr.Event, error) {
-	evt := nostr.Event{
-		CreatedAt: nostr.Now(),
-		Kind:      37375,
-		Tags:      make(nostr.Tags, 0, 7),
-	}
+func (w *Wallet) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
+	evt.CreatedAt = nostr.Now()
+	evt.Kind = 37375
+	evt.Tags = make(nostr.Tags, 0, 7)
 
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	evt.Content, err = kr.Encrypt(
@@ -65,7 +64,7 @@ func (w *Wallet) ToPublishableEvents(
 		pk,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	evt.Tags = append(evt.Tags,
@@ -85,64 +84,23 @@ func (w *Wallet) ToPublishableEvents(
 		evt.Tags = append(evt.Tags, nostr.Tag{"mint", mint})
 	}
 
-	err = kr.SignEvent(ctx, &evt)
+	err = kr.SignEvent(ctx, evt)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	events := make([]nostr.Event, 0, 1+len(w.Tokens))
-	events = append(events, evt)
-
-	w.tokensMu.Lock()
-	for _, t := range w.Tokens {
-		var evt nostr.Event
-
-		if t.event != nil {
-			if skipExisting {
-				continue
-			}
-			evt = *t.event
-		} else {
-			err := t.toEvent(ctx, kr, w.Identifier, &evt)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		events = append(events, evt)
-	}
-	w.tokensMu.Unlock()
-
-	for _, h := range w.History {
-		var evt nostr.Event
-
-		if h.event != nil {
-			if skipExisting {
-				continue
-			}
-			evt = *h.event
-		} else {
-			err := h.toEvent(ctx, kr, w.Identifier, &evt)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		events = append(events, evt)
-	}
-
-	return events, nil
+	return nil
 }
 
 func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
 	w.Tokens = make([]Token, 0, 128)
 	w.History = make([]HistoryEntry, 0, 128)
+	w.event = evt
 
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {
 		return err
 	}
-
 	jsonb, err := kr.Decrypt(ctx, evt.Content, pk)
 	if err != nil {
 		return err

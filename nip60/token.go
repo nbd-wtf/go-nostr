@@ -10,8 +10,9 @@ import (
 )
 
 type Token struct {
-	Mint   string       `json:"mint"`
-	Proofs cashu.Proofs `json:"proofs"`
+	Mint    string       `json:"mint"`
+	Proofs  cashu.Proofs `json:"proofs"`
+	Deleted []string     `json:"del,omitempty"`
 
 	mintedAt nostr.Timestamp
 	event    *nostr.Event
