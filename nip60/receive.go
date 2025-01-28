@@ -28,20 +28,19 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	for i, proof := range proofs {
 		if proof.Secret != "" {
 			nut10Secret, err := nut10.DeserializeSecret(proof.Secret)
-			if err != nil {
-				return fmt.Errorf("invalid nip10 secret at %d: %w", i, err)
-			}
-			switch nut10Secret.Kind {
-			case nut10.P2PK:
-				isp2pk = true
-				proofs[i].Witness, err = signInput(w.PrivateKey, w.PublicKey, proof, nut10Secret)
-				if err != nil {
-					return fmt.Errorf("failed to sign locked proof %d: %w", i, err)
+			if err == nil {
+				switch nut10Secret.Kind {
+				case nut10.P2PK:
+					isp2pk = true
+					proofs[i].Witness, err = signInput(w.PrivateKey, w.PublicKey, proof, nut10Secret)
+					if err != nil {
+						return fmt.Errorf("failed to sign locked proof %d: %w", i, err)
+					}
+				case nut10.HTLC:
+					return fmt.Errorf("HTLC token not supported yet")
+				case nut10.AnyoneCanSpend:
+					// ok
 				}
-			case nut10.HTLC:
-				return fmt.Errorf("HTLC token not supported yet")
-			case nut10.AnyoneCanSpend:
-				// ok
 			}
 		}
 	}
@@ -90,7 +89,7 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 
 	res, err := client.PostSwap(ctx, source, req)
 	if err != nil {
-		return fmt.Errorf("failed to swap %s->%s: %w", source, w.Mints[0], err)
+		return fmt.Errorf("failed to claim received tokens at %s: %w", source, err)
 	}
 
 	newProofs, err := constructProofs(res.Signatures, req.Outputs, secrets, rs, sourceActiveKeys)

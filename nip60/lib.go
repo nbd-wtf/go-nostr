@@ -3,9 +3,11 @@ package nip60
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strings"
 	"sync"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -15,6 +17,40 @@ type WalletStash struct {
 
 	pendingTokens  map[string][]Token        // tokens not yet assigned to a wallet
 	pendingHistory map[string][]HistoryEntry // history entries not yet assigned to a wallet
+}
+
+func (wl *WalletStash) EnsureWallet(id string) *Wallet {
+	wl.Lock()
+	defer wl.Unlock()
+	if w, ok := wl.wallets[id]; ok {
+		return w
+	}
+
+	sk, err := btcec.NewPrivateKey()
+	if err != nil {
+		panic(err)
+	}
+
+	w := &Wallet{
+		Identifier: id,
+		PrivateKey: sk,
+		PublicKey:  sk.PubKey(),
+	}
+	wl.wallets[id] = w
+	return w
+}
+
+func (wl *WalletStash) Wallets() iter.Seq[*Wallet] {
+	return func(yield func(*Wallet) bool) {
+		wl.Lock()
+		defer wl.Unlock()
+
+		for _, w := range wl.wallets {
+			if !yield(w) {
+				return
+			}
+		}
+	}
 }
 
 func NewStash() *WalletStash {
@@ -28,7 +64,7 @@ func NewStash() *WalletStash {
 func LoadStash(
 	ctx context.Context,
 	kr nostr.Keyer,
-	events <-chan *nostr.Event,
+	events <-chan nostr.RelayEvent,
 	errors chan<- error,
 ) *WalletStash {
 	wl := &WalletStash{
@@ -38,15 +74,15 @@ func LoadStash(
 	}
 
 	go func() {
-		for evt := range events {
+		for ie := range events {
 			wl.Lock()
-			switch evt.Kind {
+			switch ie.Event.Kind {
 			case 37375:
 				wallet := &Wallet{}
-				if err := wallet.parse(ctx, kr, evt); err != nil {
+				if err := wallet.parse(ctx, kr, ie.Event); err != nil {
 					wl.Unlock()
 					if errors != nil {
-						errors <- fmt.Errorf("event %s failed: %w", evt, err)
+						errors <- fmt.Errorf("event %s failed: %w", ie.Event, err)
 					}
 					continue
 				}
@@ -61,11 +97,11 @@ func LoadStash(
 				wl.wallets[wallet.Identifier] = wallet
 
 			case 7375: // token
-				ref := evt.Tags.GetFirst([]string{"a", ""})
+				ref := ie.Event.Tags.GetFirst([]string{"a", ""})
 				if ref == nil {
 					wl.Unlock()
 					if errors != nil {
-						errors <- fmt.Errorf("event %s missing 'a' tag", evt)
+						errors <- fmt.Errorf("event %s missing 'a' tag", ie.Event)
 					}
 					continue
 				}
@@ -73,16 +109,16 @@ func LoadStash(
 				if len(spl) < 3 {
 					wl.Unlock()
 					if errors != nil {
-						errors <- fmt.Errorf("event %s invalid 'a' tag", evt)
+						errors <- fmt.Errorf("event %s invalid 'a' tag", ie.Event)
 					}
 					continue
 				}
 
 				token := Token{}
-				if err := token.parse(ctx, kr, evt); err != nil {
+				if err := token.parse(ctx, kr, ie.Event); err != nil {
 					wl.Unlock()
 					if errors != nil {
-						errors <- fmt.Errorf("event %s failed: %w", evt, err)
+						errors <- fmt.Errorf("event %s failed: %w", ie.Event, err)
 					}
 					continue
 				}
@@ -94,11 +130,11 @@ func LoadStash(
 				}
 
 			case 7376: // history
-				ref := evt.Tags.GetFirst([]string{"a", ""})
+				ref := ie.Event.Tags.GetFirst([]string{"a", ""})
 				if ref == nil {
 					wl.Unlock()
 					if errors != nil {
-						errors <- fmt.Errorf("event %s missing 'a' tag", evt)
+						errors <- fmt.Errorf("event %s missing 'a' tag", ie.Event)
 					}
 					continue
 				}
@@ -106,16 +142,16 @@ func LoadStash(
 				if len(spl) < 3 {
 					wl.Unlock()
 					if errors != nil {
-						errors <- fmt.Errorf("event %s invalid 'a' tag", evt)
+						errors <- fmt.Errorf("event %s invalid 'a' tag", ie.Event)
 					}
 					continue
 				}
 
 				he := HistoryEntry{}
-				if err := he.parse(ctx, kr, evt); err != nil {
+				if err := he.parse(ctx, kr, ie.Event); err != nil {
 					wl.Unlock()
 					if errors != nil {
-						errors <- fmt.Errorf("event %s failed: %w", evt, err)
+						errors <- fmt.Errorf("event %s failed: %w", ie.Event, err)
 					}
 					continue
 				}

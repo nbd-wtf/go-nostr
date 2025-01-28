@@ -34,7 +34,18 @@ func (w Wallet) Balance() uint64 {
 	return sum
 }
 
-func (w Wallet) ToPublishableEvents(ctx context.Context, kr nostr.Keyer, skipExisting bool) ([]nostr.Event, error) {
+func (w Wallet) DisplayName() string {
+	if w.Name != "" {
+		return fmt.Sprintf("%s (%s)", w.Name, w.Identifier)
+	}
+	return w.Identifier
+}
+
+func (w Wallet) ToPublishableEvents(
+	ctx context.Context,
+	kr nostr.Keyer,
+	skipExisting bool,
+) ([]nostr.Event, error) {
 	evt := nostr.Event{
 		CreatedAt: nostr.Now(),
 		Kind:      37375,
@@ -162,7 +173,6 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 		case "relay":
 			w.Relays = append(w.Relays, tag[1])
 		case "mint":
-			essential++
 			w.Mints = append(w.Mints, tag[1])
 		case "privkey":
 			essential++
@@ -187,8 +197,8 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 		}
 	}
 
-	if essential < 4 {
-		return fmt.Errorf("missing essential tags %s", evt)
+	if essential != 3 {
+		return fmt.Errorf("missing essential tags")
 	}
 
 	return nil

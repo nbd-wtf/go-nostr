@@ -116,11 +116,11 @@ func TestWalletRoundtrip(t *testing.T) {
 
 	for _, allEvents := range [][]nostr.Event{allEvents, reversedAllEvents} {
 		// create channel and feed events into it
-		eventChan := make(chan *nostr.Event)
+		eventChan := make(chan nostr.RelayEvent)
 		done := make(chan struct{})
 		go func() {
 			for _, evt := range allEvents {
-				eventChan <- &evt
+				eventChan <- nostr.RelayEvent{Event: &evt}
 			}
 			close(eventChan)
 			done <- struct{}{}
