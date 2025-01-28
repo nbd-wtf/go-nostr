@@ -64,10 +64,12 @@ func (w *Wallet) SwapProofs(
 	fee := calculateFee(proofs, keysets)
 	if targetAmount < proofsAmount {
 		// we'll get the exact target, then a change, and fee will be taken from the change
+		principalAmount = targetAmount
 		changeAmount = proofsAmount - targetAmount - fee
 	} else if targetAmount == proofsAmount {
 		// we're swapping everything, so take the fee from the principal
 		principalAmount = targetAmount - fee
+		changeAmount = 0
 	} else {
 		return nil, nil, fmt.Errorf("can't swap for more than we are sending: %d > %d",
 			targetAmount, proofsAmount)
@@ -99,7 +101,7 @@ func (w *Wallet) SwapProofs(
 
 	res, err := client.PostSwap(ctx, mint, req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to claim received tokens at %s: %w", mint, err)
+		return nil, nil, fmt.Errorf("failed to swap tokens at %s: %w", mint, err)
 	}
 
 	// build the proofs locally from mint's response

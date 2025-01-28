@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
-	"slices"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -82,65 +80,9 @@ func createBlindedMessages(
 	return blindedMessages, secrets, rs, nil
 }
 
-func splitWalletTarget(proofs cashu.Proofs, amountToSplit uint64, mint string) []uint64 {
-	target := 3
-
-	// amounts that are in wallet
-	amountsInWallet := make([]uint64, len(proofs))
-	for i, proof := range proofs {
-		amountsInWallet[i] = proof.Amount
-	}
-	slices.Sort(amountsInWallet)
-
-	allPossibleAmounts := make([]uint64, crypto.MAX_ORDER)
-	for i := 0; i < crypto.MAX_ORDER; i++ {
-		amount := uint64(math.Pow(2, float64(i)))
-		allPossibleAmounts[i] = amount
-	}
-
-	// based on amounts that are already in the wallet
-	// define what amounts wanted to reach target
-	var neededAmounts []uint64
-	for _, amount := range allPossibleAmounts {
-		count := cashu.Count(amountsInWallet, amount)
-		timesToAdd := cashu.Max(0, uint64(target)-uint64(count))
-		for i := 0; i < int(timesToAdd); i++ {
-			neededAmounts = append(neededAmounts, amount)
-		}
-	}
-	slices.Sort(neededAmounts)
-
-	// fill in based on the needed amounts
-	// that are below the amount passed (amountToSplit)
-	var amounts []uint64
-	var amountsSum uint64 = 0
-	for amountsSum < amountToSplit {
-		if len(neededAmounts) > 0 {
-			if amountsSum+neededAmounts[0] > amountToSplit {
-				break
-			}
-			amounts = append(amounts, neededAmounts[0])
-			amountsSum += neededAmounts[0]
-			neededAmounts = slices.Delete(neededAmounts, 0, 1)
-		} else {
-			break
-		}
-	}
-
-	remainingAmount := amountToSplit - amountsSum
-	if remainingAmount > 0 {
-		amounts = append(amounts, cashu.AmountSplit(remainingAmount)...)
-	}
-	slices.Sort(amounts)
-
-	return amounts
-}
-
 func signInput(
 	privateKey *btcec.PrivateKey,
-	publicKey *btcec.PublicKey,
 	proof cashu.Proof,
-	nut10Secret nut10.WellKnownSecret,
 ) (string, error) {
 	hash := sha256.Sum256([]byte(proof.Secret))
 	signature, err := schnorr.Sign(privateKey, hash[:])

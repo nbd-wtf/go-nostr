@@ -29,7 +29,7 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 				switch nut10Secret.Kind {
 				case nut10.P2PK:
 					swapOpts = append(swapOpts, WithSignedOutputs())
-					proofs[i].Witness, err = signInput(w.PrivateKey, w.PublicKey, proof, nut10Secret)
+					proofs[i].Witness, err = signInput(w.PrivateKey, proof)
 					if err != nil {
 						return fmt.Errorf("failed to sign locked proof %d: %w", i, err)
 					}
