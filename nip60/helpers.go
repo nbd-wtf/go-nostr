@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -200,4 +202,58 @@ func parseKeysetKeys(keys nut01.KeysMap) (map[uint64]*btcec.PublicKey, error) {
 		parsedKeys[amount] = pubkey
 	}
 	return parsedKeys, nil
+}
+
+func getSatoshisAmountFromBolt11(bolt11 string) (uint64, error) {
+	if len(bolt11) < 50 {
+		return 0, fmt.Errorf("invalid invoice, too short")
+	}
+	bolt11 = bolt11[0:50]
+	idx := strings.LastIndex(bolt11, "1")
+	if idx == -1 {
+		return 0, fmt.Errorf("invalid invoice")
+	}
+	hrp := bolt11[0:idx]
+	amount, ok := strings.CutPrefix(hrp, "lnbc")
+	if !ok {
+		return 0, fmt.Errorf("invalid invoice")
+	}
+	if len(amount) < 1 {
+		return 0, nil
+	}
+
+	// if last character is a digit, then the amount can just be interpreted as BTC
+	char := amount[len(amount)-1]
+	digit := char - '0'
+	isDigit := digit >= 0 && digit <= 9
+
+	cutPoint := len(amount) - 1
+	if isDigit {
+		cutPoint++
+	}
+
+	// if not a digit, it must be part of the known units
+	num := amount[:cutPoint]
+	if len(num) < 1 {
+		return 0, nil
+	}
+
+	am, err := strconv.ParseUint(num, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	switch char {
+	case 'm':
+		return am * 100000, nil
+	case 'u':
+		return am * 100, nil
+	case 'n':
+		return am / 10, nil
+	case 'p':
+		return am / 10000, nil
+	default:
+		// is BTC
+		return am * 100000000, nil
+	}
 }
