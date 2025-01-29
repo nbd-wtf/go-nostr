@@ -6,6 +6,7 @@ import (
 	"iter"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/nbd-wtf/go-nostr"
@@ -46,7 +47,10 @@ func LoadStash(
 	events := pool.SubManyNotifyEOSE(
 		ctx,
 		relays,
-		nostr.Filters{{Kinds: []int{5, 37375, 7375, 7376}, Authors: []string{pk}}},
+		nostr.Filters{
+			{Kinds: []int{37375, 7375, 7376}, Authors: []string{pk}},
+			{Kinds: []int{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []string{pk}},
+		},
 		eoseChan,
 	)
 
@@ -81,6 +85,7 @@ func loadStash(
 		}
 		wl.pendingDeletions = nil
 
+		time.Sleep(100 * time.Millisecond) // race condition hack
 		close(wl.Stable)
 	}()
 
@@ -204,6 +209,7 @@ func loadStash(
 				}
 			}
 
+			wl.Processed <- nil
 			wl.Unlock()
 		}
 	}()

@@ -148,7 +148,7 @@ found:
 				deleteEvent := nostr.Event{
 					CreatedAt: nostr.Now(),
 					Kind:      5,
-					Tags:      nostr.Tags{{"e", token.event.ID}},
+					Tags:      nostr.Tags{{"e", token.event.ID}, {"k", "7375"}},
 				}
 				w.wl.kr.SignEvent(ctx, &deleteEvent)
 				w.wl.Changes <- deleteEvent

@@ -48,7 +48,7 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	}
 
 	// get new proofs
-	_, newProofs, err := w.SwapProofs(ctx, source, proofs, proofs.Amount(), swapOpts...)
+	newProofs, _, err := w.SwapProofs(ctx, source, proofs, proofs.Amount(), swapOpts...)
 	if err != nil {
 		return err
 	}
