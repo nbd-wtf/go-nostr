@@ -108,38 +108,50 @@ func (sys *System) FetchFeedPage(
 ) ([]*nostr.Event, error) {
 	limitPerKey := PerQueryLimitInBatch(totalLimit, len(pubkeys))
 	events := make([]*nostr.Event, 0, len(pubkeys)*limitPerKey)
+	eventMap := make(map[string]struct{})
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(pubkeys))
 
 	for _, pubkey := range pubkeys {
+		var latestTimestamp nostr.Timestamp
+		var oldestTimestamp nostr.Timestamp
+		var pkEvents []*nostr.Event
 		oldestKey := makePubkeyStreamKey(pubkeyStreamOldestPrefix, pubkey)
+		latestKey := makePubkeyStreamKey(pubkeyStreamLatestPrefix, pubkey)
 
 		filter := nostr.Filter{Authors: []string{pubkey}, Kinds: kinds}
+		filter.Until = &until
 		if data, _ := sys.KVStore.Get(oldestKey); data != nil {
-			oldest := decodeTimestamp(data)
-			filter.Since = &oldest
+			oldestTimestamp = decodeTimestamp(data)
+		}
+		if data, _ := sys.KVStore.Get(latestKey); data != nil {
+			latestTimestamp = decodeTimestamp(data)
 		}
 
-		if filter.Since != nil && *filter.Since < until {
-			// eligible for a local query
-			filter.Until = &until
+		if oldestTimestamp != 0 && oldestTimestamp < until && latestTimestamp != 0 && latestTimestamp > until {
+			// Can query local store
+			filter.Since = &oldestTimestamp
 			res, err := sys.StoreRelay.QuerySync(ctx, filter)
 			if err != nil {
 				return nil, fmt.Errorf("query failure at '%s': %w", pubkey, err)
 			}
 
-			if len(res) >= limitPerKey {
+			for _, e := range res {
+				pkEvents = append(pkEvents, e)
+				eventMap[e.ID] = struct{}{}
+			}
+
+			if len(pkEvents) >= limitPerKey {
 				// we got enough from the local store
-				events = append(events, res...)
 				wg.Done()
 				continue
+			} else {
+				// need to look further back
+				filter.Until = filter.Since
+				filter.Since = nil
 			}
 		}
-
-		// if we didn't query the local store or we didn't get enough, then we will fetch from relays
-		filter.Until = filter.Since
-		filter.Since = nil
 
 		relays := sys.FetchOutboxRelays(ctx, pubkey, 2)
 		if len(relays) == 0 {
@@ -149,16 +161,32 @@ func (sys *System) FetchFeedPage(
 
 		go func() {
 			sub := sys.Pool.SubManyEose(ctx, relays, nostr.Filters{filter})
-			var oldest nostr.Timestamp
+
 			for ie := range sub {
-				sys.StoreRelay.Publish(ctx, *ie.Event)
-				oldest = ie.Event.CreatedAt
-				events = append(events, ie.Event)
+				if len(pkEvents) >= limitPerKey {
+					break
+				}
+				if _, exists := eventMap[ie.ID]; !exists {
+					sys.StoreRelay.Publish(ctx, *ie.Event)
+					eventMap[ie.ID] = struct{}{}
+					pkEvents = append(pkEvents, ie.Event)
+				}
+				if oldestTimestamp == 0 || ie.Event.CreatedAt < oldestTimestamp {
+					oldestTimestamp = ie.Event.CreatedAt
+				}
+				if latestTimestamp == 0 || ie.Event.CreatedAt > latestTimestamp {
+					latestTimestamp = ie.Event.CreatedAt
+				}
+			}
+
+			events = append(events, pkEvents...)
+			if oldestTimestamp != 0 {
+				sys.KVStore.Set(oldestKey, encodeTimestamp(oldestTimestamp))
+			}
+			if latestTimestamp != 0 {
+				sys.KVStore.Set(latestKey, encodeTimestamp(latestTimestamp))
 			}
 			wg.Done()
-			if oldest != 0 && filter.Until != nil && oldest < *filter.Until {
-				sys.KVStore.Set(oldestKey, encodeTimestamp(oldest))
-			}
 		}()
 	}
 
