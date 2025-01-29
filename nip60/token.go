@@ -18,6 +18,14 @@ type Token struct {
 	event    *nostr.Event
 }
 
+func (t Token) ID() string {
+	if t.event != nil {
+		return t.event.ID
+	}
+
+	return "<not-published>"
+}
+
 func (t Token) toEvent(ctx context.Context, kr nostr.Keyer, walletId string, evt *nostr.Event) error {
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {

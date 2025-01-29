@@ -59,7 +59,7 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	// and telling the current mint to pay it
 	if lightningSwap {
 		for _, targetMint := range w.Mints {
-			swappedProofs, err, tryAnother, needsManualAction := lightningMeltMint(
+			swappedProofs, err, status := lightningMeltMint(
 				ctx,
 				newProofs,
 				source,
@@ -67,11 +67,14 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 				targetMint,
 			)
 			if err != nil {
-				if tryAnother {
+				if status == tryAnotherTargetMint {
 					continue
 				}
-				if needsManualAction {
+				if status == manualActionRequired {
 					return fmt.Errorf("failed to swap (needs manual action): %w", err)
+				}
+				if status == nothingCanBeDone {
+					return fmt.Errorf("failed to swap (nothing can be done, we probably lost the money): %w", err)
 				}
 
 				// if we get here that means we still have our proofs from the untrusted mint, so save those

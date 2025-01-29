@@ -158,12 +158,13 @@ found:
 		updatedTokens = append(updatedTokens, token)
 	}
 
-	if err := changeToken.toEvent(ctx, w.wl.kr, w.Identifier, changeToken.event); err != nil {
-		return "", fmt.Errorf("failed to make change token: %w", err)
+	if len(changeToken.Proofs) > 0 {
+		if err := changeToken.toEvent(ctx, w.wl.kr, w.Identifier, changeToken.event); err != nil {
+			return "", fmt.Errorf("failed to make change token: %w", err)
+		}
+		w.wl.Changes <- *changeToken.event
+		w.Tokens = append(updatedTokens, changeToken)
 	}
-	w.wl.Changes <- *changeToken.event
-
-	w.Tokens = append(updatedTokens, changeToken)
 
 	// serialize token we're sending out
 	token, err := cashu.NewTokenV4(proofsToSend, target.mint, cashu.Sat, true)
