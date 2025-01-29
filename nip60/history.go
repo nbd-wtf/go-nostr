@@ -114,10 +114,10 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 			}
 		case "amount":
 			essential++
-			if len(tag) < 3 {
-				return fmt.Errorf("'amount' tag must have at least 3 items")
+			if len(tag) < 2 {
+				return fmt.Errorf("'amount' tag must have at least 2 items")
 			}
-			if tag[2] != "sat" {
+			if len(tag) >= 3 && tag[2] != "sat" {
 				return fmt.Errorf("only 'sat' wallets are supported")
 			}
 			v, err := strconv.ParseUint(tag[1], 10, 64)
