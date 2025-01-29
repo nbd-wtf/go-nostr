@@ -38,9 +38,33 @@ func LoadStash(
 	pool *nostr.SimplePool,
 	relays []string,
 ) *WalletStash {
+	return loadStashFromPool(ctx, kr, pool, relays, false)
+}
+
+func LoadStashWithHistory(
+	ctx context.Context,
+	kr nostr.Keyer,
+	pool *nostr.SimplePool,
+	relays []string,
+) *WalletStash {
+	return loadStashFromPool(ctx, kr, pool, relays, true)
+}
+
+func loadStashFromPool(
+	ctx context.Context,
+	kr nostr.Keyer,
+	pool *nostr.SimplePool,
+	relays []string,
+	withHistory bool,
+) *WalletStash {
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {
 		return nil
+	}
+
+	kinds := []int{37375, 7375}
+	if withHistory {
+		kinds = append(kinds, 7375)
 	}
 
 	eoseChan := make(chan struct{})
@@ -48,7 +72,7 @@ func LoadStash(
 		ctx,
 		relays,
 		nostr.Filters{
-			{Kinds: []int{37375, 7375, 7376}, Authors: []string{pk}},
+			{Kinds: kinds, Authors: []string{pk}},
 			{Kinds: []int{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []string{pk}},
 		},
 		eoseChan,

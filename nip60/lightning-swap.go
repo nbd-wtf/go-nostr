@@ -42,9 +42,9 @@ func lightningMeltMint(
 	}
 
 	// now we start the melt-mint process in multiple attempts
-	invoicePct := 0.99
+	invoicePct := uint64(99)
 	proofsAmount := proofs.Amount()
-	amount := float64(proofsAmount) * invoicePct
+	amount := proofsAmount * invoicePct / 100
 	fee := uint64(calculateFee(proofs, fromKeysets))
 	var meltQuote string
 	var mintQuote string
@@ -65,14 +65,14 @@ func lightningMeltMint(
 			Unit:    cashu.Sat.String(),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("error requesting melt quote from %s: %w", from, err), nothingCanBeDone
+			return nil, fmt.Errorf("error requesting melt quote from %s: %w", from, err), storeTokenFromSourceMint
 		}
 
 		// if amount in proofs is less than amount asked from mint in melt request,
-		// lower the amount for mint request (because of lighting fees?)
+		// lower the amount for mint request (because of lighting fees)
 		if meltResp.Amount+meltResp.FeeReserve+fee > proofsAmount {
-			invoicePct -= 0.01
-			amount *= invoicePct
+			invoicePct--
+			amount = proofsAmount * invoicePct / 100
 		} else {
 			meltQuote = meltResp.Quote
 			mintQuote = mintResp.Quote
@@ -124,7 +124,7 @@ inspectmeltstatusresponse:
 	}
 
 	// if it got paid make proceed to get proofs
-	split := []uint64{1, 2, 3, 4}
+	split := cashu.AmountSplit(amount)
 	blindedMessages, secrets, rs, err := createBlindedMessages(split, keyset.Id, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating blinded messages: %v", err), manualActionRequired
