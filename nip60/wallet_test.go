@@ -71,10 +71,10 @@ func TestWalletTransfer(t *testing.T) {
 	}
 
 	// ensure wallets exist and have tokens
-	w1 := stash1.EnsureWallet("test")
+	w1 := stash1.EnsureWallet(ctx, "test")
 	require.Greater(t, w1.Balance(), uint64(0), "wallet 1 has no balance")
 
-	w2 := stash2.EnsureWallet("test")
+	w2 := stash2.EnsureWallet(ctx, "test")
 	initialBalance1 := w1.Balance()
 	initialBalance2 := w2.Balance()
 

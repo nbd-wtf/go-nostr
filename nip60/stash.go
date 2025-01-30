@@ -278,7 +278,7 @@ func loadStash(
 	return wl
 }
 
-func (wl *WalletStash) EnsureWallet(id string) *Wallet {
+func (wl *WalletStash) EnsureWallet(ctx context.Context, id string) *Wallet {
 	wl.Lock()
 	defer wl.Unlock()
 	if w, ok := wl.wallets[id]; ok {
@@ -287,7 +287,7 @@ func (wl *WalletStash) EnsureWallet(id string) *Wallet {
 
 	sk, err := btcec.NewPrivateKey()
 	if err != nil {
-		panic(err)
+		return nil
 	}
 
 	w := &Wallet{
@@ -297,6 +297,14 @@ func (wl *WalletStash) EnsureWallet(id string) *Wallet {
 		wl:         wl,
 	}
 	wl.wallets[id] = w
+
+	event := nostr.Event{}
+	if err := w.toEvent(ctx, wl.kr, &event); err != nil {
+		return nil
+	}
+
+	wl.PublishUpdate(event, nil, nil, nil, false)
+
 	return w
 }
 
