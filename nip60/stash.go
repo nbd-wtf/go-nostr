@@ -141,7 +141,7 @@ func loadStash(
 				// if we already have a wallet with this identifier then we must be careful
 				if curr, ok := wl.wallets[wallet.Identifier]; ok {
 					// if the metadata we have is newer ignore this event
-					if curr.event.CreatedAt > ie.Event.CreatedAt {
+					if curr.event != nil && curr.event.CreatedAt > ie.Event.CreatedAt {
 						wl.Unlock()
 						continue
 					}
