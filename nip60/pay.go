@@ -28,9 +28,10 @@ func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOpti
 	var meltQuote string
 	var meltAmount uint64
 
-	invoicePct := uint64(99)
+	feeReservePct := uint64(1)
+	feeReserveAbs := uint64(1)
 	for range 10 {
-		amount := invoiceAmount * invoicePct / 100
+		amount := invoiceAmount*(100+feeReservePct)/100 + feeReserveAbs
 		var fee uint64
 		chosen, fee, err = w.getProofsForSending(ctx, amount, ss.specificMint)
 		if err != nil {
@@ -48,16 +49,17 @@ func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOpti
 
 		// if amount in proofs is not sufficient to pay for the melt request,
 		// increase the amount and get proofs again  (because of lighting fees)
-		if meltResp.Amount+meltResp.FeeReserve+fee > chosen.proofs.Amount() {
-			invoicePct--
+		meltQuote = meltResp.Quote
+		meltAmount = meltResp.Amount + meltResp.FeeReserve + fee
+
+		if meltAmount > chosen.proofs.Amount() {
+			feeReserveAbs++
 		} else {
-			meltQuote = meltResp.Quote
-			meltAmount = meltResp.Amount
 			goto meltworked
 		}
 	}
 
-	return "", fmt.Errorf("stop trying to do the melt because the mint part is too expensive")
+	return "", fmt.Errorf("stop trying to do the melt because the invoice is too expensive")
 
 meltworked:
 	// swap our proofs so we get the exact amount for paying the invoice

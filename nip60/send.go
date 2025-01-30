@@ -180,6 +180,7 @@ func (w *Wallet) getProofsForSending(
 			part.tokens = make([]Token, 0, 3)
 			part.tokenIndexes = make([]int, 0, 3)
 			part.proofs = make(cashu.Proofs, 0, 7)
+			part.mint = token.Mint
 		}
 
 		part.tokens = append(part.tokens, token)
@@ -193,6 +194,8 @@ func (w *Wallet) getProofsForSending(
 				return part, fee, nil
 			}
 		}
+
+		byMint[token.Mint] = part
 	}
 
 	// if we got here it's because we didn't get enough proofs from the same mint
