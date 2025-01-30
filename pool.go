@@ -263,12 +263,13 @@ func (pool *SimplePool) subMany(
 	seenAlready := xsync.NewMapOf[string, Timestamp]()
 	ticker := time.NewTicker(seenAlreadyDropTick)
 
-	eose := false
+	eosed := false
 	eoseWg := sync.WaitGroup{}
 	eoseWg.Add(len(urls))
 	if eoseChan != nil {
 		go func() {
 			eoseWg.Wait()
+			eosed = true
 			close(eoseChan)
 		}()
 	}
@@ -338,8 +339,7 @@ func (pool *SimplePool) subMany(
 					<-sub.EndOfStoredEvents
 
 					// guard here otherwise a resubscription will trigger a duplicate call to eoseWg.Done()
-					if !eose {
-						eose = true
+					if !eosed {
 						eoseWg.Done()
 					}
 				}()
@@ -374,7 +374,7 @@ func (pool *SimplePool) subMany(
 							return
 						}
 					case <-ticker.C:
-						if eose {
+						if eosed {
 							old := Timestamp(time.Now().Add(-seenAlreadyDropTick).Unix())
 							for id, value := range seenAlready.Range {
 								if value < old {
