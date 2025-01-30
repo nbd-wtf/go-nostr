@@ -159,9 +159,8 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 		w.wl.PublishUpdate(*changeToken.event, nil, nil, &changeToken, false)
 		w.wl.Unlock()
 
-		w.tokensMu.Lock()
+		// we don't have to lock tokensMu here because this function will always be called with that lock already held
 		w.Tokens = append(updatedTokens, changeToken)
-		w.tokensMu.Unlock()
 	}
 
 	return nil
