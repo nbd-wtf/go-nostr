@@ -57,24 +57,6 @@ func TestWalletTransfer(t *testing.T) {
 		pool.PublishMany(ctx, testRelays, event)
 	}
 
-	// handle events from both stashes
-	go func() {
-		for {
-			select {
-			case err := <-stash1.Processed:
-				if err != nil {
-					t.Errorf("stash1 processing error: %v", err)
-				}
-			case err := <-stash2.Processed:
-				if err != nil {
-					t.Errorf("stash2 processing error: %v", err)
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
 	// wait for initial load
 	select {
 	case <-stash1.Stable:

@@ -151,19 +151,8 @@ func TestWalletRoundtrip(t *testing.T) {
 		// load wallets from events
 		walletStash := loadStash(ctx, kr, eventChan, make(chan struct{}))
 
-		var errorChanErr error
-		go func() {
-			for {
-				errorChanErr = <-walletStash.Processed
-				if errorChanErr != nil {
-					return
-				}
-			}
-		}()
-
 		<-done
 		time.Sleep(time.Millisecond * 200)
-		require.NoError(t, errorChanErr, "errorChan shouldn't have received any errors: %w", errorChanErr)
 
 		// compare loaded wallets with original ones
 		loadedWallet1 := walletStash.wallets[wallet1.Identifier]

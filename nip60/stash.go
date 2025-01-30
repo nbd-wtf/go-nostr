@@ -32,8 +32,8 @@ type WalletStash struct {
 		isHistory bool,
 	)
 
-	// Processed emits an error or nil every time an event is processed
-	Processed chan error
+	// Processed, if not nil, is called every time a received event is processed
+	Processed func(*nostr.Event, error)
 
 	// Stable is closed when we have gotten an EOSE from all relays
 	Stable chan struct{}
@@ -100,7 +100,6 @@ func loadStash(
 		pendingHistory:   make(map[string][]HistoryEntry),
 		pendingDeletions: make([]string, 0, 128),
 		kr:               kr,
-		Processed:        make(chan error),
 		Stable:           make(chan struct{}),
 	}
 
@@ -138,8 +137,10 @@ func loadStash(
 					wl: wl,
 				}
 				if err := wallet.parse(ctx, kr, ie.Event); err != nil {
+					if wl.Processed != nil {
+						wl.Processed(ie.Event, err)
+					}
 					wl.Unlock()
-					wl.Processed <- fmt.Errorf("event %s failed: %w", ie.Event, err)
 					continue
 				}
 
@@ -182,21 +183,27 @@ func loadStash(
 			case 7375: // token
 				ref := ie.Event.Tags.GetFirst([]string{"a", ""})
 				if ref == nil {
+					if wl.Processed != nil {
+						wl.Processed(ie.Event, fmt.Errorf("event missing 'a' tag"))
+					}
 					wl.Unlock()
-					wl.Processed <- fmt.Errorf("event %s missing 'a' tag", ie.Event)
 					continue
 				}
 				spl := strings.SplitN((*ref)[1], ":", 3)
 				if len(spl) < 3 {
+					if wl.Processed != nil {
+						wl.Processed(ie.Event, fmt.Errorf("event with invalid 'a' tag"))
+					}
 					wl.Unlock()
-					wl.Processed <- fmt.Errorf("event %s invalid 'a' tag", ie.Event)
 					continue
 				}
 
 				token := Token{}
 				if err := token.parse(ctx, kr, ie.Event); err != nil {
+					if wl.Processed != nil {
+						wl.Processed(ie.Event, err)
+					}
 					wl.Unlock()
-					wl.Processed <- fmt.Errorf("event %s failed: %w", ie.Event, err)
 					continue
 				}
 
@@ -226,21 +233,27 @@ func loadStash(
 			case 7376: // history
 				ref := ie.Event.Tags.GetFirst([]string{"a", ""})
 				if ref == nil {
+					if wl.Processed != nil {
+						wl.Processed(ie.Event, fmt.Errorf("event missing 'a' tag"))
+					}
 					wl.Unlock()
-					wl.Processed <- fmt.Errorf("event %s missing 'a' tag", ie.Event)
 					continue
 				}
 				spl := strings.SplitN((*ref)[1], ":", 3)
 				if len(spl) < 3 {
+					if wl.Processed != nil {
+						wl.Processed(ie.Event, fmt.Errorf("event with invalid 'a' tag"))
+					}
 					wl.Unlock()
-					wl.Processed <- fmt.Errorf("event %s invalid 'a' tag", ie.Event)
 					continue
 				}
 
 				he := HistoryEntry{}
 				if err := he.parse(ctx, kr, ie.Event); err != nil {
+					if wl.Processed != nil {
+						wl.Processed(ie.Event, err)
+					}
 					wl.Unlock()
-					wl.Processed <- fmt.Errorf("event %s failed: %w", ie.Event, err)
 					continue
 				}
 
@@ -255,7 +268,9 @@ func loadStash(
 				}
 			}
 
-			wl.Processed <- nil
+			if wl.Processed != nil {
+				wl.Processed(ie.Event, nil)
+			}
 			wl.Unlock()
 		}
 	}()
