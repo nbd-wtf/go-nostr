@@ -12,6 +12,10 @@ import (
 )
 
 func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error {
+	if w.wl.PublishUpdate == nil {
+		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
+	}
+
 	token, err := cashu.DecodeToken(serializedToken)
 	if err != nil {
 		return err
@@ -48,7 +52,7 @@ func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error
 	}
 
 	// get new proofs
-	newProofs, _, err := w.SwapProofs(ctx, source, proofs, proofs.Amount(), swapOpts...)
+	newProofs, _, err := w.swapProofs(ctx, source, proofs, proofs.Amount(), swapOpts...)
 	if err != nil {
 		return err
 	}
@@ -102,15 +106,13 @@ saveproofs:
 		return fmt.Errorf("failed to make new token: %w", err)
 	}
 
-	w.wl.Changes <- *newToken.event
+	w.wl.Lock()
+	w.wl.PublishUpdate(*newToken.event, nil, &newToken, nil, false)
+	w.wl.Unlock()
 
 	w.tokensMu.Lock()
 	w.Tokens = append(w.Tokens, newToken)
 	w.tokensMu.Unlock()
-
-	wevt := nostr.Event{}
-	w.toEvent(ctx, w.wl.kr, &wevt)
-	w.wl.Changes <- wevt
 
 	return nil
 }

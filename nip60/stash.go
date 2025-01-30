@@ -23,8 +23,14 @@ type WalletStash struct {
 
 	kr nostr.Keyer
 
-	// Changes emits a stream of events that must be published whenever something changes
-	Changes chan nostr.Event
+	// PublishUpdate must be set to a function that publishes event to the user relays
+	PublishUpdate func(
+		event nostr.Event,
+		deleted *Token,
+		received *Token,
+		change *Token,
+		isHistory bool,
+	)
 
 	// Processed emits an error or nil every time an event is processed
 	Processed chan error
@@ -94,7 +100,6 @@ func loadStash(
 		pendingHistory:   make(map[string][]HistoryEntry),
 		pendingDeletions: make([]string, 0, 128),
 		kr:               kr,
-		Changes:          make(chan nostr.Event),
 		Processed:        make(chan error),
 		Stable:           make(chan struct{}),
 	}
@@ -258,19 +263,6 @@ func loadStash(
 	return wl
 }
 
-func (wl *WalletStash) removeDeletedToken(eventId string) {
-	for _, w := range wl.wallets {
-		for t := len(w.Tokens) - 1; t >= 0; t-- {
-			token := w.Tokens[t]
-			if token.event != nil && token.event.ID == eventId {
-				// swap delete
-				w.Tokens[t] = w.Tokens[len(w.Tokens)-1]
-				w.Tokens = w.Tokens[0 : len(w.Tokens)-1]
-			}
-		}
-	}
-}
-
 func (wl *WalletStash) EnsureWallet(id string) *Wallet {
 	wl.Lock()
 	defer wl.Unlock()
@@ -301,6 +293,26 @@ func (wl *WalletStash) Wallets() iter.Seq[*Wallet] {
 		for _, w := range wl.wallets {
 			if !yield(w) {
 				return
+			}
+		}
+	}
+}
+
+// Close waits for pending operations to end
+func (wl *WalletStash) Close() error {
+	wl.Lock()
+	defer wl.Unlock()
+	return nil
+}
+
+func (wl *WalletStash) removeDeletedToken(eventId string) {
+	for _, w := range wl.wallets {
+		for t := len(w.Tokens) - 1; t >= 0; t-- {
+			token := w.Tokens[t]
+			if token.event != nil && token.event.ID == eventId {
+				// swap delete
+				w.Tokens[t] = w.Tokens[len(w.Tokens)-1]
+				w.Tokens = w.Tokens[0 : len(w.Tokens)-1]
 			}
 		}
 	}

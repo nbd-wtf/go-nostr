@@ -11,6 +11,10 @@ import (
 )
 
 func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOption) (string, error) {
+	if w.wl.PublishUpdate == nil {
+		return "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
+	}
+
 	ss := &sendSettings{}
 	for _, opt := range opts {
 		opt(ss)

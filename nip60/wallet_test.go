@@ -35,6 +35,9 @@ func TestWalletTransfer(t *testing.T) {
 	if stash1 == nil {
 		t.Fatal("failed to load stash 1")
 	}
+	stash1.PublishUpdate = func(event nostr.Event, deleted, received, change *Token, isHistory bool) {
+		pool.PublishMany(ctx, testRelays, event)
+	}
 
 	// setup second wallet
 	sk2 := os.Getenv("NIP60_SECRET_KEY_2")
@@ -50,15 +53,14 @@ func TestWalletTransfer(t *testing.T) {
 	if stash2 == nil {
 		t.Fatal("failed to load stash 2")
 	}
+	stash2.PublishUpdate = func(event nostr.Event, deleted, received, change *Token, isHistory bool) {
+		pool.PublishMany(ctx, testRelays, event)
+	}
 
 	// handle events from both stashes
 	go func() {
 		for {
 			select {
-			case evt := <-stash1.Changes:
-				pool.PublishMany(ctx, testRelays, evt)
-			case evt := <-stash2.Changes:
-				pool.PublishMany(ctx, testRelays, evt)
 			case err := <-stash1.Processed:
 				if err != nil {
 					t.Errorf("stash1 processing error: %v", err)

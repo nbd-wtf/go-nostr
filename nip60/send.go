@@ -51,6 +51,10 @@ type chosenTokens struct {
 }
 
 func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOption) (string, error) {
+	if w.wl.PublishUpdate == nil {
+		return "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
+	}
+
 	ss := &sendSettings{}
 	for _, opt := range opts {
 		opt(ss)
@@ -91,7 +95,7 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 	}
 
 	// get new proofs
-	proofsToSend, changeProofs, err := w.SwapProofs(ctx, chosen.mint, chosen.proofs, amount, swapOpts...)
+	proofsToSend, changeProofs, err := w.swapProofs(ctx, chosen.mint, chosen.proofs, amount, swapOpts...)
 	if err != nil {
 		return "", err
 	}
@@ -105,10 +109,6 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 	if err != nil {
 		return "", err
 	}
-
-	wevt := nostr.Event{}
-	w.toEvent(ctx, w.wl.kr, &wevt)
-	w.wl.Changes <- wevt
 
 	return token.Serialize()
 }
@@ -138,10 +138,13 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 				deleteEvent := nostr.Event{
 					CreatedAt: nostr.Now(),
 					Kind:      5,
-					Tags:      nostr.Tags{{"e", token.event.ID}, {"k", "7375"}, {"alt", "deleting"}},
+					Tags:      nostr.Tags{{"e", token.event.ID}, {"k", "7375"}},
 				}
 				w.wl.kr.SignEvent(ctx, &deleteEvent)
-				w.wl.Changes <- deleteEvent
+
+				w.wl.Lock()
+				w.wl.PublishUpdate(deleteEvent, &token, nil, nil, false)
+				w.wl.Unlock()
 			}
 			continue
 		}
@@ -152,8 +155,13 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 		if err := changeToken.toEvent(ctx, w.wl.kr, w.Identifier, changeToken.event); err != nil {
 			return fmt.Errorf("failed to make change token: %w", err)
 		}
-		w.wl.Changes <- *changeToken.event
+		w.wl.Lock()
+		w.wl.PublishUpdate(*changeToken.event, nil, nil, &changeToken, false)
+		w.wl.Unlock()
+
+		w.tokensMu.Lock()
 		w.Tokens = append(updatedTokens, changeToken)
+		w.tokensMu.Unlock()
 	}
 
 	return nil

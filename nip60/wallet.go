@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"sync"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -26,8 +25,7 @@ type Wallet struct {
 	Tokens      []Token
 	History     []HistoryEntry
 
-	temporaryBalance uint64
-	tokensMu         sync.Mutex
+	tokensMu sync.Mutex
 
 	event                 *nostr.Event
 	tokensPendingDeletion []string
@@ -60,7 +58,7 @@ func (w *Wallet) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) 
 
 	evt.Content, err = kr.Encrypt(
 		ctx,
-		fmt.Sprintf(`[["balance","%d","sat"],["privkey","%x"]]`, w.Balance(), w.PrivateKey.Serialize()),
+		fmt.Sprintf(`[["privkey","%x"]]`, w.PrivateKey.Serialize()),
 		pk,
 	)
 	if err != nil {
@@ -144,18 +142,6 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 			}
 			w.PrivateKey = secp256k1.PrivKeyFromBytes(skb)
 			w.PublicKey = w.PrivateKey.PubKey()
-		case "balance":
-			if len(tag) < 3 {
-				return fmt.Errorf("'balance' tag must have at least 3 items")
-			}
-			if tag[2] != "sat" {
-				return fmt.Errorf("only 'sat' wallets are supported")
-			}
-			v, err := strconv.ParseUint(tag[1], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid 'balance' %s: %w", tag[1], err)
-			}
-			w.temporaryBalance = v
 		}
 	}
 

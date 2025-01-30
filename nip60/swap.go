@@ -32,7 +32,7 @@ type swapSettings struct {
 	mustSignOutputs   bool
 }
 
-func (w *Wallet) SwapProofs(
+func (w *Wallet) swapProofs(
 	ctx context.Context,
 	mint string,
 	proofs cashu.Proofs,
