@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -152,12 +153,20 @@ func loadStash(
 
 				// get all pending stuff and assign them to this, then delete the pending stuff
 				for _, he := range wl.pendingHistory[wallet.Identifier] {
-					wallet.History = append(wallet.History, he)
+					if !slices.ContainsFunc(wallet.History, func(c HistoryEntry) bool {
+						return c.event.ID == he.event.ID
+					}) {
+						wallet.History = append(wallet.History, he)
+					}
 				}
 				delete(wl.pendingHistory, wallet.Identifier)
 				wallet.tokensMu.Lock()
 				for _, token := range wl.pendingTokens[wallet.Identifier] {
-					wallet.Tokens = append(wallet.Tokens, token)
+					if !slices.ContainsFunc(wallet.Tokens, func(c Token) bool {
+						return c.event.ID == token.event.ID
+					}) {
+						wallet.Tokens = append(wallet.Tokens, token)
+					}
 				}
 				delete(wl.pendingTokens, wallet.Identifier)
 				wallet.tokensMu.Unlock()
@@ -188,7 +197,11 @@ func loadStash(
 
 				if wallet, ok := wl.wallets[spl[2]]; ok {
 					wallet.tokensMu.Lock()
-					wallet.Tokens = append(wallet.Tokens, token)
+					if !slices.ContainsFunc(wallet.Tokens, func(c Token) bool {
+						return c.event.ID == token.event.ID
+					}) {
+						wallet.Tokens = append(wallet.Tokens, token)
+					}
 					wallet.tokensMu.Unlock()
 				} else {
 					wl.pendingTokens[spl[2]] = append(wl.pendingTokens[spl[2]], token)
@@ -227,7 +240,11 @@ func loadStash(
 				}
 
 				if wallet, ok := wl.wallets[spl[2]]; ok {
-					wallet.History = append(wallet.History, he)
+					if !slices.ContainsFunc(wallet.History, func(c HistoryEntry) bool {
+						return c.event.ID == he.event.ID
+					}) {
+						wallet.History = append(wallet.History, he)
+					}
 				} else {
 					wl.pendingHistory[spl[2]] = append(wl.pendingHistory[spl[2]], he)
 				}
