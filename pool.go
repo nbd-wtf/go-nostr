@@ -263,13 +263,11 @@ func (pool *SimplePool) subMany(
 	seenAlready := xsync.NewMapOf[string, Timestamp]()
 	ticker := time.NewTicker(seenAlreadyDropTick)
 
-	eosed := false
 	eoseWg := sync.WaitGroup{}
 	eoseWg.Add(len(urls))
 	if eoseChan != nil {
 		go func() {
 			eoseWg.Wait()
-			eosed = true
 			close(eoseChan)
 		}()
 	}
@@ -285,11 +283,17 @@ func (pool *SimplePool) subMany(
 			continue
 		}
 
+		eosed := false
+		firstConnection := true
+
 		go func(nm string) {
 			defer func() {
 				pending.Dec()
 				if pending.Value() == 0 {
 					close(events)
+				}
+				if !eosed {
+					eoseWg.Done()
 				}
 				cancel()
 			}()
@@ -319,8 +323,15 @@ func (pool *SimplePool) subMany(
 
 				relay, err := pool.EnsureRelay(nm)
 				if err != nil {
+					// if we never connected to this just fail
+					if firstConnection {
+						return
+					}
+
+					// otherwise (if we were connected and got disconnected) keep trying to reconnect
 					goto reconnect
 				}
+				firstConnection = false
 				hasAuthed = false
 
 			subscribe:
@@ -340,6 +351,7 @@ func (pool *SimplePool) subMany(
 
 					// guard here otherwise a resubscription will trigger a duplicate call to eoseWg.Done()
 					if !eosed {
+						eosed = true
 						eoseWg.Done()
 					}
 				}()
@@ -395,8 +407,6 @@ func (pool *SimplePool) subMany(
 						} else {
 							log.Printf("CLOSED from %s: '%s'\n", nm, reason)
 						}
-
-						eoseWg.Done()
 
 						return
 					case <-ctx.Done():
