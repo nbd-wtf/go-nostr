@@ -139,7 +139,11 @@ inspectmeltstatusresponse:
 		return nil, fmt.Errorf("mint request to %s failed (%s): %w", to, mintQuote, err), manualActionRequired
 	}
 
-	proofs, err = constructProofs(mintResponse.Signatures, blindedMessages, secrets, rs, keysetKeys)
+	proofs, err = constructProofs(preparedOutputs{
+		bm:      blindedMessages,
+		secrets: secrets,
+		rs:      rs,
+	}, mintResponse.Signatures, keysetKeys)
 	if err != nil {
 		return nil, fmt.Errorf("error constructing proofs: %w", err), manualActionRequired
 	}

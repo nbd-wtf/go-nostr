@@ -115,16 +115,12 @@ func signOutput(
 
 // constructProofs unblinds the blindedSignatures and returns the proofs
 func constructProofs(
+	prep preparedOutputs,
 	blindedSignatures cashu.BlindedSignatures,
-	blindedMessages cashu.BlindedMessages,
-	secrets []string,
-	rs []*secp256k1.PrivateKey,
 	keys map[uint64]*btcec.PublicKey,
 ) (cashu.Proofs, error) {
-	sigsLenght := len(blindedSignatures)
-	if sigsLenght != len(secrets) || sigsLenght != len(rs) {
-		return nil, errors.New("lengths do not match")
-	}
+	// blinded sigs might be less than slices in prep, but that is fine, we just ignore the last
+	// items in prep. it happens when we are building proofs from change sent by a mint after melt.
 
 	proofs := make(cashu.Proofs, len(blindedSignatures))
 	for i, blindedSignature := range blindedSignatures {
@@ -139,7 +135,7 @@ func constructProofs(
 			if !nut12.VerifyBlindSignatureDLEQ(
 				*blindedSignature.DLEQ,
 				pubkey,
-				blindedMessages[i].B_,
+				prep.bm[i].B_,
 				blindedSignature.C_,
 			) {
 				return nil, errors.New("got blinded signature with invalid DLEQ proof")
@@ -147,19 +143,19 @@ func constructProofs(
 				dleq = &cashu.DLEQProof{
 					E: blindedSignature.DLEQ.E,
 					S: blindedSignature.DLEQ.S,
-					R: hex.EncodeToString(rs[i].Serialize()),
+					R: hex.EncodeToString(prep.rs[i].Serialize()),
 				}
 			}
 		}
 
-		C, err := unblindSignature(blindedSignature.C_, rs[i], pubkey)
+		C, err := unblindSignature(blindedSignature.C_, prep.rs[i], pubkey)
 		if err != nil {
 			return nil, err
 		}
 
 		proof := cashu.Proof{
 			Amount: blindedSignature.Amount,
-			Secret: secrets[i],
+			Secret: prep.secrets[i],
 			C:      C,
 			Id:     blindedSignature.Id,
 			DLEQ:   dleq,

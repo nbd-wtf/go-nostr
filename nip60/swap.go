@@ -3,8 +3,11 @@ package nip60
 import (
 	"context"
 	"fmt"
+	"slices"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elnosh/gonuts/cashu"
+	"github.com/elnosh/gonuts/cashu/nuts/nut02"
 	"github.com/elnosh/gonuts/cashu/nuts/nut03"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
 	"github.com/nbd-wtf/go-nostr/nip60/client"
@@ -41,7 +44,6 @@ func (w *Wallet) SwapProofs(
 		opt(&ss)
 	}
 
-	// fetch all this keyset drama first
 	keysets, err := client.GetAllKeysets(ctx, mint)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get all keysets for %s: %w", mint, err)
@@ -55,6 +57,63 @@ func (w *Wallet) SwapProofs(
 		return nil, nil, fmt.Errorf("failed to parse keys for %s: %w", mint, err)
 	}
 
+	prePrincipal, preChange, err := splitIntoPrincipalAndChange(
+		keysets,
+		proofs,
+		targetAmount,
+		activeKeyset.Id,
+		ss.spendingCondition,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if ss.mustSignOutputs {
+		for i, output := range prePrincipal.bm {
+			prePrincipal.bm[i].Witness, err = signOutput(w.PrivateKey, output)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to sign output message %d: %w", i, err)
+			}
+		}
+	}
+
+	req := nut03.PostSwapRequest{
+		Inputs:  proofs,
+		Outputs: slices.Concat(prePrincipal.bm, preChange.bm),
+	}
+
+	res, err := client.PostSwap(ctx, mint, req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to swap tokens at %s: %w", mint, err)
+	}
+
+	// build the proofs locally from mint's response
+	principal, err = constructProofs(prePrincipal, res.Signatures[0:len(prePrincipal.bm)], ksKeys)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to construct principal proofs: %w", err)
+	}
+
+	change, err = constructProofs(preChange, res.Signatures[len(prePrincipal.bm):], ksKeys)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to construct principal proofs: %w", err)
+	}
+
+	return principal, change, nil
+}
+
+type preparedOutputs struct {
+	bm      cashu.BlindedMessages
+	rs      []*btcec.PrivateKey
+	secrets []string
+}
+
+func splitIntoPrincipalAndChange(
+	keysets []nut02.Keyset,
+	proofs cashu.Proofs,
+	targetAmount uint64,
+	activeKeysetId string,
+	spendingCondition *nut10.SpendingCondition,
+) (principal preparedOutputs, change preparedOutputs, err error) {
 	// decide the shape of the proofs we'll swap for
 	proofsAmount := proofs.Amount()
 	var (
@@ -71,8 +130,8 @@ func (w *Wallet) SwapProofs(
 		principalAmount = targetAmount - fee
 		changeAmount = 0
 	} else {
-		return nil, nil, fmt.Errorf("can't swap for more than we are sending: %d > %d",
-			targetAmount, proofsAmount)
+		err = fmt.Errorf("can't swap for more than we are sending: %d > %d", targetAmount, proofsAmount)
+		return
 	}
 	splits := make([]uint64, 0, len(proofs)*2)
 	splits = append(splits, cashu.AmountSplit(principalAmount)...)
@@ -80,35 +139,19 @@ func (w *Wallet) SwapProofs(
 	splits = append(splits, cashu.AmountSplit(changeAmount)...)
 
 	// prepare message to send to mint
-	outputs, secrets, rs, err := createBlindedMessages(splits, activeKeyset.Id, ss.spendingCondition)
+	bm, secrets, rs, err := createBlindedMessages(splits, activeKeysetId, spendingCondition)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create blinded message: %w", err)
+		err = fmt.Errorf("failed to create blinded message: %w", err)
+		return
 	}
 
-	if ss.mustSignOutputs {
-		for i, output := range outputs {
-			outputs[i].Witness, err = signOutput(w.PrivateKey, output)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to sign output message %d: %w", i, err)
-			}
-		}
-	}
-
-	req := nut03.PostSwapRequest{
-		Inputs:  proofs,
-		Outputs: outputs,
-	}
-
-	res, err := client.PostSwap(ctx, mint, req)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to swap tokens at %s: %w", mint, err)
-	}
-
-	// build the proofs locally from mint's response
-	newProofs, err := constructProofs(res.Signatures, req.Outputs, secrets, rs, ksKeys)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to construct proofs: %w", err)
-	}
-
-	return newProofs[0:changeStartIndex], newProofs[changeStartIndex:], nil
+	return preparedOutputs{
+			bm:      bm[0:changeStartIndex],
+			rs:      rs[0:changeStartIndex],
+			secrets: secrets[0:changeStartIndex],
+		}, preparedOutputs{
+			bm:      bm[changeStartIndex:],
+			rs:      rs[changeStartIndex:],
+			secrets: secrets[changeStartIndex:],
+		}, nil
 }

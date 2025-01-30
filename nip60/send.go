@@ -59,7 +59,7 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 	w.tokensMu.Lock()
 	defer w.tokensMu.Unlock()
 
-	chosen, _, err := w.getProofsForSending(ctx, amount, ss.specificMint)
+	chosen, _, err := w.getProofsForSending(ctx, amount, ss.specificMint, nil)
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +138,7 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 				deleteEvent := nostr.Event{
 					CreatedAt: nostr.Now(),
 					Kind:      5,
-					Tags:      nostr.Tags{{"e", token.event.ID}, {"k", "7375"}},
+					Tags:      nostr.Tags{{"e", token.event.ID}, {"k", "7375"}, {"alt", "deleting"}},
 				}
 				w.wl.kr.SignEvent(ctx, &deleteEvent)
 				w.wl.Changes <- deleteEvent
@@ -163,10 +163,14 @@ func (w *Wallet) getProofsForSending(
 	ctx context.Context,
 	amount uint64,
 	specificMint string,
+	excludeMints []string,
 ) (chosenTokens, uint64, error) {
 	byMint := make(map[string]chosenTokens)
 	for t, token := range w.Tokens {
 		if specificMint != "" && token.Mint != specificMint {
+			continue
+		}
+		if slices.Contains(excludeMints, token.Mint) {
 			continue
 		}
 
