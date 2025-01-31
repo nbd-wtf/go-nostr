@@ -7,6 +7,7 @@ import (
 
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/elnosh/gonuts/cashu/nuts/nut05"
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip60/client"
 )
 
@@ -117,14 +118,29 @@ inspectmeltstatusresponse:
 	}
 
 	// the invoice has been paid, now we save the change we got
-	change, err := constructProofs(preChange, meltStatus.Change, ksKeys)
+	changeProofs, err := constructProofs(preChange, meltStatus.Change, ksKeys)
 	if err != nil {
 		return "", fmt.Errorf("failed to construct principal proofs: %w", err)
 	}
 
-	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, change, chosen.tokenIndexes); err != nil {
+	he := HistoryEntry{
+		event:         &nostr.Event{},
+		tokenEventIDs: make([]string, 0, 1),
+		nutZaps:       make([]bool, 0, 1),
+		createdAt:     nostr.Now(),
+		In:            false,
+		Amount:        chosen.proofs.Amount() - changeProofs.Amount(),
+	}
+
+	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, changeProofs, chosen.tokenIndexes, &he); err != nil {
 		return "", err
 	}
+
+	w.wl.Lock()
+	if err := he.toEvent(ctx, w.wl.kr, w.Identifier, he.event); err == nil {
+		w.wl.PublishUpdate(*he.event, nil, nil, nil, true)
+	}
+	w.wl.Unlock()
 
 	return meltStatus.Preimage, nil
 }

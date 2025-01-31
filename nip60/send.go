@@ -100,9 +100,24 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 		return "", err
 	}
 
-	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, changeProofs, chosen.tokenIndexes); err != nil {
+	he := HistoryEntry{
+		event:         &nostr.Event{},
+		tokenEventIDs: make([]string, 0, 1),
+		nutZaps:       make([]bool, 0, 1),
+		createdAt:     nostr.Now(),
+		In:            false,
+		Amount:        chosen.proofs.Amount() - changeProofs.Amount(),
+	}
+
+	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, changeProofs, chosen.tokenIndexes, &he); err != nil {
 		return "", err
 	}
+
+	w.wl.Lock()
+	if err := he.toEvent(ctx, w.wl.kr, w.Identifier, he.event); err == nil {
+		w.wl.PublishUpdate(*he.event, nil, nil, nil, true)
+	}
+	w.wl.Unlock()
 
 	// serialize token we're sending out
 	token, err := cashu.NewTokenV4(proofsToSend, chosen.mint, cashu.Sat, true)
@@ -118,6 +133,7 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 	mintURL string,
 	changeProofs cashu.Proofs,
 	usedTokenIndexes []int,
+	he *HistoryEntry,
 ) error {
 	// delete spent tokens and save our change
 	updatedTokens := make([]Token, 0, len(w.Tokens))
@@ -161,6 +177,10 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 
 		// we don't have to lock tokensMu here because this function will always be called with that lock already held
 		w.Tokens = append(updatedTokens, changeToken)
+
+		// fill in the history created token
+		he.tokenEventIDs = append(he.tokenEventIDs, changeToken.event.ID)
+		he.nutZaps = append(he.nutZaps, false)
 	}
 
 	return nil

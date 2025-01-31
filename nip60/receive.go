@@ -106,8 +106,20 @@ saveproofs:
 		return fmt.Errorf("failed to make new token: %w", err)
 	}
 
+	he := HistoryEntry{
+		event:         &nostr.Event{},
+		tokenEventIDs: []string{newToken.event.ID},
+		nutZaps:       []bool{false},
+		createdAt:     nostr.Now(),
+		In:            true,
+		Amount:        newToken.Proofs.Amount(),
+	}
+
 	w.wl.Lock()
 	w.wl.PublishUpdate(*newToken.event, nil, &newToken, nil, false)
+	if err := he.toEvent(ctx, w.wl.kr, w.Identifier, he.event); err == nil {
+		w.wl.PublishUpdate(*he.event, nil, nil, nil, true)
+	}
 	w.wl.Unlock()
 
 	w.tokensMu.Lock()
