@@ -14,6 +14,10 @@ type ostcEntry struct {
 	when   time.Time
 }
 
+// FetchOutboxRelays uses a bunch of heuristics and locally stored data about many relays, including hints, tags,
+// NIP-05, past attempts at fetching data from a user from a given relay, including successes and failures, and
+// the "write" relays of kind:10002, in order to determine the best possible list of relays where a user might be
+// currently publishing their events to.
 func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) []string {
 	ostcIndex, _ := strconv.ParseUint(pubkey[12:14], 16, 8)
 	now := time.Now()
@@ -42,6 +46,8 @@ func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) 
 	return relays
 }
 
+// FetchWriteRelays just reads relays from a kind:10002, that's the only canonical place where a user reveals
+// the relays they intend to receive notifications from.
 func (sys *System) FetchInboxRelays(ctx context.Context, pubkey string, n int) []string {
 	rl := sys.FetchRelayList(ctx, pubkey)
 	if len(rl.Items) == 0 || len(rl.Items) > 7 {
@@ -51,6 +57,27 @@ func (sys *System) FetchInboxRelays(ctx context.Context, pubkey string, n int) [
 	relays := make([]string, 0, n)
 	for _, r := range rl.Items {
 		if r.Inbox {
+			relays = append(relays, r.URL)
+		}
+	}
+
+	return relays
+}
+
+// FetchWriteRelays just reads relays from a kind:10002, it's different than FetchOutboxRelays, which relies on
+// other data and heuristics besides kind:10002.
+//
+// Use FetchWriteRelays when deciding where to publish on behalf of a user, but FetchOutboxRelays when deciding
+// from where to read notes authored by other users.
+func (sys *System) FetchWriteRelays(ctx context.Context, pubkey string, n int) []string {
+	rl := sys.FetchRelayList(ctx, pubkey)
+	if len(rl.Items) == 0 || len(rl.Items) > 7 {
+		return []string{"wss://relay.damus.io", "wss://nos.lol"}
+	}
+
+	relays := make([]string, 0, n)
+	for _, r := range rl.Items {
+		if r.Outbox {
 			relays = append(relays, r.URL)
 		}
 	}
