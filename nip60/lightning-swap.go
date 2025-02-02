@@ -29,18 +29,6 @@ func lightningMeltMint(
 	fromKeysets []nut02.Keyset,
 	to string,
 ) (cashu.Proofs, error, lightningSwapStatus) {
-	// get active keyset of target mint
-	keyset, err := client.GetActiveKeyset(ctx, to)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get keyset keys for %s: %w", to, err), tryAnotherTargetMint
-	}
-
-	// unblind the signatures from the promises and build the proofs
-	keysetKeys, err := parseKeysetKeys(keyset.Keys)
-	if err != nil {
-		return nil, fmt.Errorf("target mint %s sent us an invalid keyset: %w", to, err), tryAnotherTargetMint
-	}
-
 	// now we start the melt-mint process in multiple attempts
 	invoicePct := uint64(99)
 	proofsAmount := proofs.Amount()
@@ -107,46 +95,73 @@ inspectmeltstatusresponse:
 		}
 	}
 
-	// source mint says it has paid the invoice, now check it against the target mint
-	// check if the _mint_ invoice was paid
-	mintQuoteStatusResp, err := client.GetMintQuoteState(ctx, to, mintQuote)
+	proofs, err = redeemMinted(ctx, to, mintQuote, amount)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"target mint %s failed to answer to our mint quote checks (%s): %w; a manual fix is needed",
-			to, meltQuote, err,
-		), manualActionRequired
-	}
-	if mintQuoteStatusResp.State != nut04.Paid {
-		return nil, fmt.Errorf(
-			"target mint %s says the invoice wasn't paid although the source mint %s said it did, %s -> %s",
-			to, from, meltQuote, mintQuote,
-		), manualActionRequired
+		return nil,
+			fmt.Errorf("failed to redeem minted proofs at %s (after successfully melting at %s): %w", to, from, err),
+			manualActionRequired
 	}
 
-	// if it got paid make proceed to get proofs
-	split := cashu.AmountSplit(amount)
+	return proofs, nil, nothingCanBeDone
+}
+
+func redeemMinted(
+	ctx context.Context,
+	mint string,
+	mintQuote string,
+	mintAmount uint64,
+) (cashu.Proofs, error) {
+	// source mint says it has paid the invoice, now check it against the target mint
+	// check if the _mint_ invoice was paid
+	mintQuoteStatusResp, err := client.GetMintQuoteState(ctx, mint, mintQuote)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"target failed to answer to our mint quote checks (%s): %w; a manual fix is needed",
+			mintQuote, err,
+		)
+	}
+	if mintQuoteStatusResp.State != nut04.Paid {
+		return nil, fmt.Errorf("target says the invoice wasn't paid (mint quote %s)", mintQuote)
+	}
+
+	// since it got paid proceed to get proofs
+	//
+
+	// get active keyset of target mint
+	keyset, err := client.GetActiveKeyset(ctx, mint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get keyset keys for %s: %w", mint, err)
+	}
+
+	// unblind the signatures from the promises and build the blinded messages
+	keysetKeys, err := parseKeysetKeys(keyset.Keys)
+	if err != nil {
+		return nil, fmt.Errorf("target mint %s sent us an invalid keyset: %w", mint, err)
+	}
+	split := cashu.AmountSplit(mintAmount)
 	blindedMessages, secrets, rs, err := createBlindedMessages(split, keyset.Id, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating blinded messages: %v", err), manualActionRequired
+		return nil, fmt.Errorf("error creating blinded messages: %w", err)
 	}
 
 	// request mint to sign the blinded messages
-	mintResponse, err := client.PostMintBolt11(ctx, to, nut04.PostMintBolt11Request{
+	mintResponse, err := client.PostMintBolt11(ctx, mint, nut04.PostMintBolt11Request{
 		Quote:   mintQuote,
 		Outputs: blindedMessages,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("mint request to %s failed (%s): %w", to, mintQuote, err), manualActionRequired
+		return nil, fmt.Errorf("mint request: %w", err)
 	}
 
-	proofs, err = constructProofs(preparedOutputs{
+	// finally turn those into proofs
+	proofs, err := constructProofs(preparedOutputs{
 		bm:      blindedMessages,
 		secrets: secrets,
 		rs:      rs,
 	}, mintResponse.Signatures, keysetKeys)
 	if err != nil {
-		return nil, fmt.Errorf("error constructing proofs: %w", err), manualActionRequired
+		return nil, fmt.Errorf("error constructing proofs: %w", err)
 	}
 
-	return proofs, nil, nothingCanBeDone
+	return proofs, nil
 }

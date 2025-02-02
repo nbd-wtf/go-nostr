@@ -11,19 +11,17 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip60/client"
 )
 
-func (w *Wallet) ReceiveToken(ctx context.Context, serializedToken string) error {
+func (w *Wallet) Receive(
+	ctx context.Context,
+	proofs cashu.Proofs,
+	mint string,
+) error {
 	if w.wl.PublishUpdate == nil {
 		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
-	token, err := cashu.DecodeToken(serializedToken)
-	if err != nil {
-		return err
-	}
-
-	source := "http" + nostr.NormalizeURL(token.Mint())[2:]
+	source := "http" + nostr.NormalizeURL(mint)[2:]
 	lightningSwap := slices.Contains(w.Mints, source)
-	proofs := token.Proofs()
 	swapOpts := make([]SwapOption, 0, 1)
 
 	for i, proof := range proofs {

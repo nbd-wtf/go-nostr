@@ -50,9 +50,9 @@ type chosenTokens struct {
 	keysets      []nut02.Keyset
 }
 
-func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOption) (string, error) {
+func (w *Wallet) Send(ctx context.Context, amount uint64, opts ...SendOption) (cashu.Proofs, string, error) {
 	if w.wl.PublishUpdate == nil {
-		return "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
+		return nil, "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
 	ss := &sendSettings{}
@@ -65,14 +65,14 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 
 	chosen, _, err := w.getProofsForSending(ctx, amount, ss.specificMint, nil)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
 	swapOpts := make([]SwapOption, 0, 2)
 
 	if ss.p2pk != nil {
 		if info, err := client.GetMintInfo(ctx, chosen.mint); err != nil || !info.Nuts.Nut11.Supported {
-			return "", fmt.Errorf("mint doesn't support p2pk: %w", err)
+			return nil, chosen.mint, fmt.Errorf("mint doesn't support p2pk: %w", err)
 		}
 
 		tags := nut11.P2PKTags{
@@ -97,7 +97,7 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 	// get new proofs
 	proofsToSend, changeProofs, err := w.swapProofs(ctx, chosen.mint, chosen.proofs, amount, swapOpts...)
 	if err != nil {
-		return "", err
+		return nil, chosen.mint, err
 	}
 
 	he := HistoryEntry{
@@ -110,7 +110,7 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 	}
 
 	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, changeProofs, chosen.tokenIndexes, &he); err != nil {
-		return "", err
+		return nil, chosen.mint, err
 	}
 
 	w.wl.Lock()
@@ -119,13 +119,7 @@ func (w *Wallet) SendToken(ctx context.Context, amount uint64, opts ...SendOptio
 	}
 	w.wl.Unlock()
 
-	// serialize token we're sending out
-	token, err := cashu.NewTokenV4(proofsToSend, chosen.mint, cashu.Sat, true)
-	if err != nil {
-		return "", err
-	}
-
-	return token.Serialize()
+	return proofsToSend, chosen.mint, nil
 }
 
 func (w *Wallet) saveChangeAndDeleteUsedTokens(

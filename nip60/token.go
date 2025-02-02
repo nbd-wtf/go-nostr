@@ -72,5 +72,7 @@ func (t *Token) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) err
 		return fmt.Errorf("failed to parse token content: %w", err)
 	}
 
+	t.Mint = "http" + nostr.NormalizeURL(t.Mint)[2:]
+
 	return nil
 }

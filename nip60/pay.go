@@ -38,7 +38,7 @@ func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOpti
 
 	excludeMints := make([]string, 0, 1)
 
-	for range 10 {
+	for range 5 {
 		amount := invoiceAmount*(100+feeReservePct)/100 + feeReserveAbs
 		var fee uint64
 		chosen, fee, err = w.getProofsForSending(ctx, amount, ss.specificMint, excludeMints)

@@ -59,6 +59,7 @@ const (
 	KindSimpleGroupJoinRequest   int = 9021
 	KindSimpleGroupLeaveRequest  int = 9022
 	KindZapGoal                  int = 9041
+	KindNutZap                   int = 9321
 	KindTidalLogin               int = 9467
 	KindZapRequest               int = 9734
 	KindZap                      int = 9735
@@ -73,6 +74,7 @@ const (
 	KindSearchRelayList          int = 10007
 	KindSimpleGroupList          int = 10009
 	KindInterestList             int = 10015
+	KindNutZapInfo               int = 10019
 	KindEmojiList                int = 10030
 	KindDMRelayList              int = 10050
 	KindUserServerList           int = 10063

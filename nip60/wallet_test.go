@@ -85,11 +85,11 @@ func TestWalletTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	halfBalance := initialBalance1 / 2
-	token, err := w1.SendToken(ctx, halfBalance, WithP2PK(pk2))
+	proofs, mint, err := w1.Send(ctx, halfBalance, WithP2PK(pk2))
 	require.NoError(t, err)
 
 	// receive token in wallet 2
-	err = w2.ReceiveToken(ctx, token)
+	err = w2.Receive(ctx, proofs, mint)
 	require.NoError(t, err)
 
 	// verify balances
@@ -100,11 +100,11 @@ func TestWalletTransfer(t *testing.T) {
 	pk1, err := kr1.GetPublicKey(ctx)
 	require.NoError(t, err)
 
-	token, err = w2.SendToken(ctx, halfBalance, WithP2PK(pk1))
+	proofs, mint, err = w2.Send(ctx, halfBalance, WithP2PK(pk1))
 	require.NoError(t, err)
 
 	// receive token back in wallet 1
-	err = w1.ReceiveToken(ctx, token)
+	err = w1.Receive(ctx, proofs, mint)
 	require.NoError(t, err)
 
 	// verify final balances match initial
