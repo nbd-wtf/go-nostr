@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"slices"
@@ -329,6 +328,7 @@ func (pool *SimplePool) subMany(
 					}
 
 					// otherwise (if we were connected and got disconnected) keep trying to reconnect
+					debugLogf("%s reconnecting because connection failed\n", nm)
 					goto reconnect
 				}
 				firstConnection = false
@@ -343,6 +343,7 @@ func (pool *SimplePool) subMany(
 					return exists
 				}))...)
 				if err != nil {
+					debugLogf("%s reconnecting because subscription died\n", nm)
 					goto reconnect
 				}
 
@@ -370,6 +371,7 @@ func (pool *SimplePool) subMany(
 							for i := range filters {
 								filters[i].Since = &now
 							}
+							debugLogf("%s reconnecting because sub.Events is broken\n", nm)
 							goto reconnect
 						}
 
@@ -405,7 +407,7 @@ func (pool *SimplePool) subMany(
 								goto subscribe
 							}
 						} else {
-							log.Printf("CLOSED from %s: '%s'\n", nm, reason)
+							debugLogf("CLOSED from %s: '%s'\n", nm, reason)
 						}
 
 						return
@@ -514,7 +516,7 @@ func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
 							goto subscribe
 						}
 					}
-					log.Printf("CLOSED from %s: '%s'\n", nm, reason)
+					debugLogf("CLOSED from %s: '%s'\n", nm, reason)
 					return
 				case evt, more := <-sub.Events:
 					if !more {
