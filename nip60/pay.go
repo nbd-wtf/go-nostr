@@ -12,7 +12,7 @@ import (
 )
 
 func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOption) (string, error) {
-	if w.wl.PublishUpdate == nil {
+	if w.PublishUpdate == nil {
 		return "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
@@ -124,23 +124,22 @@ inspectmeltstatusresponse:
 	}
 
 	he := HistoryEntry{
-		event:         &nostr.Event{},
-		tokenEventIDs: make([]string, 0, 1),
-		nutZaps:       make([]bool, 0, 1),
-		createdAt:     nostr.Now(),
-		In:            false,
-		Amount:        chosen.proofs.Amount() - changeProofs.Amount(),
+		event:           &nostr.Event{},
+		TokenReferences: make([]TokenRef, 0, 5),
+		createdAt:       nostr.Now(),
+		In:              false,
+		Amount:          chosen.proofs.Amount() - changeProofs.Amount(),
 	}
 
 	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, changeProofs, chosen.tokenIndexes, &he); err != nil {
 		return "", err
 	}
 
-	w.wl.Lock()
-	if err := he.toEvent(ctx, w.wl.kr, w.Identifier, he.event); err == nil {
-		w.wl.PublishUpdate(*he.event, nil, nil, nil, true)
+	w.Lock()
+	if err := he.toEvent(ctx, w.kr, he.event); err == nil {
+		w.PublishUpdate(*he.event, nil, nil, nil, true)
 	}
-	w.wl.Unlock()
+	w.Unlock()
 
 	return meltStatus.Preimage, nil
 }

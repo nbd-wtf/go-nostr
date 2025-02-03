@@ -15,7 +15,7 @@ func (w *Wallet) SendExternal(
 	targetAmount uint64,
 	opts ...SendOption,
 ) (cashu.Proofs, error) {
-	if w.wl.PublishUpdate == nil {
+	if w.PublishUpdate == nil {
 		return nil, fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 

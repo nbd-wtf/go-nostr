@@ -13,14 +13,19 @@ type HistoryEntry struct {
 	In     bool // in = received, out = sent
 	Amount uint64
 
-	tokenEventIDs []string
-	nutZaps       []bool
+	TokenReferences []TokenRef
 
 	createdAt nostr.Timestamp
 	event     *nostr.Event
 }
 
-func (h HistoryEntry) toEvent(ctx context.Context, kr nostr.Keyer, walletId string, evt *nostr.Event) error {
+type TokenRef struct {
+	EventID  string
+	Created  bool
+	IsNutzap bool
+}
+
+func (h HistoryEntry) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {
 		return err
@@ -33,27 +38,25 @@ func (h HistoryEntry) toEvent(ctx context.Context, kr nostr.Keyer, walletId stri
 
 	evt.CreatedAt = h.createdAt
 	evt.Kind = 7376
-	evt.Tags = nostr.Tags{{"a", fmt.Sprintf("37375:%s:%s", pk, walletId)}}
+	evt.Tags = nostr.Tags{}
 
 	encryptedTags := nostr.Tags{
 		nostr.Tag{"direction", dir},
-		nostr.Tag{"amount", strconv.FormatUint(uint64(h.Amount), 10), "sat"},
+		nostr.Tag{"amount", strconv.FormatUint(uint64(h.Amount), 10)},
 	}
 
-	for i, tid := range h.tokenEventIDs {
-		isNutZap := h.nutZaps[i]
-
-		if h.In && isNutZap {
-			evt.Tags = append(evt.Tags, nostr.Tag{"e", tid, "", "redeemed"})
+	for _, tf := range h.TokenReferences {
+		if tf.IsNutzap {
+			evt.Tags = append(evt.Tags, nostr.Tag{"e", tf.EventID, "", "redeemed"})
 			continue
 		}
 
-		marker := "created"
-		if !h.In {
-			marker = "destroyed"
+		marker := "destroyed"
+		if tf.Created {
+			marker = "created"
 		}
 
-		encryptedTags = append(encryptedTags, nostr.Tag{"e", tid, "", marker})
+		encryptedTags = append(encryptedTags, nostr.Tag{"e", tf.EventID, "", marker})
 	}
 
 	jsonb, _ := json.Marshal(encryptedTags)
@@ -97,14 +100,14 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 		tags = append(tags, evt.Tags...)
 	}
 
-	essential := 0
+	missingDirection := true
 	for _, tag := range tags {
 		if len(tag) < 2 {
 			continue
 		}
 		switch tag[0] {
 		case "direction":
-			essential++
+			missingDirection = false
 			if tag[1] == "in" {
 				h.In = true
 			} else if tag[1] == "out" {
@@ -113,12 +116,8 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 				return fmt.Errorf("unexpected 'direction' tag %s", tag[1])
 			}
 		case "amount":
-			essential++
 			if len(tag) < 2 {
 				return fmt.Errorf("'amount' tag must have at least 2 items")
-			}
-			if len(tag) >= 3 && tag[2] != "sat" {
-				return fmt.Errorf("only 'sat' wallets are supported")
 			}
 			v, err := strconv.ParseUint(tag[1], 10, 64)
 			if err != nil {
@@ -126,27 +125,36 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 			}
 			h.Amount = v
 		case "e":
-			essential++
 			if len(tag) < 4 {
 				return fmt.Errorf("'e' tag must have at least 4 items")
 			}
 			if !nostr.IsValid32ByteHex(tag[1]) {
 				return fmt.Errorf("'e' tag has invalid event id %s", tag[1])
 			}
-			h.tokenEventIDs = append(h.tokenEventIDs, tag[1])
+
+			h.TokenReferences = append(h.TokenReferences)
+
+			tf := TokenRef{EventID: tag[1]}
+
 			switch tag[3] {
 			case "created":
-				h.nutZaps = append(h.nutZaps, false)
+				tf.Created = true
 			case "destroyed":
-				h.nutZaps = append(h.nutZaps, false)
+				tf.Created = false
 			case "redeemed":
-				h.nutZaps = append(h.nutZaps, true)
+				tf.IsNutzap = true
+			default:
+				return fmt.Errorf("unsupported 'e' token marker: %s", tag[3])
 			}
 		}
 	}
 
-	if essential < 3 {
-		return fmt.Errorf("missing essential tags")
+	if h.Amount == 0 {
+		return fmt.Errorf("missing 'amount' tag")
+	}
+
+	if missingDirection {
+		return fmt.Errorf("missing 'direction' tag")
 	}
 
 	return nil

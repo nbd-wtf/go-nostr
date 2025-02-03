@@ -16,7 +16,7 @@ func (w *Wallet) Receive(
 	proofs cashu.Proofs,
 	mint string,
 ) error {
-	if w.wl.PublishUpdate == nil {
+	if w.PublishUpdate == nil {
 		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
@@ -100,25 +100,30 @@ saveproofs:
 		mintedAt: nostr.Now(),
 		event:    &nostr.Event{},
 	}
-	if err := newToken.toEvent(ctx, w.wl.kr, w.Identifier, newToken.event); err != nil {
+	if err := newToken.toEvent(ctx, w.kr, newToken.event); err != nil {
 		return fmt.Errorf("failed to make new token: %w", err)
 	}
 
 	he := HistoryEntry{
-		event:         &nostr.Event{},
-		tokenEventIDs: []string{newToken.event.ID},
-		nutZaps:       []bool{false},
-		createdAt:     nostr.Now(),
-		In:            true,
-		Amount:        newToken.Proofs.Amount(),
+		event: &nostr.Event{},
+		TokenReferences: []TokenRef{
+			{
+				EventID:  newToken.event.ID,
+				Created:  true,
+				IsNutzap: false,
+			},
+		},
+		createdAt: nostr.Now(),
+		In:        true,
+		Amount:    newToken.Proofs.Amount(),
 	}
 
-	w.wl.Lock()
-	w.wl.PublishUpdate(*newToken.event, nil, &newToken, nil, false)
-	if err := he.toEvent(ctx, w.wl.kr, w.Identifier, he.event); err == nil {
-		w.wl.PublishUpdate(*he.event, nil, nil, nil, true)
+	w.Lock()
+	w.PublishUpdate(*newToken.event, nil, &newToken, nil, false)
+	if err := he.toEvent(ctx, w.kr, he.event); err == nil {
+		w.PublishUpdate(*he.event, nil, nil, nil, true)
 	}
-	w.wl.Unlock()
+	w.Unlock()
 
 	w.tokensMu.Lock()
 	w.Tokens = append(w.Tokens, newToken)

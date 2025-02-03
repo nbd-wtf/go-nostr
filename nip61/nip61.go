@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/elnosh/gonuts/cashu"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip60"
 )
@@ -57,7 +56,6 @@ func SendNutzap(
 	}
 
 	nutzap.Tags = append(nutzap.Tags, nostr.Tag{"p", targetUserPublickey})
-	nutzap.Tags = append(nutzap.Tags, nostr.Tag{"unit", cashu.Sat.String()})
 	if eventId != "" {
 		nutzap.Tags = append(nutzap.Tags, nostr.Tag{"e", eventId})
 	}

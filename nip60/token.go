@@ -26,7 +26,7 @@ func (t Token) ID() string {
 	return "<not-published>"
 }
 
-func (t Token) toEvent(ctx context.Context, kr nostr.Keyer, walletId string, evt *nostr.Event) error {
+func (t Token) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func (t Token) toEvent(ctx context.Context, kr nostr.Keyer, walletId string, evt
 
 	evt.CreatedAt = t.mintedAt
 	evt.Kind = 7375
-	evt.Tags = nostr.Tags{{"a", fmt.Sprintf("37375:%s:%s", pk, walletId)}}
+	evt.Tags = nostr.Tags{}
 
 	content, _ := json.Marshal(t)
 	evt.Content, err = kr.Encrypt(

@@ -51,7 +51,7 @@ type chosenTokens struct {
 }
 
 func (w *Wallet) Send(ctx context.Context, amount uint64, opts ...SendOption) (cashu.Proofs, string, error) {
-	if w.wl.PublishUpdate == nil {
+	if w.PublishUpdate == nil {
 		return nil, "", fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
@@ -101,23 +101,22 @@ func (w *Wallet) Send(ctx context.Context, amount uint64, opts ...SendOption) (c
 	}
 
 	he := HistoryEntry{
-		event:         &nostr.Event{},
-		tokenEventIDs: make([]string, 0, 1),
-		nutZaps:       make([]bool, 0, 1),
-		createdAt:     nostr.Now(),
-		In:            false,
-		Amount:        chosen.proofs.Amount() - changeProofs.Amount(),
+		event:           &nostr.Event{},
+		TokenReferences: make([]TokenRef, 0, 5),
+		createdAt:       nostr.Now(),
+		In:              false,
+		Amount:          chosen.proofs.Amount() - changeProofs.Amount(),
 	}
 
 	if err := w.saveChangeAndDeleteUsedTokens(ctx, chosen.mint, changeProofs, chosen.tokenIndexes, &he); err != nil {
 		return nil, chosen.mint, err
 	}
 
-	w.wl.Lock()
-	if err := he.toEvent(ctx, w.wl.kr, w.Identifier, he.event); err == nil {
-		w.wl.PublishUpdate(*he.event, nil, nil, nil, true)
+	w.Lock()
+	if err := he.toEvent(ctx, w.kr, he.event); err == nil {
+		w.PublishUpdate(*he.event, nil, nil, nil, true)
 	}
-	w.wl.Unlock()
+	w.Unlock()
 
 	return proofsToSend, chosen.mint, nil
 }
@@ -150,11 +149,18 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 					Kind:      5,
 					Tags:      nostr.Tags{{"e", token.event.ID}, {"k", "7375"}},
 				}
-				w.wl.kr.SignEvent(ctx, &deleteEvent)
+				w.kr.SignEvent(ctx, &deleteEvent)
 
-				w.wl.Lock()
-				w.wl.PublishUpdate(deleteEvent, &token, nil, nil, false)
-				w.wl.Unlock()
+				w.Lock()
+				w.PublishUpdate(deleteEvent, &token, nil, nil, false)
+				w.Unlock()
+
+				// fill in the history deleted token
+				he.TokenReferences = append(he.TokenReferences, TokenRef{
+					EventID:  token.event.ID,
+					Created:  false,
+					IsNutzap: false,
+				})
 			}
 			continue
 		}
@@ -162,19 +168,22 @@ func (w *Wallet) saveChangeAndDeleteUsedTokens(
 	}
 
 	if len(changeToken.Proofs) > 0 {
-		if err := changeToken.toEvent(ctx, w.wl.kr, w.Identifier, changeToken.event); err != nil {
+		if err := changeToken.toEvent(ctx, w.kr, changeToken.event); err != nil {
 			return fmt.Errorf("failed to make change token: %w", err)
 		}
-		w.wl.Lock()
-		w.wl.PublishUpdate(*changeToken.event, nil, nil, &changeToken, false)
-		w.wl.Unlock()
+		w.Lock()
+		w.PublishUpdate(*changeToken.event, nil, nil, &changeToken, false)
+		w.Unlock()
 
 		// we don't have to lock tokensMu here because this function will always be called with that lock already held
 		w.Tokens = append(updatedTokens, changeToken)
 
 		// fill in the history created token
-		he.tokenEventIDs = append(he.tokenEventIDs, changeToken.event.ID)
-		he.nutZaps = append(he.nutZaps, false)
+		he.TokenReferences = append(he.TokenReferences, TokenRef{
+			EventID:  changeToken.event.ID,
+			Created:  true,
+			IsNutzap: false,
+		})
 	}
 
 	return nil
