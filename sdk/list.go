@@ -68,7 +68,7 @@ func fetchGenericList[I TagItemWithValue](
 		// but if we haven't tried fetching from the network recently we should do it
 		lastFetchKey := makeLastFetchKey(actualKind, pubkey)
 		lastFetchData, _ := sys.KVStore.Get(lastFetchKey)
-		if lastFetchData == nil || nostr.Now()-decodeTimestamp(lastFetchData) > 7*24*60*60 {
+		if lastFetchData == nil || nostr.Now()-decodeTimestamp(lastFetchData) > getLocalStoreRefreshDaysForKind(actualKind)*24*60*60 {
 			newV := tryFetchListFromNetwork(ctx, sys, pubkey, replaceableIndex, parseTag)
 			if newV != nil && newV.Event.CreatedAt > v.Event.CreatedAt {
 				v = *newV
@@ -139,4 +139,15 @@ func parseItemsFromEventTags[I TagItemWithValue](
 		}
 	}
 	return result
+}
+
+func getLocalStoreRefreshDaysForKind(kind int) nostr.Timestamp {
+	switch kind {
+	case 0:
+		return 7
+	case 3:
+		return 1
+	default:
+		return 3
+	}
 }
