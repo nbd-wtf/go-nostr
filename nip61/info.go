@@ -14,7 +14,7 @@ type Info struct {
 	Relays    []string
 }
 
-func (zi *Info) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
+func (zi *Info) ToEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
 	evt.CreatedAt = nostr.Now()
 	evt.Kind = 10019
 
@@ -36,7 +36,7 @@ func (zi *Info) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) e
 	return nil
 }
 
-func (zi *Info) parse(evt *nostr.Event) error {
+func (zi *Info) ParseEvent(evt *nostr.Event) error {
 	zi.Mints = make([]string, 0)
 	for _, tag := range evt.Tags {
 		if len(tag) < 2 {
@@ -46,7 +46,8 @@ func (zi *Info) parse(evt *nostr.Event) error {
 		switch tag[0] {
 		case "mint":
 			if len(tag) == 2 || slices.Contains(tag[2:], cashu.Sat.String()) {
-				zi.Mints = append(zi.Mints, "http"+nostr.NormalizeURL(tag[1])[2:])
+				url, _ := nostr.NormalizeHTTPURL(tag[1])
+				zi.Mints = append(zi.Mints, url)
 			}
 		case "relay":
 			zi.Relays = append(zi.Relays, tag[1])

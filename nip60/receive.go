@@ -11,17 +11,47 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip60/client"
 )
 
+type receiveSettings struct {
+	intoMint []string
+	isNutzap bool
+}
+
+type ReceiveOption func(*receiveSettings)
+
+func WithMintDestination(url string) ReceiveOption {
+	return func(rs *receiveSettings) {
+		rs.intoMint = append(rs.intoMint, url)
+	}
+}
+
+func WithNutzap() ReceiveOption {
+	return func(rs *receiveSettings) {
+		rs.isNutzap = true
+	}
+}
+
 func (w *Wallet) Receive(
 	ctx context.Context,
 	proofs cashu.Proofs,
 	mint string,
+	opts ...ReceiveOption,
 ) error {
 	if w.PublishUpdate == nil {
 		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
 	}
 
-	source := "http" + nostr.NormalizeURL(mint)[2:]
-	lightningSwap := slices.Contains(w.Mints, source)
+	rs := receiveSettings{}
+	for _, opt := range opts {
+		opt(&rs)
+	}
+
+	source, _ := nostr.NormalizeHTTPURL(mint)
+	destination := rs.intoMint
+	if len(destination) == 0 {
+		destination = w.Mints
+	}
+
+	lightningSwap := slices.Contains(destination, source)
 	swapOpts := make([]SwapOption, 0, 1)
 
 	for i, proof := range proofs {
@@ -60,7 +90,7 @@ func (w *Wallet) Receive(
 	// if we have to swap to our own mint we do it now by getting a bolt11 invoice from our mint
 	// and telling the current mint to pay it
 	if lightningSwap {
-		for _, targetMint := range w.Mints {
+		for _, targetMint := range destination {
 			swappedProofs, err, status := lightningMeltMint(
 				ctx,
 				newProofs,
@@ -110,7 +140,7 @@ saveproofs:
 			{
 				EventID:  newToken.event.ID,
 				Created:  true,
-				IsNutzap: false,
+				IsNutzap: rs.isNutzap,
 			},
 		},
 		createdAt: nostr.Now(),

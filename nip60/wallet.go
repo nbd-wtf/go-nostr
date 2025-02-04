@@ -24,6 +24,7 @@ type Wallet struct {
 	kr nostr.Keyer
 
 	// PublishUpdate must be set to a function that publishes event to the user relays
+	// (if all arguments are their zero values that means it is a wallet update event).
 	PublishUpdate func(
 		event nostr.Event,
 		deleted *Token,
@@ -78,7 +79,7 @@ func loadWalletFromPool(
 
 	kinds := []int{17375, 7375}
 	if withHistory {
-		kinds = append(kinds, 7375)
+		kinds = append(kinds, 7376)
 	}
 
 	eoseChan := make(chan struct{})
@@ -229,6 +230,89 @@ func (w *Wallet) Balance() uint64 {
 	return sum
 }
 
+func (w *Wallet) AddMint(ctx context.Context, urls ...string) error {
+	if w.PublishUpdate == nil {
+		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
+	}
+
+	for _, url := range urls {
+		url, err := nostr.NormalizeHTTPURL(url)
+		if err != nil {
+			return err
+		}
+
+		if !slices.Contains(w.Mints, url) {
+			w.Mints = append(w.Mints, url)
+		}
+	}
+
+	evt := nostr.Event{}
+	if err := w.toEvent(ctx, w.kr, &evt); err != nil {
+		return err
+	}
+
+	w.Lock()
+	w.PublishUpdate(evt, nil, nil, nil, false)
+	w.Unlock()
+
+	return nil
+}
+
+func (w *Wallet) RemoveMint(ctx context.Context, urls ...string) error {
+	if w.PublishUpdate == nil {
+		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
+	}
+
+	for _, url := range urls {
+		url, err := nostr.NormalizeHTTPURL(url)
+		if err != nil {
+			return err
+		}
+
+		if idx := slices.Index(w.Mints, url); idx != -1 {
+			w.Mints = slices.Delete(w.Mints, idx, idx+1)
+		}
+	}
+
+	evt := nostr.Event{}
+	if err := w.toEvent(ctx, w.kr, &evt); err != nil {
+		return err
+	}
+
+	w.Lock()
+	w.PublishUpdate(evt, nil, nil, nil, false)
+	w.Unlock()
+
+	return nil
+}
+
+func (w *Wallet) SetPrivateKey(ctx context.Context, privateKey string) error {
+	if w.PublishUpdate == nil {
+		return fmt.Errorf("can't do write operations: missing PublishUpdate function")
+	}
+
+	skb, err := hex.DecodeString(privateKey)
+	if err != nil {
+		return err
+	}
+	if len(skb) != 32 {
+		return fmt.Errorf("private key must be 32 bytes, got %d", len(skb))
+	}
+
+	w.PrivateKey, w.PublicKey = btcec.PrivKeyFromBytes(skb)
+
+	evt := nostr.Event{}
+	if err := w.toEvent(ctx, w.kr, &evt); err != nil {
+		return err
+	}
+
+	w.Lock()
+	w.PublishUpdate(evt, nil, nil, nil, false)
+	w.Unlock()
+
+	return nil
+}
+
 func (w *Wallet) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
 	evt.CreatedAt = nostr.Now()
 	evt.Kind = 17375
@@ -239,12 +323,15 @@ func (w *Wallet) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) 
 		return err
 	}
 
-	tags := make(nostr.Tags, 0, 1+len(w.Mints))
-	tags = append(tags, nostr.Tag{"privkey", hex.EncodeToString(w.PrivateKey.Serialize())})
-	for _, mint := range w.Mints {
-		tags = append(tags, nostr.Tag{"mint", mint})
+	encryptedTags := make(nostr.Tags, 0, 1+len(w.Mints))
+	if w.PrivateKey != nil {
+		encryptedTags = append(encryptedTags, nostr.Tag{"privkey", hex.EncodeToString(w.PrivateKey.Serialize())})
 	}
-	jtags, _ := json.Marshal(tags)
+
+	for _, mint := range w.Mints {
+		encryptedTags = append(encryptedTags, nostr.Tag{"mint", mint})
+	}
+	jtags, _ := json.Marshal(encryptedTags)
 	evt.Content, err = kr.Encrypt(
 		ctx,
 		string(jtags),
@@ -301,15 +388,12 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 		}
 	}
 
-	if privateKey == nil {
-		return fmt.Errorf("missing wallet private key")
+	if privateKey != nil {
+		w.PrivateKey = privateKey
+		w.PublicKey = w.PrivateKey.PubKey()
 	}
 
-	// finally set these things when we know nothing will fail
 	w.Mints = mints
-	fmt.Println("mints", mints)
-	w.PrivateKey = privateKey
-	w.PublicKey = w.PrivateKey.PubKey()
 
 	return nil
 }

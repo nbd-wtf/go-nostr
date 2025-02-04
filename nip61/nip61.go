@@ -33,7 +33,7 @@ func SendNutzap(
 	}
 
 	info := Info{}
-	if err := info.parse(ie.Event); err != nil {
+	if err := info.ParseEvent(ie.Event); err != nil {
 		return nil, err
 	}
 

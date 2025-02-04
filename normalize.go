@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -34,6 +35,49 @@ func NormalizeURL(u string) string {
 	p.Path = strings.TrimRight(p.Path, "/")
 
 	return p.String()
+}
+
+// NormalizeHTTPURL does normalization of http(s):// URLs according to rfc3986. Don't use for relay URLs.
+func NormalizeHTTPURL(s string) (string, error) {
+	s = strings.TrimSpace(s)
+
+	if !strings.HasPrefix(s, "http") {
+		s = "https://" + s
+	}
+
+	u, err := url.Parse(s)
+	if err != nil {
+		return s, err
+	}
+
+	if u.Scheme == "" {
+		u, err = url.Parse("http://" + s)
+		if err != nil {
+			return s, err
+		}
+	}
+
+	if strings.HasPrefix(s, "//") {
+		s = "http:" + s
+	}
+
+	var p int
+	switch u.Scheme {
+	case "http":
+		p = 80
+	case "https":
+		p = 443
+	}
+	u.Host = strings.TrimSuffix(u.Host, fmt.Sprintf(":%d", p))
+
+	v := u.Query()
+	u.RawQuery = v.Encode()
+	u.RawQuery, _ = url.QueryUnescape(u.RawQuery)
+
+	h := u.String()
+	h = strings.TrimSuffix(h, "/")
+
+	return h, nil
 }
 
 // NormalizeOKMessage takes a string message that is to be sent in an `OK` or `CLOSED` command
