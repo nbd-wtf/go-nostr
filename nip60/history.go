@@ -80,6 +80,7 @@ func (h HistoryEntry) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Ev
 func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
 	h.event = evt
 	h.createdAt = evt.CreatedAt
+	h.TokenReferences = make([]TokenRef, 0, 3)
 
 	pk, err := kr.GetPublicKey(ctx)
 	if err != nil {
@@ -132,10 +133,7 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 				return fmt.Errorf("'e' tag has invalid event id %s", tag[1])
 			}
 
-			h.TokenReferences = append(h.TokenReferences)
-
 			tf := TokenRef{EventID: tag[1]}
-
 			switch tag[3] {
 			case "created":
 				tf.Created = true
@@ -143,9 +141,11 @@ func (h *HistoryEntry) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Eve
 				tf.Created = false
 			case "redeemed":
 				tf.IsNutzap = true
+				tf.Created = true
 			default:
 				return fmt.Errorf("unsupported 'e' token marker: %s", tag[3])
 			}
+			h.TokenReferences = append(h.TokenReferences, tf)
 		}
 	}
 

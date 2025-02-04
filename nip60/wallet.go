@@ -76,7 +76,7 @@ func loadWalletFromPool(
 		return nil
 	}
 
-	kinds := []int{37375, 7375}
+	kinds := []int{17375, 7375}
 	if withHistory {
 		kinds = append(kinds, 7375)
 	}
@@ -231,7 +231,7 @@ func (w *Wallet) Balance() uint64 {
 
 func (w *Wallet) toEvent(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) error {
 	evt.CreatedAt = nostr.Now()
-	evt.Kind = 37375
+	evt.Kind = 17375
 	evt.Tags = nostr.Tags{}
 
 	pk, err := kr.GetPublicKey(ctx)
@@ -307,6 +307,7 @@ func (w *Wallet) parse(ctx context.Context, kr nostr.Keyer, evt *nostr.Event) er
 
 	// finally set these things when we know nothing will fail
 	w.Mints = mints
+	fmt.Println("mints", mints)
 	w.PrivateKey = privateKey
 	w.PublicKey = w.PrivateKey.PubKey()
 

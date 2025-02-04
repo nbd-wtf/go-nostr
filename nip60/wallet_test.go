@@ -1,6 +1,7 @@
 package nip60
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"github.com/elnosh/gonuts/cashu"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/keyer"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/rand"
 )
 
@@ -82,18 +84,16 @@ func TestWallet(t *testing.T) {
 
 	// wallet metadata event
 	metaEvent := &nostr.Event{}
-	if err := w.toEvent(ctx, kr, metaEvent); err != nil {
-		t.Fatal(err)
-	}
+	err = w.toEvent(ctx, kr, metaEvent)
+	require.NoError(t, err)
 	events = append(events, metaEvent)
 
 	// token events
 	for i := range w.Tokens {
 		evt := &nostr.Event{}
 		evt.Tags = nostr.Tags{}
-		if err := w.Tokens[i].toEvent(ctx, kr, evt); err != nil {
-			t.Fatal(err)
-		}
+		err := w.Tokens[i].toEvent(ctx, kr, evt)
+		require.NoError(t, err)
 		w.Tokens[i].event = evt
 		events = append(events, evt)
 	}
@@ -102,9 +102,8 @@ func TestWallet(t *testing.T) {
 	for i := range w.History {
 		evt := &nostr.Event{}
 		evt.Tags = nostr.Tags{}
-		if err := w.History[i].toEvent(ctx, kr, evt); err != nil {
-			t.Fatal(err)
-		}
+		err := w.History[i].toEvent(ctx, kr, evt)
+		require.NoError(t, err)
 		w.History[i].event = evt
 		events = append(events, evt)
 	}
@@ -164,46 +163,23 @@ func TestWallet(t *testing.T) {
 			// load wallet from events
 			loaded := loadWallet(ctx, kr, evtChan, eoseChan)
 			loaded.Processed = func(evt *nostr.Event, err error) {
-				fmt.Println("processed", evt, err)
+				fmt.Println("processed", evt.Kind, err)
 			}
 
 			<-loaded.Stable
 
-			// check if loaded wallet matches original
-			if len(loaded.Tokens) != len(w.Tokens) {
-				t.Errorf("token count mismatch: %d != %d", len(loaded.Tokens), len(w.Tokens))
+			require.Len(t, loaded.Tokens, len(w.Tokens))
+			require.ElementsMatch(t, loaded.Tokens, w.Tokens)
+			require.Len(t, loaded.History, len(w.History))
+			slices.SortFunc(loaded.History, func(a, b HistoryEntry) int { return cmp.Compare(a.createdAt, b.createdAt) })
+			slices.SortFunc(w.History, func(a, b HistoryEntry) int { return cmp.Compare(a.createdAt, b.createdAt) })
+			for i := range w.History {
+				slices.SortFunc(loaded.History[i].TokenReferences, func(a, b TokenRef) int { return cmp.Compare(a.EventID, b.EventID) })
+				slices.SortFunc(w.History[i].TokenReferences, func(a, b TokenRef) int { return cmp.Compare(a.EventID, b.EventID) })
+				require.Equal(t, loaded.History[i], w.History[i])
 			}
-			if len(loaded.History) != len(w.History) {
-				t.Errorf("history count mismatch: %d != %d", len(loaded.History), len(w.History))
-			}
-
-			// check tokens are equal regardless of order
-			for _, ta := range loaded.Tokens {
-				found := false
-				for _, tb := range w.Tokens {
-					if ta.Mint == tb.Mint && ta.Proofs[0].Amount == tb.Proofs[0].Amount {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("token not found in loaded wallet: %v", ta)
-				}
-			}
-
-			// check history entries are equal regardless of order
-			for _, ha := range loaded.History {
-				found := false
-				for _, hb := range w.History {
-					if ha.In == hb.In && ha.Amount == hb.Amount {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("history entry not found in loaded wallet: %v", ha)
-				}
-			}
+			require.ElementsMatch(t, loaded.Mints, w.Mints)
+			require.Equal(t, loaded.PublicKey.SerializeCompressed(), w.PublicKey.SerializeCompressed())
 		})
 	}
 }
