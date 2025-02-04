@@ -94,7 +94,9 @@ func (v EventEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["EVENT",`)
 	if v.SubscriptionID != nil {
-		w.RawString(`"` + *v.SubscriptionID + `",`)
+		w.RawString(`"`)
+		w.RawString(*v.SubscriptionID)
+		w.RawString(`",`)
 	}
 	v.Event.MarshalEasyJSON(&w)
 	w.RawString(`]`)
@@ -129,8 +131,9 @@ func (v *ReqEnvelope) UnmarshalJSON(data []byte) error {
 
 func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
-	w.RawString(`["REQ",`)
-	w.RawString(`"` + v.SubscriptionID + `"`)
+	w.RawString(`["REQ","`)
+	w.RawString(v.SubscriptionID)
+	w.RawString(`"`)
 	for _, filter := range v.Filters {
 		w.RawString(`,`)
 		filter.MarshalEasyJSON(&w)
@@ -192,8 +195,9 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 
 func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
-	w.RawString(`["COUNT",`)
-	w.RawString(`"` + v.SubscriptionID + `"`)
+	w.RawString(`["COUNT","`)
+	w.RawString(v.SubscriptionID)
+	w.RawString(`"`)
 	if v.Count != nil {
 		w.RawString(`,{"count":`)
 		w.RawString(strconv.FormatInt(*v.Count, 10))
@@ -355,8 +359,9 @@ func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
 
 func (v OKEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
-	w.RawString(`["OK",`)
-	w.RawString(`"` + v.EventID + `",`)
+	w.RawString(`["OK","`)
+	w.RawString(v.EventID)
+	w.RawString(`",`)
 	ok := "false"
 	if v.OK {
 		ok = "true"

@@ -57,7 +57,7 @@ func (evt *Event) CheckID() bool {
 func (evt *Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
 	// so the order is kept. See NIP-01
-	dst := make([]byte, 0)
+	dst := make([]byte, 0, 100+len(evt.Content)+len(evt.Tags)*80)
 
 	// the header portion is easy to serialize
 	// [0,"pubkey",created_at,kind,[
