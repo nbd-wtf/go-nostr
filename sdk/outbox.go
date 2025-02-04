@@ -50,7 +50,7 @@ func (sys *System) FetchOutboxRelays(ctx context.Context, pubkey string, n int) 
 // the relays they intend to receive notifications from.
 func (sys *System) FetchInboxRelays(ctx context.Context, pubkey string, n int) []string {
 	rl := sys.FetchRelayList(ctx, pubkey)
-	if len(rl.Items) == 0 || len(rl.Items) > 7 {
+	if len(rl.Items) == 0 || len(rl.Items) > 10 {
 		return []string{"wss://relay.damus.io", "wss://nos.lol"}
 	}
 
