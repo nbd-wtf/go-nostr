@@ -13,20 +13,6 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip60/client"
 )
 
-type SwapOption func(*swapSettings)
-
-func WithSignedOutputs() SwapOption {
-	return func(ss *swapSettings) {
-		ss.mustSignOutputs = true
-	}
-}
-
-func WithSpendingCondition(sc nut10.SpendingCondition) SwapOption {
-	return func(ss *swapSettings) {
-		ss.spendingCondition = &sc
-	}
-}
-
 type swapSettings struct {
 	spendingCondition *nut10.SpendingCondition
 	mustSignOutputs   bool
@@ -37,13 +23,8 @@ func (w *Wallet) swapProofs(
 	mint string,
 	proofs cashu.Proofs,
 	targetAmount uint64,
-	opts ...SwapOption,
+	ss swapSettings,
 ) (principal cashu.Proofs, change cashu.Proofs, err error) {
-	var ss swapSettings
-	for _, opt := range opts {
-		opt(&ss)
-	}
-
 	keysets, err := client.GetAllKeysets(ctx, mint)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get all keysets for %s: %w", mint, err)

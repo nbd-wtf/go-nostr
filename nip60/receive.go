@@ -47,12 +47,8 @@ func (w *Wallet) Receive(
 
 	source, _ := nostr.NormalizeHTTPURL(mint)
 	destination := rs.intoMint
-	if len(destination) == 0 {
-		destination = w.Mints
-	}
 
-	lightningSwap := slices.Contains(destination, source)
-	swapOpts := make([]SwapOption, 0, 1)
+	swapSettings := swapSettings{}
 
 	for i, proof := range proofs {
 		if proof.Secret != "" {
@@ -60,7 +56,8 @@ func (w *Wallet) Receive(
 			if err == nil {
 				switch nut10Secret.Kind {
 				case nut10.P2PK:
-					swapOpts = append(swapOpts, WithSignedOutputs())
+					swapSettings.mustSignOutputs = true
+
 					proofs[i].Witness, err = signInput(w.PrivateKey, proof)
 					if err != nil {
 						return fmt.Errorf("failed to sign locked proof %d: %w", i, err)
@@ -80,7 +77,7 @@ func (w *Wallet) Receive(
 	}
 
 	// get new proofs
-	newProofs, _, err := w.swapProofs(ctx, source, proofs, proofs.Amount(), swapOpts...)
+	newProofs, _, err := w.swapProofs(ctx, source, proofs, proofs.Amount(), swapSettings)
 	if err != nil {
 		return err
 	}
@@ -89,6 +86,7 @@ func (w *Wallet) Receive(
 
 	// if we have to swap to our own mint we do it now by getting a bolt11 invoice from our mint
 	// and telling the current mint to pay it
+	lightningSwap := slices.Contains(destination, source)
 	if lightningSwap {
 		for _, targetMint := range destination {
 			swappedProofs, err, status := lightningMeltMint(

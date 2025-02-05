@@ -68,8 +68,7 @@ func (w *Wallet) Send(ctx context.Context, amount uint64, opts ...SendOption) (c
 		return nil, "", err
 	}
 
-	swapOpts := make([]SwapOption, 0, 2)
-
+	swapSettings := swapSettings{}
 	if ss.p2pk != nil {
 		if info, err := client.GetMintInfo(ctx, chosen.mint); err != nil || !info.Nuts.Nut11.Supported {
 			return nil, chosen.mint, fmt.Errorf("mint doesn't support p2pk: %w", err)
@@ -85,17 +84,15 @@ func (w *Wallet) Send(ctx context.Context, amount uint64, opts ...SendOption) (c
 			tags.Locktime = ss.refundtimelock
 		}
 
-		swapOpts = append(swapOpts, WithSpendingCondition(
-			nut10.SpendingCondition{
-				Kind: nut10.P2PK,
-				Data: hex.EncodeToString(ss.p2pk.SerializeCompressed()),
-				Tags: nut11.SerializeP2PKTags(tags),
-			},
-		))
+		swapSettings.spendingCondition = &nut10.SpendingCondition{
+			Kind: nut10.P2PK,
+			Data: hex.EncodeToString(ss.p2pk.SerializeCompressed()),
+			Tags: nut11.SerializeP2PKTags(tags),
+		}
 	}
 
 	// get new proofs
-	proofsToSend, changeProofs, err := w.swapProofs(ctx, chosen.mint, chosen.proofs, amount, swapOpts...)
+	proofsToSend, changeProofs, err := w.swapProofs(ctx, chosen.mint, chosen.proofs, amount, swapSettings)
 	if err != nil {
 		return nil, chosen.mint, err
 	}
