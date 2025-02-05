@@ -25,7 +25,7 @@ func TestBolt11Parsing(t *testing.T) {
 		{"lnbc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", 0, false},
 	} {
 		t.Run(fmt.Sprintf("%d = %s", tc.sats, tc.bolt11), func(t *testing.T) {
-			sats, err := getSatoshisAmountFromBolt11(tc.bolt11)
+			sats, err := GetSatoshisAmountFromBolt11(tc.bolt11)
 			if tc.hasError {
 				require.Error(t, err)
 			} else {

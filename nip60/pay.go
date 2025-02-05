@@ -21,7 +21,7 @@ func (w *Wallet) PayBolt11(ctx context.Context, invoice string, opts ...SendOpti
 		opt(ss)
 	}
 
-	invoiceAmount, err := getSatoshisAmountFromBolt11(invoice)
+	invoiceAmount, err := GetSatoshisAmountFromBolt11(invoice)
 	if err != nil {
 		return "", err
 	}

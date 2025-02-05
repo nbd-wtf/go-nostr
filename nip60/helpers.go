@@ -200,7 +200,7 @@ func parseKeysetKeys(keys nut01.KeysMap) (map[uint64]*btcec.PublicKey, error) {
 	return parsedKeys, nil
 }
 
-func getSatoshisAmountFromBolt11(bolt11 string) (uint64, error) {
+func GetSatoshisAmountFromBolt11(bolt11 string) (uint64, error) {
 	if len(bolt11) < 50 {
 		return 0, fmt.Errorf("invalid invoice, too short")
 	}
