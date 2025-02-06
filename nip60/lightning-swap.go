@@ -134,7 +134,7 @@ func redeemMinted(
 	}
 
 	// unblind the signatures from the promises and build the blinded messages
-	keysetKeys, err := parseKeysetKeys(keyset.Keys)
+	keysetKeys, err := ParseKeysetKeys(keyset.Keys)
 	if err != nil {
 		return nil, fmt.Errorf("target mint %s sent us an invalid keyset: %w", mint, err)
 	}

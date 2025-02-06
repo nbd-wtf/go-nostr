@@ -33,7 +33,7 @@ func (w *Wallet) swapProofs(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get active keyset for %s: %w", mint, err)
 	}
-	ksKeys, err := parseKeysetKeys(activeKeyset.Keys)
+	ksKeys, err := ParseKeysetKeys(activeKeyset.Keys)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse keys for %s: %w", mint, err)
 	}

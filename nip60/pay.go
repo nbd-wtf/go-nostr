@@ -79,7 +79,7 @@ meltworked:
 	if err != nil {
 		return "", fmt.Errorf("failed to get active keyset for %s: %w", chosen.mint, err)
 	}
-	ksKeys, err := parseKeysetKeys(activeKeyset.Keys)
+	ksKeys, err := ParseKeysetKeys(activeKeyset.Keys)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse keys for %s: %w", chosen.mint, err)
 	}

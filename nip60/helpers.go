@@ -184,7 +184,7 @@ func unblindSignature(C_str string, r *secp256k1.PrivateKey, key *secp256k1.Publ
 	return Cstr, nil
 }
 
-func parseKeysetKeys(keys nut01.KeysMap) (map[uint64]*btcec.PublicKey, error) {
+func ParseKeysetKeys(keys nut01.KeysMap) (map[uint64]*btcec.PublicKey, error) {
 	parsedKeys := make(map[uint64]*btcec.PublicKey)
 	for amount, pkh := range keys {
 		pkb, err := hex.DecodeString(pkh)
