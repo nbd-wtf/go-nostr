@@ -46,9 +46,7 @@ type RelayEvent struct {
 	Relay *Relay
 }
 
-func (ie RelayEvent) String() string {
-	return fmt.Sprintf("[%s] >> %s", ie.Relay.URL, ie.Event)
-}
+func (ie RelayEvent) String() string { return fmt.Sprintf("[%s] >> %s", ie.Relay.URL, ie.Event) }
 
 type PoolOption interface {
 	ApplyPoolOption(*SimplePool)
