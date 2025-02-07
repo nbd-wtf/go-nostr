@@ -575,9 +575,14 @@ func (pool *SimplePool) CountMany(
 }
 
 // QuerySingle returns the first event returned by the first relay, cancels everything else.
-func (pool *SimplePool) QuerySingle(ctx context.Context, urls []string, filter Filter) *RelayEvent {
+func (pool *SimplePool) QuerySingle(
+	ctx context.Context,
+	urls []string,
+	filter Filter,
+	opts ...SubscriptionOption,
+) *RelayEvent {
 	ctx, cancel := context.WithCancelCause(ctx)
-	for ievt := range pool.SubManyEose(ctx, urls, Filters{filter}) {
+	for ievt := range pool.SubManyEose(ctx, urls, Filters{filter}, opts...) {
 		cancel(errors.New("got the first event and ended successfully"))
 		return &ievt
 	}
