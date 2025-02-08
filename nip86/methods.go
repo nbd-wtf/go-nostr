@@ -72,6 +72,10 @@ func DecodeRequest(req Request) (MethodParams, error) {
 		return BanEvent{id, reason}, nil
 	case "listbannedevents":
 		return ListBannedEvents{}, nil
+	case "listallowedevents":
+		return ListAllowedEvents{}, nil
+	case "listdisallowedkinds":
+		return ListDisallowedKinds{}, nil
 	case "changerelayname":
 		if len(req.Params) == 0 {
 			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
@@ -140,6 +144,30 @@ func DecodeRequest(req Request) (MethodParams, error) {
 		return UnblockIP{ip, reason}, nil
 	case "listblockedips":
 		return ListBlockedIPs{}, nil
+	case "grantadmin":
+		if len(req.Params) < 2 {
+			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
+		}
+
+		pubkey := req.Params[0].(string)
+		allowedMethods := req.Params[1].([]string)
+
+		return GrantAdmin{
+			Pubkey:       pubkey,
+			AllowMethods: allowedMethods,
+		}, nil
+	case "revokeadmin":
+		if len(req.Params) < 2 {
+			return nil, fmt.Errorf("invalid number of params for '%s'", req.Method)
+		}
+
+		pubkey := req.Params[0].(string)
+		disallowedMethods := req.Params[1].([]string)
+
+		return RevokeAdmin{
+			Pubkey:          pubkey,
+			DisallowMethods: disallowedMethods,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown method '%s'", req.Method)
 	}
@@ -168,104 +196,130 @@ var (
 	_ MethodParams = (*BlockIP)(nil)
 	_ MethodParams = (*UnblockIP)(nil)
 	_ MethodParams = (*ListBlockedIPs)(nil)
+	_ MethodParams = (*ListAllowedEvents)(nil)
+	_ MethodParams = (*ListDisallowedKinds)(nil)
+	_ MethodParams = (*GrantAdmin)(nil)
+	_ MethodParams = (*RevokeAdmin)(nil)
 )
 
 type SupportedMethods struct{}
 
-func (_ SupportedMethods) MethodName() string { return "supportedmethods" }
+func (SupportedMethods) MethodName() string { return "supportedmethods" }
 
 type BanPubKey struct {
 	PubKey string
 	Reason string
 }
 
-func (_ BanPubKey) MethodName() string { return "banpubkey" }
+func (BanPubKey) MethodName() string { return "banpubkey" }
 
 type ListBannedPubKeys struct{}
 
-func (_ ListBannedPubKeys) MethodName() string { return "listbannedpubkeys" }
+func (ListBannedPubKeys) MethodName() string { return "listbannedpubkeys" }
 
 type AllowPubKey struct {
 	PubKey string
 	Reason string
 }
 
-func (_ AllowPubKey) MethodName() string { return "allowpubkey" }
+func (AllowPubKey) MethodName() string { return "allowpubkey" }
 
 type ListAllowedPubKeys struct{}
 
-func (_ ListAllowedPubKeys) MethodName() string { return "listallowedpubkeys" }
+func (ListAllowedPubKeys) MethodName() string { return "listallowedpubkeys" }
 
 type ListEventsNeedingModeration struct{}
 
-func (_ ListEventsNeedingModeration) MethodName() string { return "listeventsneedingmoderation" }
+func (ListEventsNeedingModeration) MethodName() string { return "listeventsneedingmoderation" }
 
 type AllowEvent struct {
 	ID     string
 	Reason string
 }
 
-func (_ AllowEvent) MethodName() string { return "allowevent" }
+func (AllowEvent) MethodName() string { return "allowevent" }
 
 type BanEvent struct {
 	ID     string
 	Reason string
 }
 
-func (_ BanEvent) MethodName() string { return "banevent" }
+func (BanEvent) MethodName() string { return "banevent" }
 
 type ListBannedEvents struct{}
 
-func (_ ListBannedEvents) MethodName() string { return "listbannedevents" }
+func (ListBannedEvents) MethodName() string { return "listbannedevents" }
 
 type ChangeRelayName struct {
 	Name string
 }
 
-func (_ ChangeRelayName) MethodName() string { return "changerelayname" }
+func (ChangeRelayName) MethodName() string { return "changerelayname" }
 
 type ChangeRelayDescription struct {
 	Description string
 }
 
-func (_ ChangeRelayDescription) MethodName() string { return "changerelaydescription" }
+func (ChangeRelayDescription) MethodName() string { return "changerelaydescription" }
 
 type ChangeRelayIcon struct {
 	IconURL string
 }
 
-func (_ ChangeRelayIcon) MethodName() string { return "changerelayicon" }
+func (ChangeRelayIcon) MethodName() string { return "changerelayicon" }
 
 type AllowKind struct {
 	Kind int
 }
 
-func (_ AllowKind) MethodName() string { return "allowkind" }
+func (AllowKind) MethodName() string { return "allowkind" }
 
 type DisallowKind struct {
 	Kind int
 }
 
-func (_ DisallowKind) MethodName() string { return "disallowkind" }
+func (DisallowKind) MethodName() string { return "disallowkind" }
 
 type ListAllowedKinds struct{}
 
-func (_ ListAllowedKinds) MethodName() string { return "listallowedkinds" }
+func (ListAllowedKinds) MethodName() string { return "listallowedkinds" }
 
 type BlockIP struct {
 	IP     net.IP
 	Reason string
 }
 
-func (_ BlockIP) MethodName() string { return "blockip" }
+func (BlockIP) MethodName() string { return "blockip" }
 
 type UnblockIP struct {
 	IP     net.IP
 	Reason string
 }
 
-func (_ UnblockIP) MethodName() string { return "unblockip" }
+func (UnblockIP) MethodName() string { return "unblockip" }
 
 type ListBlockedIPs struct{}
 
-func (_ ListBlockedIPs) MethodName() string { return "listblockedips" }
+func (ListBlockedIPs) MethodName() string { return "listblockedips" }
+
+type ListAllowedEvents struct{}
+
+func (ListAllowedEvents) MethodName() string { return "listallowedevents" }
+
+type ListDisallowedKinds struct{}
+
+func (ListDisallowedKinds) MethodName() string { return "listdisallowedkinds" }
+
+type GrantAdmin struct {
+	Pubkey       string
+	AllowMethods []string
+}
+
+func (GrantAdmin) MethodName() string { return "grantadmin" }
+
+type RevokeAdmin struct {
+	Pubkey          string
+	DisallowMethods []string
+}
+
+func (RevokeAdmin) MethodName() string { return "revokeadmin" }
