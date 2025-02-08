@@ -168,6 +168,8 @@ func DecodeRequest(req Request) (MethodParams, error) {
 			Pubkey:          pubkey,
 			DisallowMethods: disallowedMethods,
 		}, nil
+	case "stats":
+		return Stats{}, nil
 	default:
 		return nil, fmt.Errorf("unknown method '%s'", req.Method)
 	}
@@ -200,6 +202,7 @@ var (
 	_ MethodParams = (*ListDisallowedKinds)(nil)
 	_ MethodParams = (*GrantAdmin)(nil)
 	_ MethodParams = (*RevokeAdmin)(nil)
+	_ MethodParams = (*Stats)(nil)
 )
 
 type SupportedMethods struct{}
@@ -323,3 +326,7 @@ type RevokeAdmin struct {
 }
 
 func (RevokeAdmin) MethodName() string { return "revokeadmin" }
+
+type Stats struct{}
+
+func (Stats) MethodName() string { return "stats" }
