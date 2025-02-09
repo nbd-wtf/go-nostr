@@ -24,6 +24,7 @@ type RelayInformationDocument struct {
 	Fees           *RelayFeesDocument        `json:"fees,omitempty"`
 	Retention      []*RelayRetentionDocument `json:"retention,omitempty"`
 	Icon           string                    `json:"icon"`
+	Banner         string                    `json:"banner"`
 }
 
 func (info *RelayInformationDocument) AddSupportedNIP(number int) {
