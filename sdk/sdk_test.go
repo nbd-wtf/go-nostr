@@ -22,8 +22,8 @@ func TestMetadataAndEvents(t *testing.T) {
 
 	// check outbox relays
 	relays := sys.FetchOutboxRelays(ctx, meta.PubKey, 5)
+	require.Contains(t, relays, "wss://lockbox.fiatjaf.com")
 	require.Contains(t, relays, "wss://relay.westernbtc.com")
-	require.Contains(t, relays, "wss://pyramid.fiatjaf.com")
 
 	// fetch notes
 	filter := nostr.Filter{
