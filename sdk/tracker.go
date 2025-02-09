@@ -4,6 +4,7 @@ import (
 	"net/url"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip27"
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
@@ -104,7 +105,7 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 			}
 		}
 
-		for ref := range ParseReferences(*ie.Event) {
+		for ref := range nip27.ParseReferences(*ie.Event) {
 			if ref.Profile != nil {
 				for _, relay := range ref.Profile.Relays {
 					if IsVirtualRelay(relay) {
