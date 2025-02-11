@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
+	cache_memory "github.com/nbd-wtf/go-nostr/sdk/cache/memory"
 )
 
 type ProfileRef struct {
@@ -17,16 +18,28 @@ type ProfileRef struct {
 func (f ProfileRef) Value() string { return f.Pubkey }
 
 func (sys *System) FetchFollowList(ctx context.Context, pubkey string) GenericList[ProfileRef] {
+	if sys.FollowListCache == nil {
+		sys.FollowListCache = cache_memory.New32[GenericList[ProfileRef]](1000)
+	}
+
 	fl, _ := fetchGenericList(sys, ctx, pubkey, 3, kind_3, parseProfileRef, sys.FollowListCache)
 	return fl
 }
 
 func (sys *System) FetchMuteList(ctx context.Context, pubkey string) GenericList[ProfileRef] {
+	if sys.MuteListCache == nil {
+		sys.MuteListCache = cache_memory.New32[GenericList[ProfileRef]](1000)
+	}
+
 	ml, _ := fetchGenericList(sys, ctx, pubkey, 10000, kind_10000, parseProfileRef, sys.MuteListCache)
 	return ml
 }
 
 func (sys *System) FetchFollowSets(ctx context.Context, pubkey string) GenericSets[ProfileRef] {
+	if sys.FollowSetsCache == nil {
+		sys.FollowSetsCache = cache_memory.New32[GenericSets[ProfileRef]](1000)
+	}
+
 	ml, _ := fetchGenericSets(sys, ctx, pubkey, 30000, kind_30000, parseProfileRef, sys.FollowSetsCache)
 	return ml
 }

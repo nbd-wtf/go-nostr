@@ -65,22 +65,10 @@ func (rs *RelayStream) Next() string {
 
 func NewSystem(mods ...SystemModifier) *System {
 	sys := &System{
-		KVStore:               kvstore_memory.NewStore(),
-		MetadataCache:         cache_memory.New32[ProfileMetadata](8000),
-		RelayListCache:        cache_memory.New32[GenericList[Relay]](8000),
-		FollowListCache:       cache_memory.New32[GenericList[ProfileRef]](1000),
-		MuteListCache:         cache_memory.New32[GenericList[ProfileRef]](1000),
-		BookmarkListCache:     cache_memory.New32[GenericList[EventRef]](1000),
-		PinListCache:          cache_memory.New32[GenericList[EventRef]](1000),
-		BlockedRelayListCache: cache_memory.New32[GenericList[RelayURL]](1000),
-		SearchRelayListCache:  cache_memory.New32[GenericList[RelayURL]](1000),
-		TopicListCache:        cache_memory.New32[GenericList[Topic]](1000),
-		RelaySetsCache:        cache_memory.New32[GenericSets[RelayURL]](1000),
-		FollowSetsCache:       cache_memory.New32[GenericSets[ProfileRef]](1000),
-		TopicSetsCache:        cache_memory.New32[GenericSets[Topic]](1000),
-		RelayListRelays:       NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
-		FollowListRelays:      NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
-		MetadataRelays:        NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		KVStore:          kvstore_memory.NewStore(),
+		RelayListRelays:  NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		FollowListRelays: NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
+		MetadataRelays:   NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
 		FallbackRelays: NewRelayStream(
 			"wss://relay.damus.io",
 			"wss://nostr.mom",
@@ -115,6 +103,13 @@ func NewSystem(mods ...SystemModifier) *System {
 
 	for _, mod := range mods {
 		mod(sys)
+	}
+
+	if sys.MetadataCache == nil {
+		sys.MetadataCache = cache_memory.New32[ProfileMetadata](8000)
+	}
+	if sys.RelayListCache == nil {
+		sys.RelayListCache = cache_memory.New32[GenericList[Relay]](8000)
 	}
 
 	if sys.Store == nil {
