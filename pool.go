@@ -254,7 +254,7 @@ func (pool *SimplePool) subMany(
 	eoseChan chan struct{},
 	opts ...SubscriptionOption,
 ) chan RelayEvent {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	_ = cancel // do this so `go vet` will stop complaining
 	events := make(chan RelayEvent)
 	seenAlready := xsync.NewMapOf[string, Timestamp]()
@@ -288,11 +288,11 @@ func (pool *SimplePool) subMany(
 				pending.Dec()
 				if pending.Value() == 0 {
 					close(events)
+					cancel(fmt.Errorf("aborted: %w", context.Cause(ctx)))
 				}
 				if !eosed {
 					eoseWg.Done()
 				}
-				cancel()
 			}()
 
 			hasAuthed := false
