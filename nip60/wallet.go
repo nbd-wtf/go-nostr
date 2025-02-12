@@ -82,24 +82,37 @@ func loadWalletFromPool(
 		kinds = append(kinds, 7376)
 	}
 
-	eoseChan := make(chan struct{})
-	events := pool.SubManyNotifyEOSE(
+	eoseChanE := make(chan struct{})
+	events := pool.SubscribeManyNotifyEOSE(
 		ctx,
 		relays,
-		nostr.Filters{
-			{Kinds: kinds, Authors: []string{pk}},
-			{Kinds: []int{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []string{pk}},
-		},
-		eoseChan,
+		nostr.Filter{Kinds: kinds, Authors: []string{pk}},
+		eoseChanE,
 	)
 
-	return loadWallet(ctx, kr, events, eoseChan)
+	eoseChanD := make(chan struct{})
+	deletions := pool.SubscribeManyNotifyEOSE(
+		ctx,
+		relays,
+		nostr.Filter{Kinds: []int{5}, Tags: nostr.TagMap{"k": []string{"7375"}}, Authors: []string{pk}},
+		eoseChanD,
+	)
+
+	eoseChan := make(chan struct{})
+	go func() {
+		<-eoseChanD
+		<-eoseChanE
+		close(eoseChan)
+	}()
+
+	return loadWallet(ctx, kr, events, deletions, eoseChan)
 }
 
 func loadWallet(
 	ctx context.Context,
 	kr nostr.Keyer,
 	events chan nostr.RelayEvent,
+	deletions chan nostr.RelayEvent,
 	eoseChan chan struct{},
 ) *Wallet {
 	w := &Wallet{
@@ -126,19 +139,25 @@ func loadWallet(
 	}()
 
 	go func() {
+		for ie := range deletions {
+			w.Lock()
+			if !eosed {
+				for _, tag := range ie.Event.Tags.All([]string{"e", ""}) {
+					w.pendingDeletions = append(w.pendingDeletions, tag[1])
+				}
+			} else {
+				for _, tag := range ie.Event.Tags.All([]string{"e", ""}) {
+					w.removeDeletedToken(tag[1])
+				}
+			}
+			w.Unlock()
+		}
+	}()
+
+	go func() {
 		for ie := range events {
 			w.Lock()
 			switch ie.Event.Kind {
-			case 5:
-				if !eosed {
-					for _, tag := range ie.Event.Tags.All([]string{"e", ""}) {
-						w.pendingDeletions = append(w.pendingDeletions, tag[1])
-					}
-				} else {
-					for _, tag := range ie.Event.Tags.All([]string{"e", ""}) {
-						w.removeDeletedToken(tag[1])
-					}
-				}
 			case 17375:
 				if err := w.parse(ctx, kr, ie.Event); err != nil {
 					if w.Processed != nil {

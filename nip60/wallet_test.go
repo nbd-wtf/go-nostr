@@ -161,7 +161,7 @@ func TestWallet(t *testing.T) {
 			}()
 
 			// load wallet from events
-			loaded := loadWallet(ctx, kr, evtChan, eoseChan)
+			loaded := loadWallet(ctx, kr, evtChan, make(chan nostr.RelayEvent), eoseChan)
 			loaded.Processed = func(evt *nostr.Event, err error) {
 				fmt.Println("processed", evt.Kind, err)
 			}

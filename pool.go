@@ -224,8 +224,29 @@ func (pool *SimplePool) PublishMany(ctx context.Context, urls []string, evt Even
 	return ch
 }
 
-// SubMany opens a subscription with the given filters to multiple relays
-// the subscriptions only end when the context is canceled
+// SubscribeMany opens a subscription with the given filter to multiple relays
+// the subscriptions ends when the context is canceled or when all relays return a CLOSED.
+func (pool *SimplePool) SubscribeMany(
+	ctx context.Context,
+	urls []string,
+	filter Filter,
+	opts ...SubscriptionOption,
+) chan RelayEvent {
+	return pool.subMany(ctx, urls, Filters{filter}, nil, opts...)
+}
+
+// FetchMany opens a subscription, much like SubscribeMany, but it ends as soon as all Relays
+// return an EOSE message.
+func (pool *SimplePool) FetchMany(
+	ctx context.Context,
+	urls []string,
+	filter Filter,
+	opts ...SubscriptionOption,
+) chan RelayEvent {
+	return pool.SubManyEose(ctx, urls, Filters{filter}, opts...)
+}
+
+// Deprecated: use SubscribeMany instead.
 func (pool *SimplePool) SubMany(
 	ctx context.Context,
 	urls []string,
@@ -235,16 +256,16 @@ func (pool *SimplePool) SubMany(
 	return pool.subMany(ctx, urls, filters, nil, opts...)
 }
 
-// SubManyNotifyEOSE is like SubMany, but takes a channel that is closed when
+// SubscribeManyNotifyEOSE is like SubscribeMany, but takes a channel that is closed when
 // all subscriptions have received an EOSE
-func (pool *SimplePool) SubManyNotifyEOSE(
+func (pool *SimplePool) SubscribeManyNotifyEOSE(
 	ctx context.Context,
 	urls []string,
-	filters Filters,
+	filter Filter,
 	eoseChan chan struct{},
 	opts ...SubscriptionOption,
 ) chan RelayEvent {
-	return pool.subMany(ctx, urls, filters, eoseChan, opts...)
+	return pool.subMany(ctx, urls, Filters{filter}, eoseChan, opts...)
 }
 
 func (pool *SimplePool) subMany(
@@ -426,7 +447,7 @@ func (pool *SimplePool) subMany(
 	return events
 }
 
-// SubManyEose is like SubMany, but it stops subscriptions and closes the channel when gets a EOSE
+// Deprecated: use FetchMany instead.
 func (pool *SimplePool) SubManyEose(
 	ctx context.Context,
 	urls []string,
