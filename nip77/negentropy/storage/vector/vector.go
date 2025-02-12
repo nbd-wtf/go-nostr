@@ -8,13 +8,14 @@ import (
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip77/negentropy"
+	"github.com/nbd-wtf/go-nostr/nip77/negentropy/storage"
 )
 
 type Vector struct {
 	items  []negentropy.Item
 	sealed bool
 
-	acc Accumulator
+	acc storage.Accumulator
 }
 
 func New() *Vector {

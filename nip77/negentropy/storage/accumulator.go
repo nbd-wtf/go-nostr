@@ -1,4 +1,4 @@
-package vector
+package storage
 
 import (
 	"crypto/sha256"
