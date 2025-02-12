@@ -22,7 +22,7 @@ func NewConnection(ctx context.Context, url string, requestHeader http.Header, t
 		return nil, err
 	}
 
-	c.SetReadLimit(262144) // this should be enough for contact lists of over 2000 people
+	c.SetReadLimit(2 << 24) // 33MB
 
 	return &Connection{
 		conn: c,
