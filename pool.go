@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr/nip45/hyperloglog"
@@ -301,7 +302,7 @@ func (pool *SimplePool) subMany(
 			continue
 		}
 
-		eosed := false
+		eosed := atomic.Bool{}
 		firstConnection := true
 
 		go func(nm string) {
@@ -311,7 +312,7 @@ func (pool *SimplePool) subMany(
 					close(events)
 					cancel(fmt.Errorf("aborted: %w", context.Cause(ctx)))
 				}
-				if !eosed {
+				if !eosed.Load() {
 					eoseWg.Done()
 				}
 			}()
@@ -370,8 +371,7 @@ func (pool *SimplePool) subMany(
 					<-sub.EndOfStoredEvents
 
 					// guard here otherwise a resubscription will trigger a duplicate call to eoseWg.Done()
-					if !eosed {
-						eosed = true
+					if eosed.CompareAndSwap(false, true) {
 						eoseWg.Done()
 					}
 				}()
@@ -407,7 +407,7 @@ func (pool *SimplePool) subMany(
 							return
 						}
 					case <-ticker.C:
-						if eosed {
+						if eosed.Load() {
 							old := Timestamp(time.Now().Add(-seenAlreadyDropTick).Unix())
 							for id, value := range seenAlready.Range {
 								if value < old {
