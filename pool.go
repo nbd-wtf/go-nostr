@@ -312,7 +312,7 @@ func (pool *SimplePool) subMany(
 					close(events)
 					cancel(fmt.Errorf("aborted: %w", context.Cause(ctx)))
 				}
-				if !eosed.Load() {
+				if eosed.CompareAndSwap(false, true) {
 					eoseWg.Done()
 				}
 			}()
