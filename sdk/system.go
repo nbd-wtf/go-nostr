@@ -78,7 +78,6 @@ func NewSystem(mods ...SystemModifier) *System {
 		),
 		JustIDRelays: NewRelayStream(
 			"wss://cache2.primal.net/v1",
-			"wss://relay.noswhere.com",
 			"wss://relay.nostr.band",
 		),
 		UserSearchRelays: NewRelayStream(
