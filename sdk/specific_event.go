@@ -11,11 +11,16 @@ import (
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
+type FetchSpecificEventParameters struct {
+	WithRelays     bool
+	SkipLocalStore bool
+}
+
 // FetchSpecificEventFromInput tries to get a specific event from a NIP-19 code using whatever means necessary.
 func (sys *System) FetchSpecificEventFromInput(
 	ctx context.Context,
 	input string,
-	withRelays bool,
+	params FetchSpecificEventParameters,
 ) (event *nostr.Event, successRelays []string, err error) {
 	var pointer nostr.Pointer
 
@@ -39,14 +44,14 @@ func (sys *System) FetchSpecificEventFromInput(
 		}
 	}
 
-	return sys.FetchSpecificEvent(ctx, pointer, withRelays)
+	return sys.FetchSpecificEvent(ctx, pointer, params)
 }
 
 // FetchSpecificEvent tries to get a specific event from a NIP-19 code using whatever means necessary.
 func (sys *System) FetchSpecificEvent(
 	ctx context.Context,
 	pointer nostr.Pointer,
-	withRelays bool,
+	params FetchSpecificEventParameters,
 ) (event *nostr.Event, successRelays []string, err error) {
 	// this is for deciding what relays will go on nevent and nprofile later
 	priorityRelays := make([]string, 0, 8)
@@ -78,9 +83,11 @@ func (sys *System) FetchSpecificEvent(
 	}
 
 	// try to fetch in our internal eventstore first
-	if res, _ := sys.StoreRelay.QuerySync(ctx, filter); len(res) != 0 {
-		evt := res[0]
-		return evt, nil, nil
+	if !params.SkipLocalStore {
+		if res, _ := sys.StoreRelay.QuerySync(ctx, filter); len(res) != 0 {
+			evt := res[0]
+			return evt, nil, nil
+		}
 	}
 
 	if author != "" {
@@ -113,7 +120,7 @@ attempts:
 			relays: relays,
 			// set this to true if the caller wants relays, so we won't return immediately
 			//   but will instead wait a little while to see if more relays respond
-			slowWithRelays: withRelays,
+			slowWithRelays: params.WithRelays,
 		},
 		{
 			label:          "fetchspecific",
@@ -125,10 +132,10 @@ attempts:
 		countdown := 6.0
 		subManyCtx := ctx
 
-		for ie := range sys.Pool.SubManyEose(
+		for ie := range sys.Pool.FetchMany(
 			subManyCtx,
 			attempt.relays,
-			nostr.Filters{filter},
+			filter,
 			nostr.WithLabel(attempt.label),
 		) {
 			fetchProfileOnce.Do(func() {
@@ -153,7 +160,9 @@ attempts:
 	}
 
 	// save stuff in cache and in internal store
-	sys.StoreRelay.Publish(ctx, *result)
+	if !params.SkipLocalStore {
+		sys.StoreRelay.Publish(ctx, *result)
+	}
 
 	// put priority relays first so they get used in nevent and nprofile
 	slices.SortFunc(successRelays, func(a, b string) int {
