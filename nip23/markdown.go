@@ -42,7 +42,8 @@ func MarkdownToHTML(md string) string {
 			parser.FencedCode |
 			parser.Autolink |
 			parser.Footnotes |
-			parser.SpaceHeadings,
+			parser.SpaceHeadings |
+			parser.Tables,
 	).Parse([]byte(md))
 
 	// create HTML renderer with extensions
