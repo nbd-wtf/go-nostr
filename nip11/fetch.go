@@ -16,6 +16,16 @@ import (
 // relay or if it doesn't have a NIP-11 handler -- although in that case it will also return
 // an error.
 func Fetch(ctx context.Context, u string) (info RelayInformationDocument, err error) {
+	// normalize URL to start with http://, https:// or without protocol
+	u = nostr.NormalizeURL(u)
+	if len(u) < 8 {
+		return info, fmt.Errorf("invalid url %s", u)
+	}
+
+	info = RelayInformationDocument{
+		URL: u,
+	}
+
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
 		var cancel context.CancelFunc
@@ -23,15 +33,8 @@ func Fetch(ctx context.Context, u string) (info RelayInformationDocument, err er
 		defer cancel()
 	}
 
-	// normalize URL to start with http://, https:// or without protocol
-	u = nostr.NormalizeURL(u)
-
-	info = RelayInformationDocument{
-		URL: u,
-	}
-
 	// make request
-	req, err := http.NewRequestWithContext(ctx, "GET", "http"+u[2:], nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http"+u[2:], nil)
 
 	// add the NIP-11 header
 	req.Header.Add("Accept", "application/nostr+json")
