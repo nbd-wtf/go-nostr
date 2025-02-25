@@ -43,7 +43,7 @@ func ParseMessageSIMD(message []byte, reuse *simdjson.ParsedJson) (Envelope, err
 	iter.Advance()
 	label, _ := iter.StringBytes()
 
-	var v Envelope
+	var v EnvelopeSIMD
 
 	switch {
 	case bytes.Equal(label, labelEvent):
@@ -117,10 +117,14 @@ func ParseMessage(message []byte) Envelope {
 
 type Envelope interface {
 	Label() string
-	UnmarshalSIMD(simdjson.Iter) error
 	UnmarshalJSON([]byte) error
 	MarshalJSON() ([]byte, error)
 	String() string
+}
+
+type EnvelopeSIMD interface {
+	Envelope
+	UnmarshalSIMD(simdjson.Iter) error
 }
 
 var (
