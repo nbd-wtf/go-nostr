@@ -3,13 +3,77 @@ package nostr
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/mailru/easyjson"
 	jwriter "github.com/mailru/easyjson/jwriter"
+	"github.com/minio/simdjson-go"
 	"github.com/tidwall/gjson"
 )
+
+var (
+	labelEvent  = []byte("EVENT")
+	labelReq    = []byte("REQ")
+	labelCount  = []byte("COUNT")
+	labelNotice = []byte("NOTICE")
+	labelEose   = []byte("EOSE")
+	labelOk     = []byte("OK")
+	labelAuth   = []byte("AUTH")
+	labelClosed = []byte("CLOSED")
+	labelClose  = []byte("CLOSE")
+
+	UnknownLabel = errors.New("unknown envelope label")
+)
+
+func ParseMessageSIMD(message []byte, reuse *simdjson.ParsedJson) (Envelope, error) {
+	parsed, err := simdjson.Parse(message, reuse)
+	if err != nil {
+		return nil, fmt.Errorf("simdjson parse failed: %w", err)
+	}
+
+	iter := parsed.Iter()
+	iter.AdvanceInto()
+	if t := iter.Advance(); t != simdjson.TypeArray {
+		return nil, fmt.Errorf("top-level must be an array")
+	}
+	arr, _ := iter.Array(nil)
+	iter = arr.Iter()
+	iter.Advance()
+	label, _ := iter.StringBytes()
+
+	var v Envelope
+
+	switch {
+	case bytes.Equal(label, labelEvent):
+		v = &EventEnvelope{}
+	case bytes.Equal(label, labelReq):
+		v = &ReqEnvelope{}
+	case bytes.Equal(label, labelCount):
+		v = &CountEnvelope{}
+	case bytes.Equal(label, labelNotice):
+		x := NoticeEnvelope("")
+		v = &x
+	case bytes.Equal(label, labelEose):
+		x := EOSEEnvelope("")
+		v = &x
+	case bytes.Equal(label, labelOk):
+		v = &OKEnvelope{}
+	case bytes.Equal(label, labelAuth):
+		v = &AuthEnvelope{}
+	case bytes.Equal(label, labelClosed):
+		v = &ClosedEnvelope{}
+	case bytes.Equal(label, labelClose):
+		x := CloseEnvelope("")
+		v = &x
+	default:
+		return nil, UnknownLabel
+	}
+
+	err = v.UnmarshalSIMD(iter)
+	return v, err
+}
 
 func ParseMessage(message []byte) Envelope {
 	firstComma := bytes.Index(message, []byte{','})
@@ -20,25 +84,25 @@ func ParseMessage(message []byte) Envelope {
 
 	var v Envelope
 	switch {
-	case bytes.Contains(label, []byte("EVENT")):
+	case bytes.Contains(label, labelEvent):
 		v = &EventEnvelope{}
-	case bytes.Contains(label, []byte("REQ")):
+	case bytes.Contains(label, labelReq):
 		v = &ReqEnvelope{}
-	case bytes.Contains(label, []byte("COUNT")):
+	case bytes.Contains(label, labelCount):
 		v = &CountEnvelope{}
-	case bytes.Contains(label, []byte("NOTICE")):
+	case bytes.Contains(label, labelNotice):
 		x := NoticeEnvelope("")
 		v = &x
-	case bytes.Contains(label, []byte("EOSE")):
+	case bytes.Contains(label, labelEose):
 		x := EOSEEnvelope("")
 		v = &x
-	case bytes.Contains(label, []byte("OK")):
+	case bytes.Contains(label, labelOk):
 		v = &OKEnvelope{}
-	case bytes.Contains(label, []byte("AUTH")):
+	case bytes.Contains(label, labelAuth):
 		v = &AuthEnvelope{}
-	case bytes.Contains(label, []byte("CLOSED")):
+	case bytes.Contains(label, labelClosed):
 		v = &ClosedEnvelope{}
-	case bytes.Contains(label, []byte("CLOSE")):
+	case bytes.Contains(label, labelClose):
 		x := CloseEnvelope("")
 		v = &x
 	default:
@@ -53,6 +117,7 @@ func ParseMessage(message []byte) Envelope {
 
 type Envelope interface {
 	Label() string
+	UnmarshalSIMD(simdjson.Iter) error
 	UnmarshalJSON([]byte) error
 	MarshalJSON() ([]byte, error)
 	String() string
@@ -90,6 +155,25 @@ func (v *EventEnvelope) UnmarshalJSON(data []byte) error {
 	}
 }
 
+func (v *EventEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	// we may or may not have a subscription ID, so peek
+	if iter.PeekNext() == simdjson.TypeString {
+		iter.Advance()
+		// we have a subscription ID
+		subID, err := iter.String()
+		if err != nil {
+			return err
+		}
+		v.SubscriptionID = &subID
+	}
+
+	// now get the event
+	if typ := iter.Advance(); typ == simdjson.TypeNone {
+		return fmt.Errorf("missing event")
+	}
+	return v.Event.UnmarshalSIMD(&iter)
+}
+
 func (v EventEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["EVENT",`)
@@ -124,6 +208,44 @@ func (v *ReqEnvelope) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("%w -- on filter %d", err, f)
 		}
 		f++
+	}
+
+	return nil
+}
+
+func (v *ReqEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	var err error
+
+	// we must have a subscription id
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		v.SubscriptionID, err = iter.String()
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("unexpected %s for REQ subscription id", typ)
+	}
+
+	// now get the filters
+	v.Filters = make(Filters, 0, 1)
+	tempIter := &simdjson.Iter{} // make a new iterator here because there may come multiple filters
+	for {
+		if typ, err := iter.AdvanceIter(tempIter); err != nil {
+			return err
+		} else if typ == simdjson.TypeNone {
+			break
+		} else {
+		}
+
+		var filter Filter
+		if err := filter.UnmarshalSIMD(tempIter); err != nil {
+			return err
+		}
+		v.Filters = append(v.Filters, filter)
+	}
+
+	if len(v.Filters) == 0 {
+		return fmt.Errorf("need at least one filter")
 	}
 
 	return nil
@@ -193,6 +315,53 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (v *CountEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	var err error
+
+	// this has two cases:
+	// in the first case (request from client) this is like REQ except with always one filter
+	// in the other (response from relay) we have a json object response
+	// but both cases start with a subscription id
+
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		v.SubscriptionID, err = iter.String()
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("unexpected %s for COUNT subscription id", typ)
+	}
+
+	// now get either a single filter or stuff from the json object
+	if typ := iter.Advance(); typ == simdjson.TypeNone {
+		return fmt.Errorf("missing json object")
+	}
+
+	if el, err := iter.FindElement(nil, "count"); err == nil {
+		c, _ := el.Iter.Uint()
+		count := int64(c)
+		v.Count = &count
+		if el, err = iter.FindElement(nil, "hll"); err == nil {
+			if hllHex, err := el.Iter.StringBytes(); err != nil || len(hllHex) != 512 {
+				return fmt.Errorf("hll is malformed")
+			} else {
+				v.HyperLogLog = make([]byte, 256)
+				if _, err := hex.Decode(v.HyperLogLog, hllHex); err != nil {
+					return fmt.Errorf("hll is invalid hex")
+				}
+			}
+		}
+	} else {
+		var filter Filter
+		if err := filter.UnmarshalSIMD(&iter); err != nil {
+			return err
+		}
+		v.Filters = Filters{filter}
+	}
+
+	return nil
+}
+
 func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["COUNT","`)
@@ -237,6 +406,14 @@ func (v *NoticeEnvelope) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (v *NoticeEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		msg, _ := iter.String()
+		*v = NoticeEnvelope(msg)
+	}
+	return nil
+}
+
 func (v NoticeEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["NOTICE",`)
@@ -260,6 +437,14 @@ func (v *EOSEEnvelope) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to decode EOSE envelope")
 	}
 	*v = EOSEEnvelope(arr[1].Str)
+	return nil
+}
+
+func (v *EOSEEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		msg, _ := iter.String()
+		*v = EOSEEnvelope(msg)
+	}
 	return nil
 }
 
@@ -291,6 +476,14 @@ func (v *CloseEnvelope) UnmarshalJSON(data []byte) error {
 	}
 }
 
+func (v *CloseEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		msg, _ := iter.String()
+		*v = CloseEnvelope(msg)
+	}
+	return nil
+}
+
 func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["CLOSE",`)
@@ -320,6 +513,16 @@ func (v *ClosedEnvelope) UnmarshalJSON(data []byte) error {
 	default:
 		return fmt.Errorf("failed to decode CLOSED envelope")
 	}
+}
+
+func (v *ClosedEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		v.SubscriptionID, _ = iter.String()
+	}
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		v.Reason, _ = iter.String()
+	}
+	return nil
 }
 
 func (v ClosedEnvelope) MarshalJSON() ([]byte, error) {
@@ -354,6 +557,23 @@ func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
 	v.OK = arr[2].Raw == "true"
 	v.Reason = arr[3].Str
 
+	return nil
+}
+
+func (v *OKEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		v.EventID, _ = iter.String()
+	} else {
+		return fmt.Errorf("unexpected %s for OK id", typ)
+	}
+	if typ := iter.Advance(); typ == simdjson.TypeBool {
+		v.OK, _ = iter.Bool()
+	} else {
+		return fmt.Errorf("unexpected %s for OK status", typ)
+	}
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		v.Reason, _ = iter.String()
+	}
 	return nil
 }
 
@@ -396,6 +616,21 @@ func (v *AuthEnvelope) UnmarshalJSON(data []byte) error {
 		v.Challenge = &arr[1].Str
 	}
 	return nil
+}
+
+func (v *AuthEnvelope) UnmarshalSIMD(iter simdjson.Iter) error {
+	if typ := iter.Advance(); typ == simdjson.TypeString {
+		// we have a challenge
+		subID, err := iter.String()
+		if err != nil {
+			return err
+		}
+		v.Challenge = &subID
+		return nil
+	} else {
+		// we have an event
+		return v.Event.UnmarshalSIMD(&iter)
+	}
 }
 
 func (v AuthEnvelope) MarshalJSON() ([]byte, error) {
