@@ -3,6 +3,7 @@ module github.com/nbd-wtf/go-nostr
 go 1.23.1
 
 require (
+	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3
 	github.com/PowerDNS/lmdb-go v1.9.2
 	github.com/bluekeyes/go-gitdiff v0.7.1
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4

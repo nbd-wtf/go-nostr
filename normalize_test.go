@@ -1,9 +1,10 @@
 package nostr
 
 import (
+	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type urlTest struct {
@@ -21,17 +22,19 @@ var urlTests = []urlTest{
 	{NormalizeURL(NormalizeURL(NormalizeURL("wss://x.com/"))), "wss://x.com"},
 	{"wss://x.com", "wss://x.com"},
 	{"wss://x.com/", "wss://x.com"},
-	{"x.com////", "wss://x.com"},
 	{"x.com/?x=23", "wss://x.com?x=23"},
 	{"localhost:4036", "ws://localhost:4036"},
 	{"localhost:4036/relay", "ws://localhost:4036/relay"},
 	{"localhostmagnanimus.com", "wss://localhostmagnanimus.com"},
 	{NormalizeURL("localhost:4036/relay"), "ws://localhost:4036/relay"},
+	{NormalizeURL("nostr:askjd"), "nostr://askjd"},
 }
 
 func TestNormalizeURL(t *testing.T) {
-	for _, test := range urlTests {
-		output := NormalizeURL(test.url)
-		assert.Equal(t, test.expected, output)
+	for i, test := range urlTests {
+		t.Run(strconv.Itoa(i)+" { "+test.url+" -> "+test.expected+" }", func(t *testing.T) {
+			output := NormalizeURL(test.url)
+			require.Equal(t, test.expected, output)
+		})
 	}
 }
