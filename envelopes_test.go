@@ -321,8 +321,7 @@ func TestParseMessageSIMD(t *testing.T) {
 			}
 
 			require.NotNil(t, envelope, "expected non-nil envelope but got nil")
-			require.Equal(t, testCase.ExpectedEnvelope.Label(), envelope.Label())
-			require.Equal(t, testCase.ExpectedEnvelope.String(), envelope.String())
+			require.Equal(t, testCase.ExpectedEnvelope, envelope)
 		})
 	}
 }
