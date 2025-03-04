@@ -36,7 +36,7 @@ func (c *Client) UploadFile(ctx context.Context, filePath string) (*BlobDescript
 	contentType := mime.TypeByExtension(filepath.Ext(filePath))
 
 	bd := BlobDescriptor{}
-	err = c.httpCall(ctx, "PUT", c.mediaserver+"/upload", contentType, func() string {
+	err = c.httpCall(ctx, "PUT", "upload", contentType, func() string {
 		return c.authorizationHeader(ctx, func(evt *nostr.Event) {
 			evt.Tags = append(evt.Tags, nostr.Tag{"t", "upload"})
 			evt.Tags = append(evt.Tags, nostr.Tag{"x", hex.EncodeToString(hash[:])})

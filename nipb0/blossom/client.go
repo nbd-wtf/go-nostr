@@ -1,6 +1,7 @@
 package blossom
 
 import (
+	"strings"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -16,8 +17,12 @@ type Client struct {
 
 // NewClient creates a new Blossom client
 func NewClient(mediaserver string, signer nostr.Signer) *Client {
+	if !strings.HasPrefix(mediaserver, "http") {
+		mediaserver = "https://" + mediaserver
+	}
+
 	return &Client{
-		mediaserver: mediaserver,
+		mediaserver: strings.TrimSuffix(mediaserver, "/") + "/",
 		httpClient:  createHTTPClient(),
 		signer:      signer,
 	}

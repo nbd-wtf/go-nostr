@@ -13,7 +13,7 @@ func (c *Client) Check(ctx context.Context, hash string) error {
 		return fmt.Errorf("%s is not a valid 32-byte hex string", hash)
 	}
 
-	err := c.httpCall(ctx, "HEAD", c.mediaserver+"/"+hash, "", nil, nil, 0, nil)
+	err := c.httpCall(ctx, "HEAD", hash, "", nil, nil, 0, nil)
 	if err != nil {
 		return fmt.Errorf("failed to check for %s: %w", hash, err)
 	}

@@ -28,7 +28,7 @@ func (c *Client) httpCall(
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
-	req.SetRequestURI(url)
+	req.SetRequestURI(c.mediaserver + url)
 	req.Header.SetMethod(method)
 	req.Header.SetContentType(contentType)
 
