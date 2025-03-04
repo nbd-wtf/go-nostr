@@ -8,8 +8,7 @@ import (
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
-// KeySigner is a signer that holds the private key in memory and can perform
-// all operations instantly and easily.
+// KeySigner is a signer that holds the private key in memory
 type KeySigner struct {
 	sk string
 	pk string
@@ -32,7 +31,7 @@ func NewPlainKeySigner(sec string) (KeySigner, error) {
 func (ks KeySigner) SignEvent(ctx context.Context, evt *nostr.Event) error { return evt.Sign(ks.sk) }
 
 // GetPublicKey returns the public key associated with this signer.
-func (ks KeySigner) GetPublicKey(ctx context.Context) (string, error)      { return ks.pk, nil }
+func (ks KeySigner) GetPublicKey(ctx context.Context) (string, error) { return ks.pk, nil }
 
 // Encrypt encrypts a plaintext message for a recipient using NIP-44.
 // It caches conversation keys for efficiency in repeated operations.
