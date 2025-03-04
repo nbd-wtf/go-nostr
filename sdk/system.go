@@ -16,6 +16,16 @@ import (
 	kvstore_memory "github.com/nbd-wtf/go-nostr/sdk/kvstore/memory"
 )
 
+// System represents the core functionality of the SDK, providing access to
+// various caches, relays, and dataloaders for efficient Nostr operations.
+//
+// Usually an application should have a single global instance of this and use
+// its internal Pool for all its operations.
+//
+// Store, KVStore and Hints are databases that should generally be persisted
+// for any application that is intended to be executed more than once. By
+// default they're set to in-memory stores, but ideally persisteable
+// implementations should be given (some alternatives are provided in subpackages).
 type System struct {
 	KVStore               kvstore.KVStore
 	MetadataCache         cache.Cache32[ProfileMetadata]
@@ -47,22 +57,35 @@ type System struct {
 	addressableLoaders []*dataloader.Loader[string, []*nostr.Event]
 }
 
+// SystemModifier is a function that modifies a System instance.
+// It's used with NewSystem to configure the system during creation.
 type SystemModifier func(sys *System)
 
+// RelayStream provides a rotating list of relay URLs.
+// It's used to distribute requests across multiple relays.
 type RelayStream struct {
 	URLs   []string
 	serial int
 }
 
+// NewRelayStream creates a new RelayStream with the provided URLs.
 func NewRelayStream(urls ...string) *RelayStream {
 	return &RelayStream{URLs: urls, serial: rand.Int()}
 }
 
+// Next returns the next URL in the rotation.
 func (rs *RelayStream) Next() string {
 	rs.serial++
 	return rs.URLs[rs.serial%len(rs.URLs)]
 }
 
+// NewSystem creates a new System with default configuration,
+// which can be customized using the provided modifiers.
+//
+// The list of provided With* modifiers isn't exhaustive and
+// most internal fields of System can be modified after the System
+// creation -- and in many cases one or another of these will have
+// to be modified, so don't be afraid of doing that.
 func NewSystem(mods ...SystemModifier) *System {
 	sys := &System{
 		KVStore:          kvstore_memory.NewStore(),
@@ -123,84 +146,101 @@ func NewSystem(mods ...SystemModifier) *System {
 	return sys
 }
 
+// Close releases resources held by the System.
 func (sys *System) Close() {
 	if sys.KVStore != nil {
 		sys.KVStore.Close()
 	}
+	if sys.Pool != nil {
+		sys.Pool.Close("sdk.System closed")
+	}
 }
 
+// WithHintsDB returns a SystemModifier that sets the HintsDB.
 func WithHintsDB(hdb hints.HintsDB) SystemModifier {
 	return func(sys *System) {
 		sys.Hints = hdb
 	}
 }
 
+// WithRelayListRelays returns a SystemModifier that sets the RelayListRelays.
 func WithRelayListRelays(list []string) SystemModifier {
 	return func(sys *System) {
 		sys.RelayListRelays.URLs = list
 	}
 }
 
+// WithMetadataRelays returns a SystemModifier that sets the MetadataRelays.
 func WithMetadataRelays(list []string) SystemModifier {
 	return func(sys *System) {
 		sys.MetadataRelays.URLs = list
 	}
 }
 
+// WithFollowListRelays returns a SystemModifier that sets the FollowListRelays.
 func WithFollowListRelays(list []string) SystemModifier {
 	return func(sys *System) {
 		sys.FollowListRelays.URLs = list
 	}
 }
 
+// WithFallbackRelays returns a SystemModifier that sets the FallbackRelays.
 func WithFallbackRelays(list []string) SystemModifier {
 	return func(sys *System) {
 		sys.FallbackRelays.URLs = list
 	}
 }
 
+// WithJustIDRelays returns a SystemModifier that sets the JustIDRelays.
 func WithJustIDRelays(list []string) SystemModifier {
 	return func(sys *System) {
 		sys.JustIDRelays.URLs = list
 	}
 }
 
+// WithUserSearchRelays returns a SystemModifier that sets the UserSearchRelays.
 func WithUserSearchRelays(list []string) SystemModifier {
 	return func(sys *System) {
 		sys.UserSearchRelays.URLs = list
 	}
 }
 
+// WithNoteSearchRelays returns a SystemModifier that sets the NoteSearchRelays.
 func WithNoteSearchRelays(list []string) SystemModifier {
 	return func(sys *System) {
 		sys.NoteSearchRelays.URLs = list
 	}
 }
 
+// WithStore returns a SystemModifier that sets the Store.
 func WithStore(store eventstore.Store) SystemModifier {
 	return func(sys *System) {
 		sys.Store = store
 	}
 }
 
+// WithRelayListCache returns a SystemModifier that sets the RelayListCache.
 func WithRelayListCache(cache cache.Cache32[GenericList[Relay]]) SystemModifier {
 	return func(sys *System) {
 		sys.RelayListCache = cache
 	}
 }
 
+// WithFollowListCache returns a SystemModifier that sets the FollowListCache.
 func WithFollowListCache(cache cache.Cache32[GenericList[ProfileRef]]) SystemModifier {
 	return func(sys *System) {
 		sys.FollowListCache = cache
 	}
 }
 
+// WithMetadataCache returns a SystemModifier that sets the MetadataCache.
 func WithMetadataCache(cache cache.Cache32[ProfileMetadata]) SystemModifier {
 	return func(sys *System) {
 		sys.MetadataCache = cache
 	}
 }
 
+// WithKVStore returns a SystemModifier that sets the KVStore.
 func WithKVStore(store kvstore.KVStore) SystemModifier {
 	return func(sys *System) {
 		if sys.KVStore != nil {

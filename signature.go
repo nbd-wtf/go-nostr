@@ -11,9 +11,9 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
 
-// CheckSignature checks if the signature is valid for the id
-// (which is a hash of the serialized event content).
-// returns an error if the signature itself is invalid.
+// CheckSignature checks if the event signature is valid for the given event.
+// It won't look at the ID field, instead it will recompute the id from the entire event body.
+// If the signature is invalid bool will be false and err will be set.
 func (evt Event) CheckSignature() (bool, error) {
 	// read and check pubkey
 	pk, err := hex.DecodeString(evt.PubKey)
@@ -42,6 +42,8 @@ func (evt Event) CheckSignature() (bool, error) {
 }
 
 // Sign signs an event with a given privateKey.
+// It sets the event's ID, PubKey, and Sig fields.
+// Returns an error if the private key is invalid or if signing fails.
 func (evt *Event) Sign(secretKey string) error {
 	s, err := hex.DecodeString(secretKey)
 	if err != nil {

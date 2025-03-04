@@ -1,20 +1,38 @@
 package nostr
 
-import "context"
+import (
+	"context"
+)
 
+// Keyer is an interface for signing events and performing cryptographic operations.
+// It abstracts away the details of key management, allowing for different implementations
+// such as in-memory keys, hardware wallets, or remote signing services (bunker).
 type Keyer interface {
+	// Signer provides event signing capabilities
 	Signer
+
+	// Cipher provides encryption and decryption capabilities (NIP-44)
 	Cipher
 }
 
-// A Signer provides basic public key signing methods.
+// Signer is an interface for signing events.
 type Signer interface {
-	GetPublicKey(context.Context) (string, error)
-	SignEvent(context.Context, *Event) error
+	// SignEvent signs the provided event, setting its ID, PubKey, and Sig fields.
+	// The context can be used for operations that may require user interaction or
+	// network access, such as with remote signers.
+	SignEvent(ctx context.Context, evt *Event) error
+
+	// GetPublicKey returns the public key associated with this signer.
+	GetPublicKey(ctx context.Context) (string, error)
 }
 
-// A Cipher provides NIP-44 encryption and decryption methods.
+// Cipher is an interface for encrypting and decrypting messages with NIP-44
 type Cipher interface {
+	// Encrypt encrypts a plaintext message for a recipient.
+	// Returns the encrypted message as a base64-encoded string.
 	Encrypt(ctx context.Context, plaintext string, recipientPublicKey string) (base64ciphertext string, err error)
+
+	// Decrypt decrypts a base64-encoded ciphertext from a sender.
+	// Returns the decrypted plaintext.
 	Decrypt(ctx context.Context, base64ciphertext string, senderPublicKey string) (plaintext string, err error)
 }

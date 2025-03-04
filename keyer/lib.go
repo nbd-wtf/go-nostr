@@ -22,19 +22,37 @@ var (
 	_ nostr.Keyer = (*ManualSigner)(nil)
 )
 
+// SignerOptions contains configuration options for creating a new signer.
 type SignerOptions struct {
+	// BunkerClientSecretKey is the secret key used for the bunker client
 	BunkerClientSecretKey string
-	BunkerSignTimeout     time.Duration
-	BunkerAuthHandler     func(string)
 
-	// if a PasswordHandler is provided the key will be stored encrypted and this function will be called
+	// BunkerSignTimeout is the timeout duration for bunker signing operations
+	BunkerSignTimeout time.Duration
+
+	// BunkerAuthHandler is called when authentication is needed for bunker operations
+	BunkerAuthHandler func(string)
+
+	// PasswordHandler is called when an operation needs access to the encrypted key.
+	// If provided, the key will be stored encrypted and this function will be called
 	// every time an operation needs access to the key so the user can be prompted.
 	PasswordHandler func(context.Context) string
 
-	// if instead a Password is provided along with a ncryptsec, then the key will be decrypted and stored in plaintext.
+	// Password is used along with ncryptsec to decrypt the key.
+	// If provided, the key will be decrypted and stored in plaintext.
 	Password string
 }
 
+// New creates a new Keyer implementation based on the input string format.
+// It supports various input formats:
+// - ncryptsec: Creates an EncryptedKeySigner or KeySigner depending on options
+// - NIP-46 bunker URL or NIP-05 identifier: Creates a BunkerSigner
+// - nsec: Creates a KeySigner
+// - hex private key: Creates a KeySigner
+//
+// The context is used for operations that may require network access.
+// The pool is used for relay connections when needed.
+// Options are used for additional pieces required for EncryptedKeySigner and BunkerSigner.
 func New(ctx context.Context, pool *nostr.SimplePool, input string, opts *SignerOptions) (nostr.Keyer, error) {
 	if opts == nil {
 		opts = &SignerOptions{}

@@ -11,12 +11,19 @@ import (
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
+// FetchSpecificEventParameters contains options for fetching specific events.
 type FetchSpecificEventParameters struct {
-	WithRelays     bool
+	// WithRelays indicates whether to include relay information in the response
+	// (this causes the request to take longer as it will wait for all relays to respond).
+	WithRelays bool
+
+	// SkipLocalStore indicates whether to skip checking the local store for the event
+	// and storing the result in the local store.
 	SkipLocalStore bool
 }
 
-// FetchSpecificEventFromInput tries to get a specific event from a NIP-19 code using whatever means necessary.
+// FetchSpecificEventFromInput tries to get a specific event from a NIP-19 code or event ID.
+// It supports nevent, naddr, and note NIP-19 codes, as well as raw event IDs.
 func (sys *System) FetchSpecificEventFromInput(
 	ctx context.Context,
 	input string,
@@ -47,7 +54,9 @@ func (sys *System) FetchSpecificEventFromInput(
 	return sys.FetchSpecificEvent(ctx, pointer, params)
 }
 
-// FetchSpecificEvent tries to get a specific event from a NIP-19 code using whatever means necessary.
+// FetchSpecificEvent tries to get a specific event using a Pointer (EventPointer or EntityPointer).
+// It first checks the local store, then queries relays associated with the event or author,
+// and finally falls back to general-purpose relays.
 func (sys *System) FetchSpecificEvent(
 	ctx context.Context,
 	pointer nostr.Pointer,

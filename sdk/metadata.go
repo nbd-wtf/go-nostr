@@ -11,6 +11,8 @@ import (
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 )
 
+// ProfileMetadata represents user profile information from kind 0 events.
+// It contains both the raw event and parsed metadata fields.
 type ProfileMetadata struct {
 	PubKey string       `json:"-"` // must always be set otherwise things will break
 	Event  *nostr.Event `json:"-"` // may be empty if a profile metadata event wasn't found
@@ -29,21 +31,28 @@ type ProfileMetadata struct {
 	nip05LastAttempt time.Time
 }
 
+// Npub returns the NIP-19 npub encoding of the profile's public key.
 func (p ProfileMetadata) Npub() string {
 	v, _ := nip19.EncodePublicKey(p.PubKey)
 	return v
 }
 
+// NpubShort returns a shortened version of the NIP-19 npub encoding,
+// showing only the first 7 and last 5 characters.
 func (p ProfileMetadata) NpubShort() string {
 	npub := p.Npub()
 	return npub[0:7] + "…" + npub[58:]
 }
 
+// Nprofile returns the NIP-19 nprofile encoding of the profile,
+// including relay hints from the user's outbox.
 func (p ProfileMetadata) Nprofile(ctx context.Context, sys *System, nrelays int) string {
 	v, _ := nip19.EncodeProfile(p.PubKey, sys.FetchOutboxRelays(ctx, p.PubKey, 2))
 	return v
 }
 
+// ShortName returns the best available name for display purposes.
+// It tries Name, then DisplayName, and falls back to a shortened npub.
 func (p ProfileMetadata) ShortName() string {
 	if p.Name != "" {
 		return p.Name
@@ -54,6 +63,7 @@ func (p ProfileMetadata) ShortName() string {
 	return p.NpubShort()
 }
 
+// NIP05Valid checks if the profile's NIP-05 identifier is valid.
 func (p *ProfileMetadata) NIP05Valid(ctx context.Context) bool {
 	if p.NIP05 == "" {
 		return false
@@ -74,7 +84,8 @@ func (p *ProfileMetadata) NIP05Valid(ctx context.Context) bool {
 }
 
 // FetchProfileFromInput takes an nprofile, npub, nip05 or hex pubkey and returns a ProfileMetadata,
-// updating the hintsDB in the process with any eventual relay hints
+// updating the hintsDB in the process with any eventual relay hints.
+// Returns an error if the profile reference couldn't be decoded.
 func (sys System) FetchProfileFromInput(ctx context.Context, nip19OrNip05Code string) (ProfileMetadata, error) {
 	p := InputToProfile(ctx, nip19OrNip05Code)
 	if p == nil {
@@ -93,6 +104,7 @@ func (sys System) FetchProfileFromInput(ctx context.Context, nip19OrNip05Code st
 
 // FetchProfileMetadata fetches metadata for a given user from the local cache, or from the local store,
 // or, failing these, from the target user's defined outbox relays -- then caches the result.
+// It always returns a ProfileMetadata, even if no metadata was found (in which case only the PubKey field is set).
 func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm ProfileMetadata) {
 	if v, ok := sys.MetadataCache.Get(pubkey); ok {
 		return v
@@ -160,6 +172,8 @@ func (sys *System) tryFetchMetadataFromNetwork(ctx context.Context, pubkey strin
 	return &pm
 }
 
+// ParseMetadata parses a kind 0 event into a ProfileMetadata struct.
+// Returns an error if the event is not kind 0 or if the content is not valid JSON.
 func ParseMetadata(event *nostr.Event) (meta ProfileMetadata, err error) {
 	if event.Kind != 0 {
 		err = fmt.Errorf("event %s is kind %d, not 0", event.ID, event.Kind)

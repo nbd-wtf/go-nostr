@@ -10,6 +10,8 @@ import (
 
 const eventRelayPrefix = byte('r')
 
+// makeEventRelayKey creates a key for storing event relay information.
+// It uses the first 8 bytes of the event ID to create a compact key.
 func makeEventRelayKey(eventID []byte) []byte {
 	// format: 'r' + first 8 bytes of event ID
 	key := make([]byte, 9)
@@ -18,6 +20,8 @@ func makeEventRelayKey(eventID []byte) []byte {
 	return key
 }
 
+// encodeRelayList serializes a list of relay URLs into a compact binary format.
+// Each relay URL is prefixed with its length as a single byte.
 func encodeRelayList(relays []string) []byte {
 	totalSize := 0
 	for _, relay := range relays {
@@ -43,6 +47,8 @@ func encodeRelayList(relays []string) []byte {
 	return buf
 }
 
+// decodeRelayList deserializes a binary-encoded list of relay URLs.
+// It expects each relay URL to be prefixed with its length as a single byte.
 func decodeRelayList(data []byte) []string {
 	relays := make([]string, 0, 6)
 	offset := 0
@@ -67,6 +73,8 @@ func decodeRelayList(data []byte) []string {
 	return relays
 }
 
+// trackEventRelay records that an event was seen on a particular relay.
+// If onlyIfItExists is true, it will only update existing records and not create new ones.
 func (sys *System) trackEventRelay(eventID string, relay string, onlyIfItExists bool) {
 	// decode the event ID hex into bytes
 	idBytes, err := hex.DecodeString(eventID)
@@ -101,7 +109,8 @@ func (sys *System) trackEventRelay(eventID string, relay string, onlyIfItExists 
 	})
 }
 
-// GetEventRelays returns all known relay URLs that have been seen to carry the given event.
+// GetEventRelays returns all known relay URLs an event is known to be available on.
+// It is based on information kept on KVStore.
 func (sys *System) GetEventRelays(eventID string) ([]string, error) {
 	// decode the event ID hex into bytes
 	idBytes, err := hex.DecodeString(eventID)

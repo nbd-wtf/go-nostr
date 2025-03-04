@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	_dtnmtoah     map[string]time.Time
+	_dtnmtoah     map[string]time.Time = make(map[string]time.Time)
 	_dtnmtoahLock sync.Mutex
 )
 
@@ -21,6 +21,8 @@ func IsVirtualRelay(url string) bool {
 
 	if strings.HasPrefix(url, "wss://feeds.nostr.band") ||
 		strings.HasPrefix(url, "wss://filter.nostr.wine") ||
+		strings.HasPrefix(url, "ws://localhost") ||
+		strings.HasPrefix(url, "ws://127.0.0.1") ||
 		strings.HasPrefix(url, "wss://cache") {
 		return true
 	}
@@ -29,7 +31,7 @@ func IsVirtualRelay(url string) bool {
 }
 
 // PerQueryLimitInBatch tries to make an educated guess for the batch size given the total filter limit and
-// the number of abstract queries we'll be conducting at the same time
+// the number of abstract queries we'll be conducting at the same time.
 func PerQueryLimitInBatch(totalFilterLimit int, numberOfQueries int) int {
 	if numberOfQueries == 1 || totalFilterLimit*numberOfQueries < 50 {
 		return totalFilterLimit

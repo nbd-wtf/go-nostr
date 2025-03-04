@@ -20,6 +20,7 @@ const (
 	seenAlreadyDropTick = time.Minute
 )
 
+// SimplePool manages connections to multiple relays, ensures they are reopened when necessary and not duplicated.
 type SimplePool struct {
 	Relays  *xsync.MapOf[string, *Relay]
 	Context context.Context
@@ -37,11 +38,13 @@ type SimplePool struct {
 	relayOptions []RelayOption
 }
 
+// DirectedFilter combines a Filter with a specific relay URL.
 type DirectedFilter struct {
 	Filter
 	Relay string
 }
 
+// RelayEvent represents an event received from a specific relay.
 type RelayEvent struct {
 	*Event
 	Relay *Relay
@@ -49,10 +52,12 @@ type RelayEvent struct {
 
 func (ie RelayEvent) String() string { return fmt.Sprintf("[%s] >> %s", ie.Relay.URL, ie.Event) }
 
+// PoolOption is an interface for options that can be applied to a SimplePool.
 type PoolOption interface {
 	ApplyPoolOption(*SimplePool)
 }
 
+// NewSimplePool creates a new SimplePool with the given context and options.
 func NewSimplePool(ctx context.Context, opts ...PoolOption) *SimplePool {
 	ctx, cancel := context.WithCancelCause(ctx)
 
@@ -140,7 +145,7 @@ func (h WithDuplicateMiddleware) ApplyPoolOption(pool *SimplePool) {
 	pool.duplicateMiddleware = h
 }
 
-// WithQueryMiddleware is a function that will be called with every combination of relay+pubkey+kind queried
+// WithAuthorKindQueryMiddleware is a function that will be called with every combination of relay+pubkey+kind queried
 // in a .SubMany*() call -- when applicable (i.e. when the query contains a pubkey and a kind).
 type WithAuthorKindQueryMiddleware func(relay string, pubkey string, kind int)
 
@@ -155,6 +160,8 @@ var (
 	_ PoolOption = WithRelayOptions(WithRequestHeader(http.Header{}))
 )
 
+// EnsureRelay ensures that a relay connection exists and is active.
+// If the relay is not connected, it attempts to connect.
 func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	nm := NormalizeURL(url)
 	defer namedLock(nm)()
@@ -199,12 +206,14 @@ func (pool *SimplePool) EnsureRelay(url string) (*Relay, error) {
 	return relay, nil
 }
 
+// PublishResult represents the result of publishing an event to a relay.
 type PublishResult struct {
 	Error    error
 	RelayURL string
 	Relay    *Relay
 }
 
+// PublishMany publishes an event to multiple relays and returns a channel of results emitted as they're received.
 func (pool *SimplePool) PublishMany(ctx context.Context, urls []string, evt Event) chan PublishResult {
 	ch := make(chan PublishResult, len(urls))
 
@@ -247,7 +256,7 @@ func (pool *SimplePool) FetchMany(
 	return pool.SubManyEose(ctx, urls, Filters{filter}, opts...)
 }
 
-// Deprecated: use SubscribeMany instead.
+// Deprecated: SubMany is deprecated: use SubscribeMany instead.
 func (pool *SimplePool) SubMany(
 	ctx context.Context,
 	urls []string,
@@ -447,7 +456,7 @@ func (pool *SimplePool) subMany(
 	return events
 }
 
-// Deprecated: use FetchMany instead.
+// Deprecated: SubManyEose is deprecated: use FetchMany instead.
 func (pool *SimplePool) SubManyEose(
 	ctx context.Context,
 	urls []string,
@@ -562,7 +571,7 @@ func (pool *SimplePool) subManyEoseNonOverwriteCheckDuplicate(
 	return events
 }
 
-// CountMany aggregates count results from multiple relays using HyperLogLog
+// CountMany aggregates count results from multiple relays using NIP-45 HyperLogLog
 func (pool *SimplePool) CountMany(
 	ctx context.Context,
 	urls []string,
@@ -611,6 +620,7 @@ func (pool *SimplePool) QuerySingle(
 	return nil
 }
 
+// BatchedSubManyEose performs batched subscriptions to multiple relays with different filters.
 func (pool *SimplePool) BatchedSubManyEose(
 	ctx context.Context,
 	dfs []DirectedFilter,
@@ -648,6 +658,7 @@ func (pool *SimplePool) BatchedSubManyEose(
 	return res
 }
 
+// Close closes the pool with the given reason.
 func (pool *SimplePool) Close(reason string) {
 	pool.cancel(fmt.Errorf("pool closed with reason: '%s'", reason))
 }

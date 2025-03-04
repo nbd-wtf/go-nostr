@@ -8,6 +8,7 @@ import (
 	"github.com/mailru/easyjson"
 )
 
+// Event represents a Nostr event.
 type Event struct {
 	ID        string
 	PubKey    string
@@ -18,19 +19,18 @@ type Event struct {
 	Sig       string
 }
 
-// Event Stringer interface, just returns the raw JSON as a string.
 func (evt Event) String() string {
 	j, _ := easyjson.Marshal(evt)
 	return string(j)
 }
 
-// GetID serializes and returns the event ID as a string.
+// GetID computes the event ID abd returns it as a hex string.
 func (evt *Event) GetID() string {
 	h := sha256.Sum256(evt.Serialize())
 	return hex.EncodeToString(h[:])
 }
 
-// CheckID checks if the implied ID matches the given ID
+// CheckID checks if the implied ID matches the given ID more efficiently.
 func (evt *Event) CheckID() bool {
 	ser := evt.Serialize()
 	h := sha256.Sum256(ser)
@@ -52,8 +52,7 @@ func (evt *Event) CheckID() bool {
 	return true
 }
 
-// Serialize outputs a byte array that can be hashed/signed to identify/authenticate.
-// JSON encoding as defined in RFC4627.
+// Serialize outputs a byte array that can be hashed to produce the canonical event "id".
 func (evt *Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
 	// so the order is kept. See NIP-01

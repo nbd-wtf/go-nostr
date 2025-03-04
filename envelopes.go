@@ -27,6 +27,7 @@ var (
 	UnknownLabel = errors.New("unknown envelope label")
 )
 
+// ParseMessageSIMD parses a message using the experimental simdjson-go library.
 func ParseMessageSIMD(message []byte, reuse *simdjson.ParsedJson) (Envelope, error) {
 	parsed, err := simdjson.Parse(message, reuse)
 	if err != nil {
@@ -75,6 +76,7 @@ func ParseMessageSIMD(message []byte, reuse *simdjson.ParsedJson) (Envelope, err
 	return v, err
 }
 
+// ParseMessage parses a message into an Envelope.
 func ParseMessage(message []byte) Envelope {
 	firstComma := bytes.Index(message, []byte{','})
 	if firstComma == -1 {
@@ -115,6 +117,7 @@ func ParseMessage(message []byte) Envelope {
 	return v
 }
 
+// Envelope is the interface for all nostr message envelopes.
 type Envelope interface {
 	Label() string
 	UnmarshalJSON([]byte) error
@@ -122,6 +125,7 @@ type Envelope interface {
 	String() string
 }
 
+// EnvelopeSIMD extends Envelope with SIMD unmarshaling capability.
 type EnvelopeSIMD interface {
 	Envelope
 	UnmarshalSIMD(simdjson.Iter) error
@@ -138,6 +142,7 @@ var (
 	_ Envelope = (*AuthEnvelope)(nil)
 )
 
+// EventEnvelope represents an EVENT message.
 type EventEnvelope struct {
 	SubscriptionID *string
 	Event
@@ -191,6 +196,7 @@ func (v EventEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// ReqEnvelope represents a REQ message.
 type ReqEnvelope struct {
 	SubscriptionID string
 	Filters
@@ -268,6 +274,7 @@ func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// CountEnvelope represents a COUNT message.
 type CountEnvelope struct {
 	SubscriptionID string
 	Filters
@@ -392,6 +399,7 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// NoticeEnvelope represents a NOTICE message.
 type NoticeEnvelope string
 
 func (_ NoticeEnvelope) Label() string { return "NOTICE" }
@@ -426,6 +434,7 @@ func (v NoticeEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// EOSEEnvelope represents an EOSE (End of Stored Events) message.
 type EOSEEnvelope string
 
 func (_ EOSEEnvelope) Label() string { return "EOSE" }
@@ -460,6 +469,7 @@ func (v EOSEEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// CloseEnvelope represents a CLOSE message.
 type CloseEnvelope string
 
 func (_ CloseEnvelope) Label() string { return "CLOSE" }
@@ -496,6 +506,7 @@ func (v CloseEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// ClosedEnvelope represents a CLOSED message.
 type ClosedEnvelope struct {
 	SubscriptionID string
 	Reason         string
@@ -539,6 +550,7 @@ func (v ClosedEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// OKEnvelope represents an OK message.
 type OKEnvelope struct {
 	EventID string
 	OK      bool
@@ -597,6 +609,7 @@ func (v OKEnvelope) MarshalJSON() ([]byte, error) {
 	return w.BuildBytes()
 }
 
+// AuthEnvelope represents an AUTH message.
 type AuthEnvelope struct {
 	Challenge *string
 	Event     Event

@@ -17,10 +17,9 @@ import (
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
-type Status int
-
 var subscriptionIDCounter atomic.Int64
 
+// Relay represents a connection to a Nostr relay.
 type Relay struct {
 	closeMutex sync.Mutex
 
@@ -51,7 +50,7 @@ type writeRequest struct {
 	answer chan error
 }
 
-// NewRelay returns a new relay. The relay connection will be closed when the context is canceled.
+// NewRelay returns a new relay. It takes a context that, when canceled, will close the relay connection.
 func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 	ctx, cancel := context.WithCancelCause(ctx)
 	r := &Relay{
@@ -73,16 +72,18 @@ func NewRelay(ctx context.Context, url string, opts ...RelayOption) *Relay {
 }
 
 // RelayConnect returns a relay object connected to url.
-// Once successfully connected, cancelling ctx has no effect.
-// To close the connection, call r.Close().
+//
+// The given subscription is only used during the connection phase. Once successfully connected, cancelling ctx has no effect.
+//
+// The ongoing relay connection uses a background context. To close the connection, call r.Close().
+// If you need fine grained long-term connection contexts, use NewRelay() instead.
 func RelayConnect(ctx context.Context, url string, opts ...RelayOption) (*Relay, error) {
 	r := NewRelay(context.Background(), url, opts...)
 	err := r.Connect(ctx)
 	return r, err
 }
 
-// When instantiating relay connections, some options may be passed.
-// RelayOption is the type of the argument passed for that.
+// RelayOption is the type of the argument passed when instantiating relay connections.
 type RelayOption interface {
 	ApplyRelayOption(*Relay)
 }
@@ -122,6 +123,7 @@ func (r *Relay) String() string {
 }
 
 // Context retrieves the context that is associated with this relay connection.
+// It will be closed when the relay is disconnected.
 func (r *Relay) Context() context.Context { return r.connectionContext }
 
 // IsConnected returns true if the connection to this relay seems to be active.
@@ -132,14 +134,13 @@ func (r *Relay) IsConnected() bool { return r.connectionContext.Err() == nil }
 // Once successfully connected, context expiration has no effect: call r.Close
 // to close the connection.
 //
-// The underlying relay connection will use a background context. If you want to
-// pass a custom context to the underlying relay connection, use NewRelay() and
-// then Relay.Connect().
+// The given context here is only used during the connection phase. The long-living
+// relay connection will be based on the context given to NewRelay().
 func (r *Relay) Connect(ctx context.Context) error {
 	return r.ConnectWithTLS(ctx, nil)
 }
 
-// ConnectWithTLS tries to establish a secured websocket connection to r.URL using customized tls.Config (CA's, etc).
+// ConnectWithTLS is like Connect(), but takes a special tls.Config if you need that.
 func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error {
 	if r.connectionContext == nil || r.Subscriptions == nil {
 		return fmt.Errorf("relay must be initialized with a call to NewRelay()")
@@ -303,7 +304,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 	return nil
 }
 
-// Write queues a message to be sent to the relay.
+// Write queues an arbitrary message to be sent to the relay.
 func (r *Relay) Write(msg []byte) <-chan error {
 	ch := make(chan error)
 	select {
@@ -320,6 +321,9 @@ func (r *Relay) Publish(ctx context.Context, event Event) error {
 }
 
 // Auth sends an "AUTH" command client->relay as in NIP-42 and waits for an OK response.
+//
+// You don't have to build the AUTH event yourself, this function takes a function to which the
+// event that must be signed will be passed, so it's only necessary to sign that.
 func (r *Relay) Auth(ctx context.Context, sign func(event *Event) error) error {
 	authEvent := Event{
 		CreatedAt: Now(),
@@ -337,7 +341,6 @@ func (r *Relay) Auth(ctx context.Context, sign func(event *Event) error) error {
 	return r.publish(ctx, authEvent.ID, &AuthEnvelope{Event: authEvent})
 }
 
-// publish can be used both for EVENT and for AUTH
 func (r *Relay) publish(ctx context.Context, id string, env Envelope) error {
 	var err error
 	var cancel context.CancelFunc
@@ -451,6 +454,9 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 	return sub
 }
 
+// QueryEvents subscribes to events matching the given filter and returns a channel of events.
+//
+// In most cases it's better to use SimplePool instead of this method.
 func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan *Event, error) {
 	sub, err := r.Subscribe(ctx, Filters{filter})
 	if err != nil {
@@ -473,6 +479,10 @@ func (r *Relay) QueryEvents(ctx context.Context, filter Filter) (chan *Event, er
 	return sub.Events, nil
 }
 
+// QuerySync subscribes to events matching the given filter and returns a slice of events.
+// This method blocks until all events are received or the context is canceled.
+//
+// In most cases it's better to use SimplePool instead of this method.
 func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		// if no timeout is set, force it to 7 seconds
@@ -494,6 +504,7 @@ func (r *Relay) QuerySync(ctx context.Context, filter Filter) ([]*Event, error) 
 	return events, nil
 }
 
+// Count sends a "COUNT" command to the relay and returns the count of events matching the filters.
 func (r *Relay) Count(
 	ctx context.Context,
 	filters Filters,
@@ -534,6 +545,7 @@ func (r *Relay) countInternal(ctx context.Context, filters Filters, opts ...Subs
 	}
 }
 
+// Close closes the relay connection.
 func (r *Relay) Close() error {
 	return r.close(errors.New("Close() called"))
 }

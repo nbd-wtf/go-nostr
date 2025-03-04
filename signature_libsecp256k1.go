@@ -34,9 +34,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
 
-// CheckSignature checks if the signature is valid for the id
-// (which is a hash of the serialized event content).
-// returns an error if the signature itself is invalid.
 func (evt Event) CheckSignature() (bool, error) {
 	var pk [32]byte
 	_, err := hex.Decode(pk[:], []byte(evt.PubKey))
@@ -61,7 +58,6 @@ func (evt Event) CheckSignature() (bool, error) {
 	return res == 1, nil
 }
 
-// Sign signs an event with a given privateKey.
 func (evt *Event) Sign(secretKey string, signOpts ...schnorr.SignOption) error {
 	sk, err := hex.DecodeString(secretKey)
 	if err != nil {

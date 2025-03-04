@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 )
 
+// Subscription represents a subscription to a relay.
 type Subscription struct {
 	counter int64
 	id      string
@@ -46,13 +47,7 @@ type Subscription struct {
 	storedwg sync.WaitGroup
 }
 
-type EventMessage struct {
-	Event Event
-	Relay string
-}
-
-// When instantiating relay connections, some options may be passed.
-// SubscriptionOption is the type of the argument passed for that.
+// SubscriptionOption is the type of the argument passed when instantiating relay connections.
 // Some examples are WithLabel.
 type SubscriptionOption interface {
 	IsSubscriptionOption()
@@ -85,6 +80,7 @@ func (sub *Subscription) start() {
 	sub.mu.Unlock()
 }
 
+// GetID returns the subscription ID.
 func (sub *Subscription) GetID() string { return sub.id }
 
 func (sub *Subscription) dispatchEvent(evt *Event) {
@@ -121,6 +117,7 @@ func (sub *Subscription) dispatchEose() {
 	}
 }
 
+// handleClosed handles the CLOSED message from a relay.
 func (sub *Subscription) handleClosed(reason string) {
 	go func() {
 		sub.ClosedReason <- reason
@@ -135,6 +132,7 @@ func (sub *Subscription) Unsub() {
 	sub.unsub(errors.New("Unsub() called"))
 }
 
+// unsub is the internal implementation of Unsub.
 func (sub *Subscription) unsub(err error) {
 	// cancel the context (if it's not canceled already)
 	sub.cancel(err)
