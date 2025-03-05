@@ -12,9 +12,9 @@ type Job struct {
 var Job5000 = Job{
 	InputKind:   5000,
 	OutputKind:  6000,
-	Name:        "",
+	Name:        "Text extraction",
 	Description: "Job request to extract text from some kind of input.",
-	InputType:   "",
+	InputType:   "url",
 	Params: []string{
 		"alignment",
 		"range",
@@ -27,9 +27,9 @@ var Job5000 = Job{
 var Job5001 = Job{
 	InputKind:   5001,
 	OutputKind:  6001,
-	Name:        "",
+	Name:        "Summarization",
 	Description: "Summarize input(s)",
-	InputType:   "",
+	InputType:   "event",
 	Params: []string{
 		"length",
 		"paragraphs",
@@ -40,18 +40,18 @@ var Job5001 = Job{
 var Job5002 = Job{
 	InputKind:   5002,
 	OutputKind:  6002,
-	Name:        "",
+	Name:        "Translation",
 	Description: "Translate input(s)",
-	InputType:   "",
+	InputType:   "event",
 	Params:      []string{},
 }
 
 var Job5050 = Job{
 	InputKind:   5050,
 	OutputKind:  6050,
-	Name:        "",
+	Name:        "Text Generation",
 	Description: "Job request to generate text using AI models.",
-	InputType:   "",
+	InputType:   "prompt",
 	Params: []string{
 		"frequency_penalty",
 		"max_tokens",
@@ -65,9 +65,9 @@ var Job5050 = Job{
 var Job5100 = Job{
 	InputKind:   5100,
 	OutputKind:  6100,
-	Name:        "",
+	Name:        "Image Generation",
 	Description: "Job request to generate Images using AI models.",
-	InputType:   "",
+	InputType:   "text",
 	Params: []string{
 		"${width}x${height}",
 		"1024x768",
@@ -83,18 +83,18 @@ var Job5100 = Job{
 var Job5200 = Job{
 	InputKind:   5200,
 	OutputKind:  6200,
-	Name:        "",
+	Name:        "Video Conversion",
 	Description: "Job request to convert a Video to another Format.",
-	InputType:   "",
+	InputType:   "url",
 	Params:      []string{},
 }
 
 var Job5201 = Job{
 	InputKind:   5201,
 	OutputKind:  6201,
-	Name:        "",
+	Name:        "Video Translation",
 	Description: "Job request to translate video audio content into target language with or without subtitles.",
-	InputType:   "",
+	InputType:   "url",
 	Params: []string{
 		"format",
 		"language",
@@ -106,34 +106,34 @@ var Job5201 = Job{
 var Job5202 = Job{
 	InputKind:   5202,
 	OutputKind:  6202,
-	Name:        "",
+	Name:        "Image-to-Video Conversion",
 	Description: "Job request to convert a static Image to a a short animated video clip",
-	InputType:   "",
+	InputType:   "url",
 	Params:      []string{},
 }
 
 var Job5250 = Job{
 	InputKind:   5250,
 	OutputKind:  6250,
-	Name:        "",
+	Name:        "Text-to-Speech Generation",
 	Description: "Job request to convert text input to an audio file.",
-	InputType:   "",
+	InputType:   "text",
 	Params:      []string{},
 }
 
 var Job5300 = Job{
 	InputKind:   5300,
 	OutputKind:  6300,
-	Name:        "",
+	Name:        "Nostr Content Discovery",
 	Description: "Job request to discover nostr-native content",
-	InputType:   "",
+	InputType:   "text",
 	Params:      []string{},
 }
 
 var Job5301 = Job{
 	InputKind:   5301,
 	OutputKind:  6301,
-	Name:        "",
+	Name:        "Nostr People Discovery",
 	Description: "Job request to discover nostr pubkeys",
 	InputType:   "",
 	Params:      []string{},
@@ -142,9 +142,9 @@ var Job5301 = Job{
 var Job5302 = Job{
 	InputKind:   5302,
 	OutputKind:  6302,
-	Name:        "",
+	Name:        "Nostr Content Search",
 	Description: "Job to search for notes based on a prompt",
-	InputType:   "",
+	InputType:   "text",
 	Params: []string{
 		"max_results",
 		"since",
@@ -156,16 +156,16 @@ var Job5302 = Job{
 var Job5303 = Job{
 	InputKind:   5303,
 	OutputKind:  6303,
-	Name:        "",
+	Name:        "Nostr People Search",
 	Description: "Job to search for profiles based on a prompt",
-	InputType:   "",
+	InputType:   "text",
 	Params:      []string{},
 }
 
 var Job5400 = Job{
 	InputKind:   5400,
 	OutputKind:  6400,
-	Name:        "",
+	Name:        "Nostr Event Count",
 	Description: "Job request to count matching events",
 	InputType:   "",
 	Params: []string{
@@ -181,25 +181,25 @@ var Job5400 = Job{
 var Job5500 = Job{
 	InputKind:   5500,
 	OutputKind:  6500,
-	Name:        "",
+	Name:        "Malware Scanning",
 	Description: "Job request to perform a Malware Scan on files.",
-	InputType:   "url",
+	InputType:   "",
 	Params:      []string{},
 }
 
 var Job5900 = Job{
 	InputKind:   5900,
 	OutputKind:  6900,
-	Name:        "",
+	Name:        "Nostr Event Time Stamping",
 	Description: "NIP-03 Timestamping of nostr events",
-	InputType:   "",
+	InputType:   "event",
 	Params:      []string{},
 }
 
 var Job5901 = Job{
 	InputKind:   5901,
 	OutputKind:  6901,
-	Name:        "",
+	Name:        "OP_RETURN Creation",
 	Description: "Create a bitcoin transaction with an OP_RETURN",
 	InputType:   "text",
 	Params:      []string{},
@@ -208,17 +208,17 @@ var Job5901 = Job{
 var Job5905 = Job{
 	InputKind:   5905,
 	OutputKind:  6905,
-	Name:        "",
+	Name:        "Nostr Event Publish Schedule",
 	Description: "Schedule nostr events for future publishing",
-	InputType:   "",
+	InputType:   "text",
 	Params:      []string{},
 }
 
 var Job5970 = Job{
 	InputKind:   5970,
 	OutputKind:  6970,
-	Name:        "",
+	Name:        "Event PoW Delegation",
 	Description: "Delegate PoW of an event to a provider.",
-	InputType:   "",
+	InputType:   "text",
 	Params:      []string{},
 }

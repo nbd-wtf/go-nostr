@@ -12,18 +12,19 @@ generate: dvm_repo
   }
   ' > kinds.go
   for kindf in (ls data-vending-machines/kinds)
+    echo "> $kindf"
     set file "data-vending-machines/kinds/$kindf"
 
-    set kind (echo $kindf | ag -o '\d+')
+    set kind (echo $kindf | rg -o '\d+')
     set okind (echo $kind | jq -r '. + 1000')
-    set title (ag '^title:' $file | awk '{$1=""; sub(/^ +/, "", $0); print}' | string collect | string trim)
-    set desc (ag '^description:' $file | awk '{$1=""; sub(/^ +/, "", $0); print}' | string collect | string trim)
-    set inputtype (cat $file | ag -o '\["i",[^]]*]' | jq -r '.[2]')
+    set title (rg --replace '$1' '^title: *(.*)$' $file | string trim)
+    set desc (rg --replace '$1' '^description: *(.*)$' $file | string trim)
+    set inputtype (rg --replace '$1' '(\[ *"i".*\])[^]]*$' $file | jq -nr 'input // [0, 0, ""] | .[2]')
 
     echo "var Job$kind = Job{
       InputKind: $kind,
       OutputKind: $okind,
-      Name: \"$name\",
+      Name: \"$title\",
       Description: \"$desc\",
       InputType: \"$inputtype\",
       Params: []string{" >> kinds.go
