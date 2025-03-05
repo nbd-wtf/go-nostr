@@ -135,7 +135,7 @@ var Job5301 = Job{
 	OutputKind:  6301,
 	Name:        "Nostr People Discovery",
 	Description: "Job request to discover nostr pubkeys",
-	InputType:   "",
+	InputType:   "text",
 	Params:      []string{},
 }
 
@@ -167,7 +167,7 @@ var Job5400 = Job{
 	OutputKind:  6400,
 	Name:        "Nostr Event Count",
 	Description: "Job request to count matching events",
-	InputType:   "",
+	InputType:   "text",
 	Params: []string{
 		"content",
 		"group",
@@ -221,4 +221,26 @@ var Job5970 = Job{
 	Description: "Delegate PoW of an event to a provider.",
 	InputType:   "text",
 	Params:      []string{},
+}
+
+var Jobs = []Job{
+	Job5000,
+	Job5001,
+	Job5002,
+	Job5050,
+	Job5100,
+	Job5200,
+	Job5201,
+	Job5202,
+	Job5250,
+	Job5300,
+	Job5301,
+	Job5302,
+	Job5303,
+	Job5400,
+	Job5500,
+	Job5900,
+	Job5901,
+	Job5905,
+	Job5970,
 }

@@ -20,16 +20,7 @@ generate: dvm_repo
     set title (rg --replace '$1' '^title: *(.*)$' $file | string trim)
     set desc (rg --replace '$1' '^description: *(.*)$' $file | string trim)
     set inputtype (rg --replace '$1' '(\[ *"i".*\])[^]]*$' $file | jq -nr 'input // [0, 0, ""] | .[2]')
-
-    echo "var Job$kind = Job{
-      InputKind: $kind,
-      OutputKind: $okind,
-      Name: \"$title\",
-      Description: \"$desc\",
-      InputType: \"$inputtype\",
-      Params: []string{" >> kinds.go
-
-    for param in (fq '
+    set params (fq '
       def drill_to_code:
         if (type == "object" and .children) then
             .children
@@ -71,6 +62,16 @@ generate: dvm_repo
       | .[]
         ' -d markdown -r $file
     )
+
+    echo "var Job$kind = Job{
+      InputKind: $kind,
+      OutputKind: $okind,
+      Name: \"$title\",
+      Description: \"$desc\",
+      InputType: \"$inputtype\",
+      Params: []string{" >> kinds.go
+
+    for param in $params
       echo "\"$param\"", >> kinds.go
     end
 
@@ -78,6 +79,13 @@ generate: dvm_repo
     }
     " >> kinds.go
   end
+
+  echo "var Jobs = []Job{" >> kinds.go
+  for kindf in (ls data-vending-machines/kinds)
+    set kind (echo $kindf | rg -o '\d+')
+    echo "Job$kind," >> kinds.go
+  end
+  echo "}" >> kinds.go
 
   go fmt kinds.go
 
