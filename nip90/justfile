@@ -1,0 +1,90 @@
+generate: dvm_repo
+  #!/usr/bin/env fish
+  echo 'package nip90
+
+  type Job struct {
+    InputKind int
+    OutputKind int
+    Name string
+    Description string
+    InputType string
+    Params []string
+  }
+  ' > kinds.go
+  for kindf in (ls data-vending-machines/kinds)
+    set file "data-vending-machines/kinds/$kindf"
+
+    set kind (echo $kindf | ag -o '\d+')
+    set okind (echo $kind | jq -r '. + 1000')
+    set title (ag '^title:' $file | awk '{$1=""; sub(/^ +/, "", $0); print}' | string collect | string trim)
+    set desc (ag '^description:' $file | awk '{$1=""; sub(/^ +/, "", $0); print}' | string collect | string trim)
+    set inputtype (cat $file | ag -o '\["i",[^]]*]' | jq -r '.[2]')
+
+    echo "var Job$kind = Job{
+      InputKind: $kind,
+      OutputKind: $okind,
+      Name: \"$name\",
+      Description: \"$desc\",
+      InputType: \"$inputtype\",
+      Params: []string{" >> kinds.go
+
+    for param in (fq '
+      def drill_to_code:
+        if (type == "object" and .children) then
+            .children
+          | map(drill_to_code)
+        else
+            select
+            ( (type == "object") and (.type == "code")
+            )
+          | .literal
+        end
+      ;
+
+      .children
+        | . as $sections
+        |
+          ( $sections
+          | map(.type == "heading" and .children == ["Params"])
+          | index(true)
+          ) as $startParams
+        | if $startParams == null
+          then []
+          else
+            ( $sections[($startParams + 1):]
+            | map(.type == "heading" and .level == ($sections[$startParams].level))
+            | index(true)
+            | . + $startParams + 1
+            ) as $endParams
+          | ( $sections[($startParams + 1):$endParams]
+            | map
+              ( .children
+              | select(.)
+              | map(drill_to_code)
+              )
+            | flatten
+            | select(. | length > 1)
+            | unique
+          )
+          end
+      | .[]
+        ' -d markdown -r $file
+    )
+      echo "\"$param\"", >> kinds.go
+    end
+
+    echo "},
+    }
+    " >> kinds.go
+  end
+
+  go fmt kinds.go
+
+dvm_repo:
+  #!/usr/bin/env fish
+  if [ ! -d data-vending-machines ]
+    git clone https://github.com/nostr-protocol/data-vending-machines.git
+  end
+  cd data-vending-machines
+  git reset --hard HEAD
+  git pull
