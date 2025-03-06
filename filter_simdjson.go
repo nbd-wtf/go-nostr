@@ -17,17 +17,20 @@ var (
 	attrSearch  = []byte("search")
 )
 
-func (filter *Filter) UnmarshalSIMD(iter *simdjson.Iter) error {
-	obj, err := iter.Object(nil)
+func (filter *Filter) UnmarshalSIMD(
+	iter *simdjson.Iter,
+	obj *simdjson.Object,
+	arr *simdjson.Array,
+) (*simdjson.Object, *simdjson.Array, error) {
+	obj, err := iter.Object(obj)
 	if err != nil {
-		return fmt.Errorf("unexpected at filter: %w", err)
+		return obj, arr, fmt.Errorf("unexpected at filter: %w", err)
 	}
 
-	var arr *simdjson.Array
 	for {
 		name, t, err := obj.NextElementBytes(iter)
 		if err != nil {
-			return err
+			return obj, arr, err
 		} else if t == simdjson.TypeNone {
 			break
 		}
@@ -51,7 +54,7 @@ func (filter *Filter) UnmarshalSIMD(iter *simdjson.Iter) error {
 						break
 					}
 					if kind, err := i.Uint(); err != nil {
-						return err
+						return obj, arr, err
 					} else {
 						filter.Kinds = append(filter.Kinds, int(kind))
 					}
@@ -84,24 +87,24 @@ func (filter *Filter) UnmarshalSIMD(iter *simdjson.Iter) error {
 
 				arr, err := iter.Array(arr)
 				if err != nil {
-					return err
+					return obj, arr, err
 				}
 				vals, err := arr.AsString()
 				if err != nil {
-					return err
+					return obj, arr, err
 				}
 
 				filter.Tags[string(name[1:])] = vals
 				continue
 			}
 
-			return fmt.Errorf("unexpected filter field '%s'", name)
+			return obj, arr, fmt.Errorf("unexpected filter field '%s'", name)
 		}
 
 		if err != nil {
-			return err
+			return obj, arr, err
 		}
 	}
 
-	return nil
+	return obj, arr, nil
 }

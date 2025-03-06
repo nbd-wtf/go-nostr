@@ -304,9 +304,10 @@ func TestParseMessageSIMD(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		smp := SIMDMessageParser{AuxIter: &simdjson.Iter{}}
+
 		t.Run(testCase.Name, func(t *testing.T) {
-			var pj *simdjson.ParsedJson
-			envelope, err := ParseMessageSIMD(testCase.Message, pj)
+			envelope, err := smp.ParseMessage(testCase.Message)
 
 			if testCase.ExpectedErrorSubstring == "" {
 				require.NoError(t, err)

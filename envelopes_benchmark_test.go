@@ -1,6 +1,7 @@
 package nostr
 
 import (
+	stdlibjson "encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"testing"
@@ -12,7 +13,16 @@ import (
 func BenchmarkParseMessage(b *testing.B) {
 	messages := generateTestMessages(2000)
 
-	b.Run("golang", func(b *testing.B) {
+	b.Run("stdlib", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, msg := range messages {
+				var v any
+				stdlibjson.Unmarshal(msg, &v)
+			}
+		}
+	})
+
+	b.Run("easyjson", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, msg := range messages {
 				_ = ParseMessage(msg)
@@ -21,10 +31,10 @@ func BenchmarkParseMessage(b *testing.B) {
 	})
 
 	b.Run("simdjson", func(b *testing.B) {
-		pj := &simdjson.ParsedJson{}
+		smp := SIMDMessageParser{ParsedJSON: &simdjson.ParsedJson{}, AuxIter: &simdjson.Iter{}}
 		for i := 0; i < b.N; i++ {
 			for _, msg := range messages {
-				_, _ = ParseMessageSIMD(msg, pj)
+				_, _ = smp.ParseMessage(msg)
 			}
 		}
 	})
@@ -76,9 +86,9 @@ func generateRandomEvent() Event {
 	tags := make(Tags, tagCount)
 	for i := 0; i < tagCount; i++ {
 		tagType := string([]byte{byte('a' + rand.IntN(26))})
-		tagValues := make([]string, rand.IntN(5)+1)
+		tagValues := make([]string, rand.IntN(3)+1)
 		for j := range tagValues {
-			tagValues[j] = fmt.Sprintf("value_%d_%d", i, j)
+			tagValues[j] = fmt.Sprintf("%d", j)
 		}
 		tags[i] = append([]string{tagType}, tagValues...)
 	}

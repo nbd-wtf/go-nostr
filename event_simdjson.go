@@ -17,16 +17,21 @@ var (
 	attrSig       = []byte("sig")
 )
 
-func (event *Event) UnmarshalSIMD(iter *simdjson.Iter) error {
-	obj, err := iter.Object(nil)
+func (event *Event) UnmarshalSIMD(
+	iter *simdjson.Iter,
+	obj *simdjson.Object,
+	arr *simdjson.Array,
+	subArr *simdjson.Array,
+) (*simdjson.Object, *simdjson.Array, *simdjson.Array, error) {
+	obj, err := iter.Object(obj)
 	if err != nil {
-		return fmt.Errorf("unexpected at event: %w", err)
+		return obj, arr, subArr, fmt.Errorf("unexpected at event: %w", err)
 	}
 
 	for {
 		name, t, err := obj.NextElementBytes(iter)
 		if err != nil {
-			return err
+			return obj, arr, subArr, err
 		} else if t == simdjson.TypeNone {
 			break
 		}
@@ -49,36 +54,34 @@ func (event *Event) UnmarshalSIMD(iter *simdjson.Iter) error {
 			kind, err = iter.Uint()
 			event.Kind = int(kind)
 		case bytes.Equal(name, attrTags):
-			var arr *simdjson.Array
-			arr, err = iter.Array(nil)
+			arr, err = iter.Array(arr)
 			if err != nil {
-				return err
+				return obj, arr, subArr, err
 			}
 			event.Tags = make(Tags, 0, 10)
 			titer := arr.Iter()
-			var subArr *simdjson.Array
 			for {
 				if t := titer.Advance(); t == simdjson.TypeNone {
 					break
 				}
 				subArr, err = titer.Array(subArr)
 				if err != nil {
-					return err
+					return obj, arr, subArr, err
 				}
 				tag, err := subArr.AsString()
 				if err != nil {
-					return err
+					return obj, arr, subArr, err
 				}
 				event.Tags = append(event.Tags, tag)
 			}
 		default:
-			return fmt.Errorf("unexpected event field '%s'", name)
+			return obj, arr, subArr, fmt.Errorf("unexpected event field '%s'", name)
 		}
 
 		if err != nil {
-			return err
+			return obj, arr, subArr, err
 		}
 	}
 
-	return nil
+	return obj, arr, subArr, nil
 }
