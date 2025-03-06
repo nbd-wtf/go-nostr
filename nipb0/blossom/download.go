@@ -21,6 +21,12 @@ func (c *Client) Download(ctx context.Context, hash string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	authHeader := c.authorizationHeader(ctx, func(evt *nostr.Event) {
+		evt.Tags = append(evt.Tags, nostr.Tag{"t", "get"})
+		evt.Tags = append(evt.Tags, nostr.Tag{"x", hash})
+	})
+	req.Header.Add("Authorization", authHeader)
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call %s for %s: %w", c.mediaserver, hash, err)
@@ -44,6 +50,12 @@ func (c *Client) DownloadToFile(ctx context.Context, hash string, filePath strin
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
+
+	authHeader := c.authorizationHeader(ctx, func(evt *nostr.Event) {
+		evt.Tags = append(evt.Tags, nostr.Tag{"t", "get"})
+		evt.Tags = append(evt.Tags, nostr.Tag{"x", hash})
+	})
+	req.Header.Add("Authorization", authHeader)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
