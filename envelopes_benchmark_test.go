@@ -11,59 +11,69 @@ import (
 )
 
 func BenchmarkParseMessage(b *testing.B) {
-	messages := generateTestMessages(2000)
+	for _, name := range []string{"relay", "client"} {
+		b.Run(name, func(b *testing.B) {
+			messages := generateTestMessages(name)
 
-	b.Run("stdlib", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, msg := range messages {
-				var v any
-				stdlibjson.Unmarshal(msg, &v)
-			}
-		}
-	})
+			b.Run("jsonstdlib", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					for _, msg := range messages {
+						var v any
+						stdlibjson.Unmarshal(msg, &v)
+					}
+				}
+			})
 
-	b.Run("easyjson", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			for _, msg := range messages {
-				_ = ParseMessage(msg)
-			}
-		}
-	})
+			b.Run("easyjson", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					for _, msg := range messages {
+						_ = ParseMessage(msg)
+					}
+				}
+			})
 
-	b.Run("simdjson", func(b *testing.B) {
-		smp := SIMDMessageParser{ParsedJSON: &simdjson.ParsedJson{}, AuxIter: &simdjson.Iter{}}
-		for i := 0; i < b.N; i++ {
-			for _, msg := range messages {
-				_, _ = smp.ParseMessage(msg)
-			}
-		}
-	})
+			b.Run("simdjson", func(b *testing.B) {
+				smp := SIMDMessageParser{ParsedJSON: &simdjson.ParsedJson{}, AuxIter: &simdjson.Iter{}}
+				for i := 0; i < b.N; i++ {
+					for _, msg := range messages {
+						_, _ = smp.ParseMessage(msg)
+					}
+				}
+			})
+
+			b.Run("sonic", func(b *testing.B) {
+				smp := SonicMessageParser{}
+				for i := 0; i < b.N; i++ {
+					for _, msg := range messages {
+						_, _ = smp.ParseMessage(msg)
+					}
+				}
+			})
+		})
+	}
 }
 
-func generateTestMessages(count int) [][]byte {
-	messages := make([][]byte, 0, count)
+func generateTestMessages(typ string) [][]byte {
+	messages := make([][]byte, 0, 600)
 
-	for i := 0; i < count; i++ {
-		var msg []byte
+	setup := map[string]map[int]func() []byte{
+		"client": {
+			500: generateEventMessage,
+			5:   generateEOSEMessage,
+			9:   generateNoticeMessage,
+			14:  generateCountMessage,
+			20:  generateOKMessage,
+		},
+		"relay": {
+			500: generateReqMessage,
+			10:  generateCountMessage,
+		},
+	}[typ]
 
-		switch rand.IntN(12) {
-		case 1:
-			msg = generateAuthMessage()
-		case 2:
-			msg = generateNoticeMessage()
-		case 3:
-			msg = generateEOSEMessage()
-		case 4:
-			msg = generateOKMessage()
-		case 5:
-			msg = generateCountMessage()
-		case 6:
-			msg = generateReqMessage()
-		default:
-			msg = generateEventMessage()
+	for count, generator := range setup {
+		for range count {
+			messages = append(messages, generator())
 		}
-
-		messages = append(messages, msg)
 	}
 
 	return messages

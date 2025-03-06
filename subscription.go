@@ -167,8 +167,10 @@ func (sub *Subscription) Fire() error {
 	var reqb []byte
 	if sub.countResult == nil {
 		reqb, _ = ReqEnvelope{sub.id, sub.Filters}.MarshalJSON()
+	} else if len(sub.Filters) == 1 {
+		reqb, _ = CountEnvelope{sub.id, sub.Filters[0], nil, nil}.MarshalJSON()
 	} else {
-		reqb, _ = CountEnvelope{sub.id, sub.Filters, nil, nil}.MarshalJSON()
+		return fmt.Errorf("unexpected sub configuration")
 	}
 
 	sub.live.Store(true)

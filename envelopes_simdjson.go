@@ -129,13 +129,11 @@ func (smp *SIMDMessageParser) ParseMessage(message []byte) (Envelope, error) {
 				}
 			}
 		} else {
-			var filter Filter
-			smp.TargetObject, smp.TargetInternalArray, err = filter.UnmarshalSIMD(
+			smp.TargetObject, smp.TargetInternalArray, err = v.Filter.UnmarshalSIMD(
 				&iter, smp.TargetObject, smp.TargetInternalArray)
 			if err != nil {
 				return nil, err
 			}
-			v.Filters = Filters{filter}
 		}
 
 		return v, nil
@@ -207,4 +205,185 @@ func (smp *SIMDMessageParser) ParseMessage(message []byte) (Envelope, error) {
 	default:
 		return nil, UnknownLabel
 	}
+}
+
+var (
+	attrId        = []byte("id")
+	attrPubkey    = []byte("pubkey")
+	attrCreatedAt = []byte("created_at")
+	attrKind      = []byte("kind")
+	attrContent   = []byte("content")
+	attrTags      = []byte("tags")
+	attrSig       = []byte("sig")
+)
+
+func (event *Event) UnmarshalSIMD(
+	iter *simdjson.Iter,
+	obj *simdjson.Object,
+	arr *simdjson.Array,
+	subArr *simdjson.Array,
+) (*simdjson.Object, *simdjson.Array, *simdjson.Array, error) {
+	obj, err := iter.Object(obj)
+	if err != nil {
+		return obj, arr, subArr, fmt.Errorf("unexpected at event: %w", err)
+	}
+
+	for {
+		name, t, err := obj.NextElementBytes(iter)
+		if err != nil {
+			return obj, arr, subArr, err
+		} else if t == simdjson.TypeNone {
+			break
+		}
+
+		switch {
+		case bytes.Equal(name, attrId):
+			event.ID, err = iter.String()
+		case bytes.Equal(name, attrPubkey):
+			event.PubKey, err = iter.String()
+		case bytes.Equal(name, attrContent):
+			event.Content, err = iter.String()
+		case bytes.Equal(name, attrSig):
+			event.Sig, err = iter.String()
+		case bytes.Equal(name, attrCreatedAt):
+			var ts uint64
+			ts, err = iter.Uint()
+			event.CreatedAt = Timestamp(ts)
+		case bytes.Equal(name, attrKind):
+			var kind uint64
+			kind, err = iter.Uint()
+			event.Kind = int(kind)
+		case bytes.Equal(name, attrTags):
+			arr, err = iter.Array(arr)
+			if err != nil {
+				return obj, arr, subArr, err
+			}
+			event.Tags = make(Tags, 0, 10)
+			titer := arr.Iter()
+			for {
+				if t := titer.Advance(); t == simdjson.TypeNone {
+					break
+				}
+				subArr, err = titer.Array(subArr)
+				if err != nil {
+					return obj, arr, subArr, err
+				}
+				tag, err := subArr.AsString()
+				if err != nil {
+					return obj, arr, subArr, err
+				}
+				event.Tags = append(event.Tags, tag)
+			}
+		default:
+			return obj, arr, subArr, fmt.Errorf("unexpected event field '%s'", name)
+		}
+
+		if err != nil {
+			return obj, arr, subArr, err
+		}
+	}
+
+	return obj, arr, subArr, nil
+}
+
+var (
+	attrIds     = []byte("ids")
+	attrAuthors = []byte("authors")
+	attrKinds   = []byte("kinds")
+	attrLimit   = []byte("limit")
+	attrSince   = []byte("since")
+	attrUntil   = []byte("until")
+	attrSearch  = []byte("search")
+)
+
+func (filter *Filter) UnmarshalSIMD(
+	iter *simdjson.Iter,
+	obj *simdjson.Object,
+	arr *simdjson.Array,
+) (*simdjson.Object, *simdjson.Array, error) {
+	obj, err := iter.Object(obj)
+	if err != nil {
+		return obj, arr, fmt.Errorf("unexpected at filter: %w", err)
+	}
+
+	for {
+		name, t, err := obj.NextElementBytes(iter)
+		if err != nil {
+			return obj, arr, err
+		} else if t == simdjson.TypeNone {
+			break
+		}
+
+		switch {
+		case bytes.Equal(name, attrIds):
+			if arr, err = iter.Array(arr); err == nil {
+				filter.IDs, err = arr.AsString()
+			}
+		case bytes.Equal(name, attrAuthors):
+			if arr, err = iter.Array(arr); err == nil {
+				filter.Authors, err = arr.AsString()
+			}
+		case bytes.Equal(name, attrKinds):
+			if arr, err = iter.Array(arr); err == nil {
+				i := arr.Iter()
+				filter.Kinds = make([]int, 0, 6)
+				for {
+					t := i.Advance()
+					if t == simdjson.TypeNone {
+						break
+					}
+					if kind, err := i.Uint(); err != nil {
+						return obj, arr, err
+					} else {
+						filter.Kinds = append(filter.Kinds, int(kind))
+					}
+				}
+			}
+		case bytes.Equal(name, attrSearch):
+			filter.Search, err = iter.String()
+		case bytes.Equal(name, attrSince):
+			var tsu uint64
+			tsu, err = iter.Uint()
+			ts := Timestamp(tsu)
+			filter.Since = &ts
+		case bytes.Equal(name, attrUntil):
+			var tsu uint64
+			tsu, err = iter.Uint()
+			ts := Timestamp(tsu)
+			filter.Until = &ts
+		case bytes.Equal(name, attrLimit):
+			var limit uint64
+			limit, err = iter.Uint()
+			filter.Limit = int(limit)
+			if limit == 0 {
+				filter.LimitZero = true
+			}
+		default:
+			if len(name) > 1 && name[0] == '#' {
+				if filter.Tags == nil {
+					filter.Tags = make(TagMap, 1)
+				}
+
+				arr, err := iter.Array(arr)
+				if err != nil {
+					return obj, arr, err
+				}
+				vals, err := arr.AsString()
+				if err != nil {
+					return obj, arr, err
+				}
+
+				filter.Tags[string(name[1:])] = vals
+				continue
+			}
+
+			return obj, arr, fmt.Errorf("unexpected filter field '%s'", name)
+		}
+
+		if err != nil {
+			return obj, arr, err
+		}
+	}
+
+	return obj, arr, nil
 }

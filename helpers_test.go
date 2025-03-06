@@ -42,3 +42,5 @@ func TestSubIdExtract(t *testing.T) {
 		require.Equal(t, "xxz", extractSubID(data))
 	}
 }
+
+func ptr[S any](s S) *S { return &s }

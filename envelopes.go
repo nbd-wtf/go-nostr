@@ -164,7 +164,7 @@ func (v ReqEnvelope) MarshalJSON() ([]byte, error) {
 // CountEnvelope represents a COUNT message.
 type CountEnvelope struct {
 	SubscriptionID string
-	Filters
+	Filter
 	Count       *int64
 	HyperLogLog []byte
 }
@@ -198,12 +198,11 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	v.Filters = make(Filters, len(arr)-2)
 	f := 0
 	for i := 2; i < len(arr); i++ {
 		item := []byte(arr[i].Raw)
 
-		if err := easyjson.Unmarshal(item, &v.Filters[f]); err != nil {
+		if err := easyjson.Unmarshal(item, &v.Filter); err != nil {
 			return fmt.Errorf("%w -- on filter %d", err, f)
 		}
 
@@ -217,9 +216,9 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{NoEscapeHTML: true}
 	w.RawString(`["COUNT","`)
 	w.RawString(v.SubscriptionID)
-	w.RawString(`"`)
+	w.RawString(`",`)
 	if v.Count != nil {
-		w.RawString(`,{"count":`)
+		w.RawString(`{"count":`)
 		w.RawString(strconv.FormatInt(*v.Count, 10))
 		if v.HyperLogLog != nil {
 			w.RawString(`,"hll":"`)
@@ -230,10 +229,7 @@ func (v CountEnvelope) MarshalJSON() ([]byte, error) {
 		}
 		w.RawString(`}`)
 	} else {
-		for _, filter := range v.Filters {
-			w.RawString(`,`)
-			filter.MarshalEasyJSON(&w)
-		}
+		v.Filter.MarshalEasyJSON(&w)
 	}
 	w.RawString(`]`)
 	return w.BuildBytes()
