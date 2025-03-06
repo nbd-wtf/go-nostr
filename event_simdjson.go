@@ -1,8 +1,8 @@
 package nostr
 
 import (
+	"bytes"
 	"fmt"
-	"slices"
 
 	"github.com/minio/simdjson-go"
 )
@@ -32,23 +32,23 @@ func (event *Event) UnmarshalSIMD(iter *simdjson.Iter) error {
 		}
 
 		switch {
-		case slices.Equal(name, attrId):
+		case bytes.Equal(name, attrId):
 			event.ID, err = iter.String()
-		case slices.Equal(name, attrPubkey):
+		case bytes.Equal(name, attrPubkey):
 			event.PubKey, err = iter.String()
-		case slices.Equal(name, attrContent):
+		case bytes.Equal(name, attrContent):
 			event.Content, err = iter.String()
-		case slices.Equal(name, attrSig):
+		case bytes.Equal(name, attrSig):
 			event.Sig, err = iter.String()
-		case slices.Equal(name, attrCreatedAt):
+		case bytes.Equal(name, attrCreatedAt):
 			var ts uint64
 			ts, err = iter.Uint()
 			event.CreatedAt = Timestamp(ts)
-		case slices.Equal(name, attrKind):
+		case bytes.Equal(name, attrKind):
 			var kind uint64
 			kind, err = iter.Uint()
 			event.Kind = int(kind)
-		case slices.Equal(name, attrTags):
+		case bytes.Equal(name, attrTags):
 			var arr *simdjson.Array
 			arr, err = iter.Array(nil)
 			if err != nil {

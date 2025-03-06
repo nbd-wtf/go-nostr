@@ -1,8 +1,8 @@
 package nostr
 
 import (
+	"bytes"
 	"fmt"
-	"slices"
 
 	"github.com/minio/simdjson-go"
 )
@@ -33,15 +33,15 @@ func (filter *Filter) UnmarshalSIMD(iter *simdjson.Iter) error {
 		}
 
 		switch {
-		case slices.Equal(name, attrIds):
+		case bytes.Equal(name, attrIds):
 			if arr, err = iter.Array(arr); err == nil {
 				filter.IDs, err = arr.AsString()
 			}
-		case slices.Equal(name, attrAuthors):
+		case bytes.Equal(name, attrAuthors):
 			if arr, err = iter.Array(arr); err == nil {
 				filter.Authors, err = arr.AsString()
 			}
-		case slices.Equal(name, attrKinds):
+		case bytes.Equal(name, attrKinds):
 			if arr, err = iter.Array(arr); err == nil {
 				i := arr.Iter()
 				filter.Kinds = make([]int, 0, 6)
@@ -57,19 +57,19 @@ func (filter *Filter) UnmarshalSIMD(iter *simdjson.Iter) error {
 					}
 				}
 			}
-		case slices.Equal(name, attrSearch):
+		case bytes.Equal(name, attrSearch):
 			filter.Search, err = iter.String()
-		case slices.Equal(name, attrSince):
+		case bytes.Equal(name, attrSince):
 			var tsu uint64
 			tsu, err = iter.Uint()
 			ts := Timestamp(tsu)
 			filter.Since = &ts
-		case slices.Equal(name, attrUntil):
+		case bytes.Equal(name, attrUntil):
 			var tsu uint64
 			tsu, err = iter.Uint()
 			ts := Timestamp(tsu)
 			filter.Until = &ts
-		case slices.Equal(name, attrLimit):
+		case bytes.Equal(name, attrLimit):
 			var limit uint64
 			limit, err = iter.Uint()
 			filter.Limit = int(limit)
