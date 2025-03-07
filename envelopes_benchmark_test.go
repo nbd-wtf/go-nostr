@@ -42,9 +42,10 @@ func BenchmarkParseMessage(b *testing.B) {
 			})
 
 			b.Run("sonic", func(b *testing.B) {
+				smp := NewSonicMessageParser()
 				for i := 0; i < b.N; i++ {
 					for _, msg := range messages {
-						_, _ = ParseMessageSonic(msg)
+						_, _ = smp.ParseMessage(msg)
 					}
 				}
 			})
@@ -57,7 +58,7 @@ func generateTestMessages(typ string) [][]byte {
 
 	setup := map[string]map[int]func() []byte{
 		"client": {
-			500: generateEventMessage,
+			600: generateEventMessage,
 			5:   generateEOSEMessage,
 			9:   generateNoticeMessage,
 			14:  generateCountMessage,
@@ -65,6 +66,7 @@ func generateTestMessages(typ string) [][]byte {
 		},
 		"relay": {
 			500: generateReqMessage,
+			50:  generateEventMessage,
 			10:  generateCountMessage,
 		},
 	}[typ]

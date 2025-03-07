@@ -4,14 +4,15 @@ import (
 	"encoding/hex"
 	stdlibjson "encoding/json"
 	"fmt"
+	"unsafe"
 
 	"github.com/bytedance/sonic/ast"
 )
 
-type sonicParserPosition int
+type sonicVisitorPosition int
 
 const (
-	inEnvelope sonicParserPosition = iota
+	inEnvelope sonicVisitorPosition = iota
 
 	inEvent
 	inReq
@@ -42,11 +43,12 @@ const (
 	inContent
 	inPubkey
 	inSig
-	inTags
-	inAnEventTag
+	inTags       // we just saw the "tags" object key
+	inTagsList   // we have just seen the first `[` of the tags
+	inAnEventTag // we are inside an actual tag, i.e we have just seen `[[`, or `].[`
 )
 
-func (spp sonicParserPosition) String() string {
+func (spp sonicVisitorPosition) String() string {
 	switch spp {
 	case inEnvelope:
 		return "inEnvelope"
@@ -102,6 +104,8 @@ func (spp sonicParserPosition) String() string {
 		return "inSig"
 	case inTags:
 		return "inTags"
+	case inTagsList:
+		return "inTagsList"
 	case inAnEventTag:
 		return "inAnEventTag"
 	default:
@@ -109,7 +113,7 @@ func (spp sonicParserPosition) String() string {
 	}
 }
 
-type SonicMessageParser struct {
+type sonicVisitor struct {
 	event  *EventEnvelope
 	req    *ReqEnvelope
 	ok     *OKEnvelope
@@ -120,7 +124,7 @@ type SonicMessageParser struct {
 	closed *ClosedEnvelope
 	notice *NoticeEnvelope
 
-	whereWeAre sonicParserPosition
+	whereWeAre sonicVisitorPosition
 
 	currentEvent    *Event
 	currentEventTag Tag
@@ -129,20 +133,20 @@ type SonicMessageParser struct {
 	currentFilterTagList []string
 	currentFilterTagName string
 
+	smp          *sonicMessageParser
 	mainEnvelope Envelope
 }
 
-func (smp *SonicMessageParser) OnArrayBegin(capacity int) error {
-	// fmt.Println("***", "OnArrayBegin", "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnArrayBegin(capacity int) error {
+	// fmt.Println("***", "OnArrayBegin", "==", sv.whereWeAre)
 
-	switch smp.whereWeAre {
+	switch sv.whereWeAre {
 	case inTags:
-		if smp.currentEvent.Tags == nil {
-			smp.currentEvent.Tags = make(Tags, 0, 10)
-			smp.currentEventTag = make(Tag, 0, 20)
-		} else {
-			smp.whereWeAre = inAnEventTag
-		}
+		sv.whereWeAre = inTagsList
+		sv.currentEvent.Tags = sv.smp.reusableTagArray
+	case inTagsList:
+		sv.whereWeAre = inAnEventTag
+		sv.currentEventTag = sv.smp.reusableStringArray
 	case inAFilterTag:
 		// we have already created this
 	}
@@ -150,131 +154,138 @@ func (smp *SonicMessageParser) OnArrayBegin(capacity int) error {
 	return nil
 }
 
-func (smp *SonicMessageParser) OnArrayEnd() error {
-	// fmt.Println("***", "OnArrayEnd", "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnArrayEnd() error {
+	// fmt.Println("***", "OnArrayEnd", "==", sv.whereWeAre)
 
-	switch smp.whereWeAre {
+	switch sv.whereWeAre {
 	// envelopes
 	case inEvent:
-		smp.mainEnvelope = smp.event
+		sv.mainEnvelope = sv.event
 	case inReq:
-		smp.mainEnvelope = smp.req
+		sv.mainEnvelope = sv.req
+		sv.smp.doneWithFilterSlice(sv.req.Filters)
 	case inOk:
-		smp.mainEnvelope = smp.ok
+		sv.mainEnvelope = sv.ok
 	case inEose:
-		smp.mainEnvelope = smp.eose
+		sv.mainEnvelope = sv.eose
 	case inCount:
-		smp.mainEnvelope = smp.count
+		sv.mainEnvelope = sv.count
 	case inAuth:
-		smp.mainEnvelope = smp.auth
+		sv.mainEnvelope = sv.auth
 	case inClose:
-		smp.mainEnvelope = smp.close
+		sv.mainEnvelope = sv.close
 	case inClosed:
-		smp.mainEnvelope = smp.closed
+		sv.mainEnvelope = sv.closed
 	case inNotice:
-		smp.mainEnvelope = smp.notice
+		sv.mainEnvelope = sv.notice
 
 		// filter object properties
-	case inIds, inAuthors, inKinds, inSearch:
-		smp.whereWeAre = inFilterObject
+	case inIds:
+		sv.whereWeAre = inFilterObject
+		sv.smp.doneWithStringSlice(sv.currentFilter.IDs)
+	case inAuthors:
+		sv.whereWeAre = inFilterObject
+		sv.smp.doneWithStringSlice(sv.currentFilter.Authors)
+	case inKinds:
+		sv.whereWeAre = inFilterObject
+		sv.smp.doneWithIntSlice(sv.currentFilter.Kinds)
 	case inAFilterTag:
-		smp.currentFilter.Tags[smp.currentFilterTagName] = smp.currentFilterTagList
-		// reuse the same underlying slice because we know nothing else will be appended to it
-		smp.currentFilterTagList = smp.currentFilterTagList[len(smp.currentFilterTagList):]
-		smp.whereWeAre = inFilterObject
+		sv.currentFilter.Tags[sv.currentFilterTagName] = sv.currentFilterTagList
+		sv.whereWeAre = inFilterObject
+		sv.smp.doneWithStringSlice(sv.currentFilterTagList)
 
 		// event object properties
 	case inAnEventTag:
-		smp.currentEvent.Tags = append(smp.currentEvent.Tags, smp.currentEventTag)
-		// reuse the same underlying slice because we know nothing else will be appended to it
-		smp.currentEventTag = smp.currentEventTag[len(smp.currentEventTag):]
-		smp.whereWeAre = inTags
-	case inTags:
-		smp.whereWeAre = inEventObject
+		sv.currentEvent.Tags = append(sv.currentEvent.Tags, sv.currentEventTag)
+		sv.whereWeAre = inTagsList
+		sv.smp.doneWithStringSlice(sv.currentEventTag)
+	case inTags, inTagsList:
+		sv.whereWeAre = inEventObject
+		sv.smp.doneWithTagSlice(sv.currentEvent.Tags)
 
 	default:
-		return fmt.Errorf("unexpected array end at %v", smp.whereWeAre)
+		return fmt.Errorf("unexpected array end at %v", sv.whereWeAre)
 	}
 	return nil
 }
 
-func (smp *SonicMessageParser) OnObjectBegin(capacity int) error {
-	// fmt.Println("***", "OnObjectBegin", "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnObjectBegin(capacity int) error {
+	// fmt.Println("***", "OnObjectBegin", "==", sv.whereWeAre)
 
-	switch smp.whereWeAre {
+	switch sv.whereWeAre {
 	case inEvent:
-		smp.whereWeAre = inEventObject
-		smp.currentEvent = &Event{}
+		sv.whereWeAre = inEventObject
+		sv.currentEvent = &Event{}
 	case inAuth:
-		smp.whereWeAre = inEventObject
-		smp.currentEvent = &Event{}
+		sv.whereWeAre = inEventObject
+		sv.currentEvent = &Event{}
 	case inReq:
-		smp.whereWeAre = inFilterObject
-		smp.currentFilter = &Filter{}
+		sv.whereWeAre = inFilterObject
+		sv.currentFilter = &Filter{}
 	case inCount:
 		// set this temporarily, we will switch to a filterObject if we see "count" or "hll"
-		smp.whereWeAre = inFilterObject
-		smp.currentFilter = &Filter{}
+		sv.whereWeAre = inFilterObject
+		sv.currentFilter = &Filter{}
 	default:
-		return fmt.Errorf("unexpected object begin at %v", smp.whereWeAre)
+		return fmt.Errorf("unexpected object begin at %v", sv.whereWeAre)
 	}
 
 	return nil
 }
 
-func (smp *SonicMessageParser) OnObjectKey(key string) error {
-	// fmt.Println("***", "OnObjectKey", key, "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnObjectKey(key string) error {
+	// fmt.Println("***", "OnObjectKey", key, "==", sv.whereWeAre)
 
-	switch smp.whereWeAre {
+	switch sv.whereWeAre {
 	case inEventObject:
 		switch key {
 		case "id":
-			smp.whereWeAre = inId
+			sv.whereWeAre = inId
 		case "sig":
-			smp.whereWeAre = inSig
+			sv.whereWeAre = inSig
 		case "pubkey":
-			smp.whereWeAre = inPubkey
+			sv.whereWeAre = inPubkey
 		case "content":
-			smp.whereWeAre = inContent
+			sv.whereWeAre = inContent
 		case "created_at":
-			smp.whereWeAre = inCreatedAt
+			sv.whereWeAre = inCreatedAt
 		case "kind":
-			smp.whereWeAre = inKind
+			sv.whereWeAre = inKind
 		case "tags":
-			smp.whereWeAre = inTags
+			sv.whereWeAre = inTags
 		default:
 			return fmt.Errorf("unexpected event attr %s", key)
 		}
 	case inFilterObject:
 		switch key {
 		case "limit":
-			smp.whereWeAre = inLimit
+			sv.whereWeAre = inLimit
 		case "since":
-			smp.whereWeAre = inSince
+			sv.whereWeAre = inSince
 		case "until":
-			smp.whereWeAre = inUntil
+			sv.whereWeAre = inUntil
 		case "ids":
-			smp.whereWeAre = inIds
-			smp.currentFilter.IDs = make([]string, 0, 25)
+			sv.whereWeAre = inIds
+			sv.currentFilter.IDs = sv.smp.reusableStringArray
 		case "authors":
-			smp.whereWeAre = inAuthors
-			smp.currentFilter.Authors = make([]string, 0, 25)
+			sv.whereWeAre = inAuthors
+			sv.currentFilter.Authors = sv.smp.reusableStringArray
 		case "kinds":
-			smp.whereWeAre = inKinds
-			smp.currentFilter.IDs = make([]string, 0, 12)
+			sv.whereWeAre = inKinds
+			sv.currentFilter.Kinds = sv.smp.reusableIntArray
 		case "search":
-			smp.whereWeAre = inSearch
+			sv.whereWeAre = inSearch
 		case "count", "hll":
 			// oops, switch to a countObject
-			smp.whereWeAre = inCountObject
+			sv.whereWeAre = inCountObject
 		default:
 			if len(key) > 1 && key[0] == '#' {
-				if smp.currentFilter.Tags == nil {
-					smp.currentFilter.Tags = make(TagMap, 1)
-					smp.currentFilterTagList = make([]string, 0, 25)
+				if sv.currentFilter.Tags == nil {
+					sv.currentFilter.Tags = make(TagMap, 1)
 				}
-				smp.whereWeAre = inAFilterTag
-				smp.currentFilterTagName = key[1:]
+				sv.currentFilterTagList = sv.smp.reusableStringArray
+				sv.currentFilterTagName = key[1:]
+				sv.whereWeAre = inAFilterTag
 			} else {
 				return fmt.Errorf("unexpected filter attr %s", key)
 			}
@@ -282,192 +293,254 @@ func (smp *SonicMessageParser) OnObjectKey(key string) error {
 	case inCountObject:
 		// we'll judge by the shape of the value so ignore this
 	default:
-		return fmt.Errorf("unexpected object key %s at %s", key, smp.whereWeAre)
+		return fmt.Errorf("unexpected object key %s at %s", key, sv.whereWeAre)
 	}
 
 	return nil
 }
 
-func (smp *SonicMessageParser) OnObjectEnd() error {
-	// fmt.Println("***", "OnObjectEnd", "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnObjectEnd() error {
+	// fmt.Println("***", "OnObjectEnd", "==", sv.whereWeAre)
 
-	switch smp.whereWeAre {
+	switch sv.whereWeAre {
 	case inEventObject:
-		if smp.event != nil {
-			smp.event.Event = *smp.currentEvent
-			smp.whereWeAre = inEvent
+		if sv.event != nil {
+			sv.event.Event = *sv.currentEvent
+			sv.whereWeAre = inEvent
 		} else {
-			smp.auth.Event = *smp.currentEvent
-			smp.whereWeAre = inAuth
+			sv.auth.Event = *sv.currentEvent
+			sv.whereWeAre = inAuth
 		}
+		sv.currentEvent = nil
 	case inFilterObject:
-		if smp.req != nil {
-			smp.req.Filters = append(smp.req.Filters, *smp.currentFilter)
-			smp.whereWeAre = inReq
+		if sv.req != nil {
+			sv.req.Filters = append(sv.req.Filters, *sv.currentFilter)
+			sv.whereWeAre = inReq
 		} else {
-			smp.count.Filter = *smp.currentFilter
-			smp.whereWeAre = inCount
+			sv.count.Filter = *sv.currentFilter
+			sv.whereWeAre = inCount
 		}
+		sv.currentFilter = nil
 	case inCountObject:
-		smp.whereWeAre = inCount
+		sv.whereWeAre = inCount
 	default:
-		return fmt.Errorf("unexpected object end at %s", smp.whereWeAre)
+		return fmt.Errorf("unexpected object end at %s", sv.whereWeAre)
 	}
 
 	return nil
 }
 
-func (smp *SonicMessageParser) OnString(v string) error {
-	// fmt.Println("***", "OnString", v, "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnString(v string) error {
+	// fmt.Println("***", "OnString", v, "==", sv.whereWeAre)
 
-	switch smp.whereWeAre {
+	switch sv.whereWeAre {
 	case inEnvelope:
 		switch v {
 		case "EVENT":
-			smp.event = &EventEnvelope{}
-			smp.whereWeAre = inEvent
+			sv.event = &EventEnvelope{}
+			sv.whereWeAre = inEvent
 		case "REQ":
-			smp.req = &ReqEnvelope{Filters: make(Filters, 0, 1)}
-			smp.whereWeAre = inReq
+			sv.req = &ReqEnvelope{Filters: sv.smp.reusableFilterArray}
+			sv.whereWeAre = inReq
 		case "OK":
-			smp.ok = &OKEnvelope{}
-			smp.whereWeAre = inOk
+			sv.ok = &OKEnvelope{}
+			sv.whereWeAre = inOk
 		case "EOSE":
-			smp.whereWeAre = inEose
+			sv.whereWeAre = inEose
 		case "COUNT":
-			smp.count = &CountEnvelope{}
-			smp.whereWeAre = inCount
+			sv.count = &CountEnvelope{}
+			sv.whereWeAre = inCount
 		case "AUTH":
-			smp.auth = &AuthEnvelope{}
-			smp.whereWeAre = inAuth
+			sv.auth = &AuthEnvelope{}
+			sv.whereWeAre = inAuth
 		case "CLOSE":
-			smp.whereWeAre = inClose
+			sv.whereWeAre = inClose
 		case "CLOSED":
-			smp.closed = &ClosedEnvelope{}
-			smp.whereWeAre = inClosed
+			sv.closed = &ClosedEnvelope{}
+			sv.whereWeAre = inClosed
 		case "NOTICE":
-			smp.whereWeAre = inNotice
+			sv.whereWeAre = inNotice
 		}
 
 		// in an envelope
 	case inEvent:
-		smp.event.SubscriptionID = &v
+		sv.event.SubscriptionID = &v
 	case inReq:
-		smp.req.SubscriptionID = v
+		sv.req.SubscriptionID = v
 	case inOk:
-		if smp.ok.EventID == "" {
-			smp.ok.EventID = v
+		if sv.ok.EventID == "" {
+			sv.ok.EventID = v
 		} else {
-			smp.ok.Reason = v
+			sv.ok.Reason = v
 		}
 	case inEose:
-		smp.eose = (*EOSEEnvelope)(&v)
+		sv.eose = (*EOSEEnvelope)(&v)
 	case inCount:
-		smp.count.SubscriptionID = v
+		sv.count.SubscriptionID = v
 	case inAuth:
-		smp.auth.Challenge = &v
+		sv.auth.Challenge = &v
 	case inClose:
-		smp.close = (*CloseEnvelope)(&v)
+		sv.close = (*CloseEnvelope)(&v)
 	case inClosed:
-		if smp.closed.SubscriptionID == "" {
-			smp.closed.SubscriptionID = v
+		if sv.closed.SubscriptionID == "" {
+			sv.closed.SubscriptionID = v
 		} else {
-			smp.closed.Reason = v
+			sv.closed.Reason = v
 		}
 	case inNotice:
-		smp.notice = (*NoticeEnvelope)(&v)
+		sv.notice = (*NoticeEnvelope)(&v)
 
 		// filter object properties
 	case inIds:
-		smp.currentFilter.IDs = append(smp.currentFilter.IDs, v)
+		sv.currentFilter.IDs = append(sv.currentFilter.IDs, v)
 	case inAuthors:
-		smp.currentFilter.Authors = append(smp.currentFilter.Authors, v)
+		sv.currentFilter.Authors = append(sv.currentFilter.Authors, v)
 	case inSearch:
-		smp.currentFilter.Search = v
-		smp.whereWeAre = inFilterObject
+		sv.currentFilter.Search = v
+		sv.whereWeAre = inFilterObject
 	case inAFilterTag:
-		smp.currentFilterTagList = append(smp.currentFilterTagList, v)
+		sv.currentFilterTagList = append(sv.currentFilterTagList, v)
 
 		// id object properties
 	case inId:
-		smp.currentEvent.ID = v
-		smp.whereWeAre = inEventObject
+		sv.currentEvent.ID = v
+		sv.whereWeAre = inEventObject
 	case inContent:
-		smp.currentEvent.Content = v
-		smp.whereWeAre = inEventObject
+		sv.currentEvent.Content = v
+		sv.whereWeAre = inEventObject
 	case inPubkey:
-		smp.currentEvent.PubKey = v
-		smp.whereWeAre = inEventObject
+		sv.currentEvent.PubKey = v
+		sv.whereWeAre = inEventObject
 	case inSig:
-		smp.currentEvent.Sig = v
-		smp.whereWeAre = inEventObject
+		sv.currentEvent.Sig = v
+		sv.whereWeAre = inEventObject
 	case inAnEventTag:
-		smp.currentEventTag = append(smp.currentEventTag, v)
+		sv.currentEventTag = append(sv.currentEventTag, v)
 
 		// count object properties
 	case inCountObject:
-		smp.count.HyperLogLog, _ = hex.DecodeString(v)
+		sv.count.HyperLogLog, _ = hex.DecodeString(v)
 
 	default:
-		return fmt.Errorf("unexpected string %s at %v", v, smp.whereWeAre)
+		return fmt.Errorf("unexpected string %s at %v", v, sv.whereWeAre)
 	}
 	return nil
 }
 
-func (smp *SonicMessageParser) OnInt64(v int64, _ stdlibjson.Number) error {
-	// fmt.Println("***", "OnInt64", v, "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnInt64(v int64, _ stdlibjson.Number) error {
+	// fmt.Println("***", "OnInt64", v, "==", sv.whereWeAre)
 
-	switch smp.whereWeAre {
+	switch sv.whereWeAre {
 	// event object
 	case inCreatedAt:
-		smp.currentEvent.CreatedAt = Timestamp(v)
-		smp.whereWeAre = inEventObject
+		sv.currentEvent.CreatedAt = Timestamp(v)
+		sv.whereWeAre = inEventObject
 	case inKind:
-		smp.currentEvent.Kind = int(v)
-		smp.whereWeAre = inEventObject
+		sv.currentEvent.Kind = int(v)
+		sv.whereWeAre = inEventObject
 
 	// filter object
 	case inLimit:
-		smp.currentFilter.Limit = int(v)
-		smp.currentFilter.LimitZero = v == 0
+		sv.currentFilter.Limit = int(v)
+		sv.currentFilter.LimitZero = v == 0
 	case inSince:
-		smp.currentFilter.Since = (*Timestamp)(&v)
+		sv.currentFilter.Since = (*Timestamp)(&v)
 	case inUntil:
-		smp.currentFilter.Until = (*Timestamp)(&v)
+		sv.currentFilter.Until = (*Timestamp)(&v)
 	case inKinds:
-		smp.currentFilter.Kinds = append(smp.currentFilter.Kinds, int(v))
+		sv.currentFilter.Kinds = append(sv.currentFilter.Kinds, int(v))
 
 	// count object
 	case inCountObject:
-		smp.count.Count = &v
+		sv.count.Count = &v
 	}
 	return nil
 }
 
-func (smp *SonicMessageParser) OnBool(v bool) error {
-	// fmt.Println("***", "OnBool", v, "==", smp.whereWeAre)
+func (sv *sonicVisitor) OnBool(v bool) error {
+	// fmt.Println("***", "OnBool", v, "==", sv.whereWeAre)
 
-	if smp.whereWeAre == inOk {
-		smp.ok.OK = v
+	if sv.whereWeAre == inOk {
+		sv.ok.OK = v
 		return nil
 	} else {
 		return fmt.Errorf("unexpected boolean")
 	}
 }
 
-func (_ SonicMessageParser) OnNull() error {
+func (_ sonicVisitor) OnNull() error {
 	return fmt.Errorf("null shouldn't be anywhere in a message")
 }
 
-func (_ SonicMessageParser) OnFloat64(v float64, n stdlibjson.Number) error {
+func (_ sonicVisitor) OnFloat64(v float64, n stdlibjson.Number) error {
 	return fmt.Errorf("float shouldn't be anywhere in a message")
 }
 
-func ParseMessageSonic(message []byte) (Envelope, error) {
-	smp := &SonicMessageParser{}
-	smp.whereWeAre = inEnvelope
+type sonicMessageParser struct {
+	reusableFilterArray []Filter
+	reusableTagArray    []Tag
+	reusableStringArray []string
+	reusableIntArray    []int
+}
 
-	err := ast.Preorder(string(message), smp, nil)
+func NewSonicMessageParser() sonicMessageParser {
+	return sonicMessageParser{
+		reusableFilterArray: make([]Filter, 0, 1000),
+		reusableTagArray:    make([]Tag, 0, 10000),
+		reusableStringArray: make([]string, 0, 10000),
+		reusableIntArray:    make([]int, 0, 10000),
+	}
+}
 
-	return smp.mainEnvelope, err
+func (smp *sonicMessageParser) doneWithFilterSlice(slice []Filter) {
+	if unsafe.SliceData(smp.reusableFilterArray) == unsafe.SliceData(slice) {
+		smp.reusableFilterArray = slice[len(slice):]
+	}
+
+	if cap(smp.reusableFilterArray) < 7 {
+		// create a new one
+		smp.reusableFilterArray = make([]Filter, 0, 1000)
+	}
+}
+
+func (smp *sonicMessageParser) doneWithTagSlice(slice []Tag) {
+	if unsafe.SliceData(smp.reusableTagArray) == unsafe.SliceData(slice) {
+		smp.reusableTagArray = slice[len(slice):]
+	}
+
+	if cap(smp.reusableTagArray) < 7 {
+		// create a new one
+		smp.reusableTagArray = make([]Tag, 0, 10000)
+	}
+}
+
+func (smp *sonicMessageParser) doneWithStringSlice(slice []string) {
+	if unsafe.SliceData(smp.reusableStringArray) == unsafe.SliceData(slice) {
+		smp.reusableStringArray = slice[len(slice):]
+	}
+
+	if cap(smp.reusableStringArray) < 15 {
+		// create a new one
+		smp.reusableStringArray = make([]string, 0, 10000)
+	}
+}
+
+func (smp *sonicMessageParser) doneWithIntSlice(slice []int) {
+	if unsafe.SliceData(smp.reusableIntArray) == unsafe.SliceData(slice) {
+		smp.reusableIntArray = slice[len(slice):]
+	}
+
+	if cap(smp.reusableIntArray) < 8 {
+		// create a new one
+		smp.reusableIntArray = make([]int, 0, 10000)
+	}
+}
+
+func (smp sonicMessageParser) ParseMessage(message []byte) (Envelope, error) {
+	sv := &sonicVisitor{smp: &smp}
+	sv.whereWeAre = inEnvelope
+
+	err := ast.Preorder(string(message), sv, nil)
+
+	return sv.mainEnvelope, err
 }

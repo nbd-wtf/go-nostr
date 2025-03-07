@@ -147,9 +147,11 @@ func TestParseMessage(t *testing.T) {
 	})
 
 	t.Run("sonic", func(t *testing.T) {
+		smp := NewSonicMessageParser()
+
 		for _, testCase := range testCases {
 			t.Run(testCase.Name, func(t *testing.T) {
-				envelope, err := ParseMessageSonic(testCase.Message)
+				envelope, err := smp.ParseMessage(testCase.Message)
 
 				if testCase.ExpectedEnvelope == nil && envelope == nil {
 					return
