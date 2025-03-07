@@ -1,6 +1,8 @@
 package nostr
 
 import (
+	"bufio"
+	"os"
 	"testing"
 
 	"github.com/minio/simdjson-go"
@@ -168,4 +170,41 @@ func TestParseMessage(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestParseMessagesFromFile(t *testing.T) {
+	file, err := os.Open("testdata/messages.jsonl")
+	if err != nil {
+		t.Skipf("Skipping test because testdata/messages.jsonl could not be opened: %v", err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	smp := NewSonicMessageParser()
+	lineNum := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		standardEnvelope := ParseMessage(line)
+		sonicEnvelope, err := smp.ParseMessage(line)
+
+		if standardEnvelope == nil {
+			require.Nil(t, sonicEnvelope, "line %d: standard parser returned nil but sonic parser didn't", lineNum)
+			continue
+		}
+
+		require.NoError(t, err, "line %d: sonic parser returned error", lineNum)
+		require.NotNil(t, sonicEnvelope, "line %d: standard parser returned non-nil but sonic parser returned nil", lineNum)
+
+		require.Equal(t, standardEnvelope, sonicEnvelope,
+			"line %d: parsers returned different results", lineNum)
+	}
+
+	require.NoError(t, scanner.Err(), "error reading file")
 }
