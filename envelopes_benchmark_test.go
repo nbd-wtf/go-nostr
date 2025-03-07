@@ -42,10 +42,9 @@ func BenchmarkParseMessage(b *testing.B) {
 			})
 
 			b.Run("sonic", func(b *testing.B) {
-				smp := SonicMessageParser{}
 				for i := 0; i < b.N; i++ {
 					for _, msg := range messages {
-						_, _ = smp.ParseMessage(msg)
+						_, _ = ParseMessageSonic(msg)
 					}
 				}
 			})
