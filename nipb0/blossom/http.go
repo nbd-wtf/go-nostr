@@ -2,12 +2,12 @@ package blossom
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
 
+	"github.com/cloudwego/base64x"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/valyala/fasthttp"
 )
@@ -85,5 +85,5 @@ func (c *Client) authorizationHeader(
 	}
 
 	jevt, _ := json.Marshal(evt)
-	return "Nostr " + base64.StdEncoding.EncodeToString(jevt)
+	return "Nostr " + base64x.StdEncoding.EncodeToString(jevt)
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -13,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/cloudwego/base64x"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -131,7 +131,7 @@ func generateAuthHeader(sk, host string, fileHash hash.Hash) (string, error) {
 		return "", fmt.Errorf("json.Marshal: %w", err)
 	}
 
-	payload := base64.StdEncoding.EncodeToString(b)
+	payload := base64x.StdEncoding.EncodeToString(b)
 
 	return fmt.Sprintf("Nostr %s", payload), nil
 }
