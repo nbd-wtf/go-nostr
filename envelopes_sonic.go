@@ -483,6 +483,8 @@ type sonicMessageParser struct {
 	reusableIntArray    []int
 }
 
+// NewSonicMessageParser returns a sonicMessageParser object that is intended to be reused many times.
+// It is not goroutine-safe.
 func NewSonicMessageParser() sonicMessageParser {
 	return sonicMessageParser{
 		reusableFilterArray: make([]Filter, 0, 1000),
@@ -536,6 +538,13 @@ func (smp *sonicMessageParser) doneWithIntSlice(slice []int) {
 	}
 }
 
+// ParseMessage parses a message like ["EVENT", ...] or ["REQ", ...] and returns an Envelope.
+// The returned envelopes, filters and events' slices should not be appended to, otherwise stuff
+// will break.
+//
+// When an unexpected message (like ["NEG-OPEN", ...]) is found, the error UnknownLabel will be
+// returned. Other errors will be returned if the JSON is malformed or the objects are not exactly
+// as they should.
 func (smp sonicMessageParser) ParseMessage(message []byte) (Envelope, error) {
 	sv := &sonicVisitor{smp: &smp}
 	sv.whereWeAre = inEnvelope
