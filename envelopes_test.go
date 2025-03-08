@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/minio/simdjson-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -120,28 +119,6 @@ func TestParseMessage(t *testing.T) {
 					return
 				}
 
-				require.NotNil(t, envelope, "expected non-nil envelope but got nil")
-				require.Equal(t, testCase.ExpectedEnvelope.String(), envelope.String())
-			})
-		}
-	})
-
-	t.Run("simdjson", func(t *testing.T) {
-		smp := SIMDMessageParser{AuxIter: &simdjson.Iter{}}
-		for _, testCase := range testCases {
-			t.Run(testCase.Name, func(t *testing.T) {
-				envelope, err := smp.ParseMessage(testCase.Message)
-
-				if testCase.ExpectedEnvelope == nil && envelope == nil {
-					return
-				}
-
-				if testCase.ExpectedEnvelope == nil {
-					require.Nil(t, envelope, "expected nil but got %v", envelope)
-					return
-				}
-
-				require.NoError(t, err)
 				require.NotNil(t, envelope, "expected non-nil envelope but got nil")
 				require.Equal(t, testCase.ExpectedEnvelope.String(), envelope.String())
 			})

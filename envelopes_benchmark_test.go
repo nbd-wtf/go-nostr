@@ -6,8 +6,6 @@ import (
 	"math/rand/v2"
 	"testing"
 	"time"
-
-	"github.com/minio/simdjson-go"
 )
 
 func BenchmarkParseMessage(b *testing.B) {
@@ -28,15 +26,6 @@ func BenchmarkParseMessage(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					for _, msg := range messages {
 						_ = ParseMessage(msg)
-					}
-				}
-			})
-
-			b.Run("simdjson", func(b *testing.B) {
-				smp := SIMDMessageParser{ParsedJSON: &simdjson.ParsedJson{}, AuxIter: &simdjson.Iter{}}
-				for i := 0; i < b.N; i++ {
-					for _, msg := range messages {
-						_, _ = smp.ParseMessage(msg)
 					}
 				}
 			})
