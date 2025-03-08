@@ -3,7 +3,7 @@ package nostr
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	"strconv"
 
 	"github.com/mailru/easyjson"
 )
@@ -60,13 +60,13 @@ func (evt *Event) Serialize() []byte {
 
 	// the header portion is easy to serialize
 	// [0,"pubkey",created_at,kind,[
-	dst = append(dst, []byte(
-		fmt.Sprintf(
-			"[0,\"%s\",%d,%d,",
-			evt.PubKey,
-			evt.CreatedAt,
-			evt.Kind,
-		))...)
+	dst = append(dst, "[0,\""...)
+	dst = append(dst, evt.PubKey...)
+	dst = append(dst, "\","...)
+	dst = append(dst, strconv.FormatInt(int64(evt.CreatedAt), 10)...)
+	dst = append(dst, ',')
+	dst = append(dst, strconv.Itoa(evt.Kind)...)
+	dst = append(dst, ',')
 
 	// tags
 	dst = evt.Tags.marshalTo(dst)

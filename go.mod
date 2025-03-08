@@ -11,6 +11,7 @@ require (
 	github.com/bytedance/sonic v1.13.1
 	github.com/cloudwego/base64x v0.1.5
 	github.com/coder/websocket v1.8.12
+	github.com/colduction/nocopy v0.2.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/dgraph-io/badger/v4 v4.5.0
 	github.com/dgraph-io/ristretto v1.0.0

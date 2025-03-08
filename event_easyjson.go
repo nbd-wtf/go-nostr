@@ -69,7 +69,7 @@ func easyjsonF642ad3eDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Event) 
 						}
 						for !in.IsDelim(']') {
 							var v2 string
-							v2 = string(in.String())
+							v2 = in.String()
 							v1 = append(v1, v2)
 							in.WantComma()
 						}
@@ -134,7 +134,7 @@ func easyjsonF642ad3eEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Event)
 				if v5 > 0 {
 					out.RawByte(',')
 				}
-				out.String(string(v6))
+				out.String(v6)
 			}
 			out.RawByte(']')
 		}
