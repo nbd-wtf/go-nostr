@@ -24,10 +24,7 @@ func (s *Store) Get(key []byte) ([]byte, error) {
 	defer s.RUnlock()
 
 	if val, ok := s.data[string(key)]; ok {
-		// return a copy to prevent modification of stored data
-		cp := make([]byte, len(val))
-		copy(cp, val)
-		return cp, nil
+		return val, nil
 	}
 	return nil, nil
 }
@@ -36,10 +33,7 @@ func (s *Store) Set(key []byte, value []byte) error {
 	s.Lock()
 	defer s.Unlock()
 
-	// store a copy to prevent modification of stored data
-	cp := make([]byte, len(value))
-	copy(cp, value)
-	s.data[string(key)] = cp
+	s.data[string(key)] = value
 	return nil
 }
 
@@ -61,13 +55,7 @@ func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
 	s.Lock()
 	defer s.Unlock()
 
-	var val []byte
-	if v, ok := s.data[string(key)]; ok {
-		// Return a copy to prevent modification of stored data
-		val = make([]byte, len(v))
-		copy(val, v)
-	}
-
+	val, _ := s.data[string(key)]
 	newVal, err := f(val)
 	if err == kvstore.NoOp {
 		return nil
@@ -78,10 +66,7 @@ func (s *Store) Update(key []byte, f func([]byte) ([]byte, error)) error {
 	if newVal == nil {
 		delete(s.data, string(key))
 	} else {
-		// Store a copy to prevent modification of stored data
-		cp := make([]byte, len(newVal))
-		copy(cp, newVal)
-		s.data[string(key)] = cp
+		s.data[string(key)] = newVal
 	}
 	return nil
 }
