@@ -32,7 +32,7 @@ func TestMetadataAndEvents(t *testing.T) {
 		Limit:   5,
 	}
 	events := make([]*nostr.Event, 0, 5)
-	for ie := range sys.Pool.SubManyEose(ctx, relays, nostr.Filters{filter}) {
+	for ie := range sys.Pool.FetchMany(ctx, relays, filter) {
 		events = append(events, ie.Event)
 	}
 	require.NoError(t, err)

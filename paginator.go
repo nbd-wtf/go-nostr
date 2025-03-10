@@ -34,7 +34,7 @@ func (pool *SimplePool) PaginatorWithInterval(
 				time.Sleep(interval)
 
 				keepGoing := false
-				for evt := range pool.SubManyEose(ctx, urls, Filters{filter}, opts...) {
+				for evt := range pool.FetchMany(ctx, urls, filter, opts...) {
 					if slices.Contains(repeatedCache, evt.ID) {
 						continue
 					}

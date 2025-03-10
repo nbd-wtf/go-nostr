@@ -94,12 +94,12 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 			fmt.Errorf("event kind is %d, but we expected %d", event.Kind, nostr.KindNostrConnect)
 	}
 
-	handler := event.Tags.GetFirst([]string{"p", ""})
-	if handler == nil || !nostr.IsValid32ByteHex((*handler)[1]) {
+	handler := event.Tags.Find("p")
+	if handler == nil || !nostr.IsValid32ByteHex(handler[1]) {
 		return req, resp, eventResponse, fmt.Errorf("invalid \"p\" tag")
 	}
 
-	handlerPubkey := (*handler)[1]
+	handlerPubkey := handler[1]
 	handlerSecret, err := p.getHandlerSecretKey(handlerPubkey)
 	if err != nil {
 		return req, resp, eventResponse, fmt.Errorf("no private key for %s: %w", handlerPubkey, err)

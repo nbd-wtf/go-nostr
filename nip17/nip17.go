@@ -153,12 +153,10 @@ func ListenForMessages(
 			return
 		}
 
-		for ie := range pool.SubMany(ctx, ourRelays, nostr.Filters{
-			{
-				Kinds: []int{nostr.KindGiftWrap},
-				Tags:  nostr.TagMap{"p": []string{pk}},
-				Since: &since,
-			},
+		for ie := range pool.SubscribeMany(ctx, ourRelays, nostr.Filter{
+			Kinds: []int{nostr.KindGiftWrap},
+			Tags:  nostr.TagMap{"p": []string{pk}},
+			Since: &since,
 		}) {
 			rumor, err := nip59.GiftUnwrap(
 				*ie.Event,

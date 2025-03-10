@@ -113,13 +113,11 @@ func NewBunker(
 
 	go func() {
 		now := nostr.Now()
-		events := pool.SubMany(ctx, relays, nostr.Filters{
-			{
-				Tags:      nostr.TagMap{"p": []string{clientPublicKey}},
-				Kinds:     []int{nostr.KindNostrConnect},
-				Since:     &now,
-				LimitZero: true,
-			},
+		events := pool.SubscribeMany(ctx, relays, nostr.Filter{
+			Tags:      nostr.TagMap{"p": []string{clientPublicKey}},
+			Kinds:     []int{nostr.KindNostrConnect},
+			Since:     &now,
+			LimitZero: true,
 		}, nostr.WithLabel("bunker46client"))
 		for ie := range events {
 			if ie.Kind != nostr.KindNostrConnect {

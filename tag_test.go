@@ -15,10 +15,8 @@ func TestTagHelpers(t *testing.T) {
 		Tag{"e", "ffffff"},
 	}
 
-	assert.NotNil(t, tags.GetFirst([]string{"x"}), "failed to get existing prefix")
-	assert.Nil(t, tags.GetFirst([]string{"x", ""}), "got with wrong prefix")
-	assert.NotNil(t, tags.GetFirst([]string{"p", "abcdef", "wss://"}), "failed to get with existing prefix")
-	assert.NotNil(t, tags.GetFirst([]string{"p", "abcdef", ""}), "failed to get with existing prefix (blank last string)")
+	assert.Nil(t, tags.Find("x"), "Find shouldn't have returned a tag with a single item")
+	assert.NotNil(t, tags.FindWithValue("p", "abcdef"), "failed to get with existing prefix")
 	assert.Equal(t, "ffffff", tags.FindLast("e")[1], "failed to get last")
 	assert.Equal(t, 2, len(tags.GetAll([]string{"e", ""})), "failed to get all")
 	c := make(Tags, 0, 2)
