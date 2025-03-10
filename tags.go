@@ -156,6 +156,19 @@ func (tags Tags) Find(key string) Tag {
 	return nil
 }
 
+// FindAll yields all the tags the given key/tagName that also have one value (i.e. at least 2 items)
+func (tags Tags) FindAll(key string) iter.Seq[Tag] {
+	return func(yield func(Tag) bool) {
+		for _, v := range tags {
+			if len(v) >= 2 && v[0] == key {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
 // FindWithValue is like Find, but also checks if the value (the second item) matches
 func (tags Tags) FindWithValue(key, value string) Tag {
 	for _, v := range tags {
