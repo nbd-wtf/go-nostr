@@ -75,13 +75,13 @@ func TestConcurrentMetadata(t *testing.T) {
 	} {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			meta, err := sys.FetchProfileFromInput(ctx, v.input)
 			require.NoError(t, err)
 			require.Contains(t, strings.ToLower(meta.Name), v.name)
 
 			fl := sys.FetchFollowList(ctx, meta.PubKey)
 			require.GreaterOrEqual(t, len(fl.Items), 30, "%s/%s", meta.PubKey, meta.Name)
-			wg.Done()
 		}()
 	}
 
