@@ -33,6 +33,10 @@ func ParseTags(tags nostr.Tags) IMeta {
 			entry := IMetaEntry{}
 			for _, item := range tag[1:] {
 				div := strings.Index(item, " ")
+				if div == -1 {
+					continue
+				}
+
 				switch item[0:div] {
 				case "url":
 					entry.URL = item[div+1:]
