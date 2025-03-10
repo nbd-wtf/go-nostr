@@ -31,7 +31,7 @@ func ParseReferences(evt nostr.Event) iter.Seq[Reference] {
 			if prefix, data, err := nip19.Decode(nip19code); err == nil {
 				switch prefix {
 				case "npub":
-					pointer := &nostr.ProfilePointer{
+					pointer := nostr.ProfilePointer{
 						PublicKey: data.(string), Relays: []string{},
 					}
 					tag := evt.Tags.FindWithValue("p", pointer.PublicKey)
@@ -52,7 +52,7 @@ func ParseReferences(evt nostr.Event) iter.Seq[Reference] {
 					}
 				case "note":
 					// we don't even bother here because people using note1 codes aren't including relay hints anyway
-					reference.Pointer = &nostr.EventPointer{ID: data.(string), Relays: nil}
+					reference.Pointer = nostr.EventPointer{ID: data.(string), Relays: nil}
 				case "nevent":
 					pointer := data.(nostr.EventPointer)
 					tag := evt.Tags.FindWithValue("e", pointer.ID)
