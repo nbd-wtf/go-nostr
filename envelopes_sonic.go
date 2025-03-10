@@ -1,3 +1,5 @@
+//go:build sonic
+
 package nostr
 
 import (
@@ -360,6 +362,8 @@ func (sv *sonicVisitor) OnString(v string) error {
 			sv.whereWeAre = inClosed
 		case "NOTICE":
 			sv.whereWeAre = inNotice
+		default:
+			return UnknownLabel
 		}
 
 		// in an envelope
@@ -483,9 +487,9 @@ type sonicMessageParser struct {
 	reusableIntArray    []int
 }
 
-// NewSonicMessageParser returns a sonicMessageParser object that is intended to be reused many times.
+// NewMessageParser returns a sonicMessageParser object that is intended to be reused many times.
 // It is not goroutine-safe.
-func NewSonicMessageParser() sonicMessageParser {
+func NewMessageParser() sonicMessageParser {
 	return sonicMessageParser{
 		reusableFilterArray: make([]Filter, 0, 1000),
 		reusableTagArray:    make([]Tag, 0, 10000),
@@ -493,6 +497,8 @@ func NewSonicMessageParser() sonicMessageParser {
 		reusableIntArray:    make([]int, 0, 10000),
 	}
 }
+
+var NewSonicMessageParser = NewMessageParser
 
 func (smp *sonicMessageParser) doneWithFilterSlice(slice []Filter) {
 	if unsafe.SliceData(smp.reusableFilterArray) == unsafe.SliceData(slice) {

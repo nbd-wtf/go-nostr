@@ -26,7 +26,12 @@ var (
 	UnknownLabel = errors.New("unknown envelope label")
 )
 
-// ParseMessage parses a message into an Envelope.
+type MessageParser interface {
+	// ParseMessage parses a message into an Envelope.
+	ParseMessage([]byte) (Envelope, error)
+}
+
+// Deprecated: use NewMessageParser instead
 func ParseMessage(message []byte) Envelope {
 	firstComma := bytes.Index(message, []byte{','})
 	if firstComma == -1 {
