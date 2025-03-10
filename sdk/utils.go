@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -21,9 +22,13 @@ func IsVirtualRelay(url string) bool {
 
 	if strings.HasPrefix(url, "wss://feeds.nostr.band") ||
 		strings.HasPrefix(url, "wss://filter.nostr.wine") ||
-		strings.HasPrefix(url, "ws://localhost") ||
-		strings.HasPrefix(url, "ws://127.0.0.1") ||
 		strings.HasPrefix(url, "wss://cache") {
+		return true
+	}
+
+	if !testing.Testing() &&
+		strings.HasPrefix(url, "ws://localhost") ||
+		strings.HasPrefix(url, "ws://127.0.0.1") {
 		return true
 	}
 

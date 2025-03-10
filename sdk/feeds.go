@@ -67,7 +67,7 @@ func (sys *System) StreamLiveFeed(
 		}
 
 		go func() {
-			sub := sys.Pool.SubMany(ctx, relays, nostr.Filters{filter}, nostr.WithLabel("livefeed"))
+			sub := sys.Pool.SubscribeMany(ctx, relays, filter, nostr.WithLabel("livefeed"))
 			for evt := range sub {
 				sys.StoreRelay.Publish(ctx, *evt.Event)
 				if latest < evt.CreatedAt {
@@ -153,7 +153,7 @@ func (sys *System) FetchFeedPage(
 		fUntil := oldestTimestamp + 1
 		filter.Until = &fUntil
 		filter.Since = nil
-		for ie := range sys.Pool.SubManyEose(ctx, relays, nostr.Filters{filter}, nostr.WithLabel("feedpage")) {
+		for ie := range sys.Pool.FetchMany(ctx, relays, filter, nostr.WithLabel("feedpage")) {
 			sys.StoreRelay.Publish(ctx, *ie.Event)
 
 			// we shouldn't need this check here, but against rogue relays we'll do it
