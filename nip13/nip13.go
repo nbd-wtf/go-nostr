@@ -24,9 +24,9 @@ var (
 // if the target is bigger than the actual difficulty then it returns 0.
 func CommittedDifficulty(event *nostr.Event) int {
 	work := 0
-	if nonceTag := event.Tags.GetFirst([]string{"nonce", ""}); nonceTag != nil && len(*nonceTag) >= 3 {
+	if nonceTag := event.Tags.Find("nonce"); nonceTag != nil && len(nonceTag) >= 3 {
 		work = Difficulty(event.ID)
-		target, _ := strconv.Atoi((*nonceTag)[2])
+		target, _ := strconv.Atoi(nonceTag[2])
 		if target <= work {
 			work = target
 		} else {

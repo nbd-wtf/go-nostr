@@ -2,24 +2,27 @@ package nip10
 
 import "github.com/nbd-wtf/go-nostr"
 
-func GetThreadRoot(tags nostr.Tags) *nostr.Tag {
+func GetThreadRoot(tags nostr.Tags) *nostr.EventPointer {
 	for _, tag := range tags {
 		if len(tag) >= 4 && tag[0] == "e" && tag[3] == "root" {
-			return &tag
+			p, _ := nostr.EventPointerFromTag(tag)
+			return &p
 		}
 	}
 
-	return tags.GetFirst([]string{"e", ""})
+	firstE := tags.Find("e")
+	if firstE != nil {
+		return &nostr.EventPointer{
+			ID: firstE[1],
+		}
+	}
+
+	return nil
 }
 
-// Deprecated: this was misnamed, use GetImmediateParent instead.
-func GetImmediateReply(tags nostr.Tags) *nostr.Tag {
-	return GetImmediateParent(tags)
-}
-
-func GetImmediateParent(tags nostr.Tags) *nostr.Tag {
-	var root *nostr.Tag
-	var lastE *nostr.Tag
+func GetImmediateParent(tags nostr.Tags) *nostr.EventPointer {
+	var parent nostr.Tag
+	var lastE nostr.Tag
 
 	for i := 0; i <= len(tags)-1; i++ {
 		tag := tags[i]

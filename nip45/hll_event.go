@@ -26,9 +26,9 @@ func HyperLogLogEventPubkeyOffsetsAndReferencesForEvent(evt *nostr.Event) iter.S
 			//
 			// reaction counts:
 			// (only the last "e" tag counts)
-			lastE := evt.Tags.GetLast([]string{"e", ""})
+			lastE := evt.Tags.FindLast("e")
 			if lastE != nil {
-				v := (*lastE)[1]
+				v := lastE[1]
 				if nostr.IsValid32ByteHex(v) {
 					// 32th nibble of "e" tag
 					p, _ := strconv.ParseInt(v[32:33], 16, 64)

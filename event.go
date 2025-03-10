@@ -69,8 +69,22 @@ func (evt *Event) Serialize() []byte {
 	dst = append(dst, ',')
 
 	// tags
-	dst = evt.Tags.marshalTo(dst)
-	dst = append(dst, ',')
+	dst = append(dst, '[')
+	for i, tag := range evt.Tags {
+		if i > 0 {
+			dst = append(dst, ',')
+		}
+		// tag item
+		dst = append(dst, '[')
+		for i, s := range tag {
+			if i > 0 {
+				dst = append(dst, ',')
+			}
+			dst = escapeString(dst, s)
+		}
+		dst = append(dst, ']')
+	}
+	dst = append(dst, "],"...)
 
 	// content needs to be escaped in general as it is user generated.
 	dst = escapeString(dst, evt.Content)
