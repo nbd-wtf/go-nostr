@@ -7,7 +7,26 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-// ReadOnlySigner is a Signer that holds a public key in memory and cannot sign anything
+var (
+	_ nostr.User   = (*ReadOnlyUser)(nil)
+	_ nostr.Signer = (*ReadOnlySigner)(nil)
+)
+
+// ReadOnlyUser is a nostr.User that has this public key
+type ReadOnlyUser struct {
+	pk string
+}
+
+func NewReadOnlyUser(pk string) ReadOnlyUser {
+	return ReadOnlyUser{pk}
+}
+
+// GetPublicKey returns the public key associated with this signer.
+func (ros ReadOnlyUser) GetPublicKey(context.Context) (string, error) {
+	return ros.pk, nil
+}
+
+// ReadOnlySigner is like a ReadOnlyUser, but has a fake GetPublicKey method that doesn't work.
 type ReadOnlySigner struct {
 	pk string
 }

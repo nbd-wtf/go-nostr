@@ -6,6 +6,8 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
+var _ nostr.Keyer = (*ManualSigner)(nil)
+
 // ManualSigner is a signer that delegates all operations to user-provided functions.
 // It can be used when an app wants to ask the user or some custom server to manually provide a
 // signed event or an encrypted or decrypted payload by copy-and-paste, for example, or when the

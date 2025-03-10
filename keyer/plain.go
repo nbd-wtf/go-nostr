@@ -8,6 +8,8 @@ import (
 	"github.com/puzpuzpuz/xsync/v3"
 )
 
+var _ nostr.Keyer = (*KeySigner)(nil)
+
 // KeySigner is a signer that holds the private key in memory
 type KeySigner struct {
 	sk string

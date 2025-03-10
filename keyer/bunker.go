@@ -9,6 +9,8 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip46"
 )
 
+var _ nostr.Keyer = (*BunkerSigner)(nil)
+
 // BunkerSigner is a signer that delegates operations to a remote bunker using NIP-46.
 // It communicates with the bunker for all cryptographic operations rather than
 // handling the private key locally.

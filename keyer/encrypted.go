@@ -9,6 +9,8 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip49"
 )
 
+var _ nostr.Keyer = (*EncryptedKeySigner)(nil)
+
 // EncryptedKeySigner is a signer that must ask the user for a password before every operation.
 // It stores the private key in encrypted form (NIP-49) and uses a callback to request the password
 // when needed for operations.

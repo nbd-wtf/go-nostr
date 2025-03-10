@@ -15,15 +15,20 @@ type Keyer interface {
 	Cipher
 }
 
-// Signer is an interface for signing events.
+// User is an entity that has a public key (although they can't sign anything).
+type User interface {
+	// GetPublicKey returns the public key associated with this user.
+	GetPublicKey(ctx context.Context) (string, error)
+}
+
+// Signer is a User that can also sign events.
 type Signer interface {
+	User
+
 	// SignEvent signs the provided event, setting its ID, PubKey, and Sig fields.
 	// The context can be used for operations that may require user interaction or
 	// network access, such as with remote signers.
 	SignEvent(ctx context.Context, evt *Event) error
-
-	// GetPublicKey returns the public key associated with this signer.
-	GetPublicKey(ctx context.Context) (string, error)
 }
 
 // Cipher is an interface for encrypting and decrypting messages with NIP-44
