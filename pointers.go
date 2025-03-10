@@ -26,6 +26,7 @@ var (
 	_ Pointer = (*ProfilePointer)(nil)
 	_ Pointer = (*EventPointer)(nil)
 	_ Pointer = (*EntityPointer)(nil)
+	_ Pointer = (*ExternalPointer)(nil)
 )
 
 // ProfilePointer represents a pointer to a Nostr profile.
@@ -36,7 +37,7 @@ type ProfilePointer struct {
 
 // ProfilePointerFromTag creates a ProfilePointer from a "p" tag (but it doesn't have to be necessarily a "p" tag, could be something else).
 func ProfilePointerFromTag(refTag Tag) (ProfilePointer, error) {
-	pk := (refTag)[1]
+	pk := refTag[1]
 	if !IsValidPublicKey(pk) {
 		return ProfilePointer{}, fmt.Errorf("invalid pubkey '%s'", pk)
 	}
@@ -74,7 +75,7 @@ type EventPointer struct {
 
 // EventPointerFromTag creates an EventPointer from an "e" tag (but it could be other tag name, it isn't checked).
 func EventPointerFromTag(refTag Tag) (EventPointer, error) {
-	id := (refTag)[1]
+	id := refTag[1]
 	if !IsValid32ByteHex(id) {
 		return EventPointer{}, fmt.Errorf("invalid id '%s'", id)
 	}
@@ -86,8 +87,10 @@ func EventPointerFromTag(refTag Tag) (EventPointer, error) {
 		if relay := (refTag)[2]; IsValidRelayURL(relay) {
 			pointer.Relays = []string{relay}
 		}
-		if len(refTag) > 3 && IsValidPublicKey((refTag)[3]) {
+		if len(refTag) > 3 && IsValidPublicKey(refTag[3]) {
 			pointer.Author = (refTag)[3]
+		} else if len(refTag) > 4 && IsValidPublicKey(refTag[4]) {
+			pointer.Author = (refTag)[4]
 		}
 	}
 	return pointer, nil
@@ -170,4 +173,22 @@ func (ep EntityPointer) AsTag() Tag {
 		return Tag{"a", ep.AsTagReference(), ep.Relays[0]}
 	}
 	return Tag{"a", ep.AsTagReference()}
+}
+
+// ExternalPointer represents a pointer to a Nostr profile.
+type ExternalPointer struct {
+	Thing string
+}
+
+// ExternalPointerFromTag creates a ExternalPointer from an "i" tag
+func ExternalPointerFromTag(refTag Tag) (ExternalPointer, error) {
+	return ExternalPointer{refTag[1]}, nil
+}
+
+func (ep ExternalPointer) MatchesEvent(_ Event) bool { return false }
+func (ep ExternalPointer) AsTagReference() string    { return ep.Thing }
+func (ep ExternalPointer) AsFilter() Filter          { return Filter{} }
+
+func (ep ExternalPointer) AsTag() Tag {
+	return Tag{"i", ep.Thing}
 }

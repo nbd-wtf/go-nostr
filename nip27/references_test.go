@@ -23,7 +23,7 @@ func TestParseReferences(t *testing.T) {
 			Text:  "nostr:nprofile1qqsvc6ulagpn7kwrcwdqgp797xl7usumqa6s3kgcelwq6m75x8fe8yc5usxdg",
 			Start: 7,
 			End:   83,
-			Profile: &nostr.ProfilePointer{
+			Pointer: nostr.ProfilePointer{
 				PublicKey: "cc6b9fea033f59c3c39a0407c5f1bfee439b077508d918cfdc0d6fd431d39393",
 				Relays:    []string{"wss://xawr.com"},
 			},
@@ -32,7 +32,7 @@ func TestParseReferences(t *testing.T) {
 			Text:  "nostr:nevent1qqsvc6ulagpn7kwrcwdqgp797xl7usumqa6s3kgcelwq6m75x8fe8ychxp5v4",
 			Start: 90,
 			End:   164,
-			Event: &nostr.EventPointer{
+			Pointer: nostr.EventPointer{
 				ID:     "cc6b9fea033f59c3c39a0407c5f1bfee439b077508d918cfdc0d6fd431d39393",
 				Relays: []string{"wss://nasdj.com"},
 				Author: "",

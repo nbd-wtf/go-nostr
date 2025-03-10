@@ -106,27 +106,36 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 		}
 
 		for ref := range nip27.ParseReferences(*ie.Event) {
-			if ref.Profile != nil {
-				for _, relay := range ref.Profile.Relays {
+			switch pointer := ref.Pointer.(type) {
+			case nostr.ProfilePointer:
+				for _, relay := range pointer.Relays {
 					if IsVirtualRelay(relay) {
 						continue
 					}
 					if p, err := url.Parse(relay); err != nil || (p.Scheme != "wss" && p.Scheme != "ws") {
 						continue
 					}
-					if nostr.IsValidPublicKey(ref.Profile.PublicKey) {
-						sys.Hints.Save(ref.Profile.PublicKey, nostr.NormalizeURL(relay), hints.LastInHint, ie.CreatedAt)
-					}
+					sys.Hints.Save(pointer.PublicKey, nostr.NormalizeURL(relay), hints.LastInHint, ie.CreatedAt)
 				}
-			} else if ref.Event != nil && nostr.IsValidPublicKey(ref.Event.Author) {
-				for _, relay := range ref.Event.Relays {
+			case nostr.EventPointer:
+				for _, relay := range pointer.Relays {
 					if IsVirtualRelay(relay) {
 						continue
 					}
 					if p, err := url.Parse(relay); err != nil || (p.Scheme != "wss" && p.Scheme != "ws") {
 						continue
 					}
-					sys.Hints.Save(ref.Event.Author, nostr.NormalizeURL(relay), hints.LastInHint, ie.CreatedAt)
+					sys.Hints.Save(pointer.Author, nostr.NormalizeURL(relay), hints.LastInHint, ie.CreatedAt)
+				}
+			case nostr.EntityPointer:
+				for _, relay := range pointer.Relays {
+					if IsVirtualRelay(relay) {
+						continue
+					}
+					if p, err := url.Parse(relay); err != nil || (p.Scheme != "wss" && p.Scheme != "ws") {
+						continue
+					}
+					sys.Hints.Save(pointer.PublicKey, nostr.NormalizeURL(relay), hints.LastInHint, ie.CreatedAt)
 				}
 			}
 		}

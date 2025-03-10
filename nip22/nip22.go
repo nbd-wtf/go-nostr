@@ -2,25 +2,41 @@ package nip22
 
 import "github.com/nbd-wtf/go-nostr"
 
-func GetThreadRoot(tags nostr.Tags) *nostr.Tag {
+func GetThreadRoot(tags nostr.Tags) nostr.Pointer {
 	for _, tag := range tags {
 		if len(tag) < 2 {
 			continue
 		}
-		if tag[0] == "E" || tag[0] == "A" || tag[0] == "I" {
-			return &tag
+		switch tag[0] {
+		case "E":
+			ep, _ := nostr.EventPointerFromTag(tag)
+			return ep
+		case "A":
+			ep, _ := nostr.EntityPointerFromTag(tag)
+			return ep
+		case "I":
+			ep, _ := nostr.ExternalPointerFromTag(tag)
+			return ep
 		}
 	}
 	return nil
 }
 
-func GetImmediateReply(tags nostr.Tags) *nostr.Tag {
+func GetImmediateParent(tags nostr.Tags) nostr.Pointer {
 	for _, tag := range tags {
 		if len(tag) < 2 {
 			continue
 		}
-		if tag[0] == "e" || tag[0] == "a" || tag[0] == "i" {
-			return &tag
+		switch tag[0] {
+		case "e":
+			ep, _ := nostr.EventPointerFromTag(tag)
+			return ep
+		case "a":
+			ep, _ := nostr.EntityPointerFromTag(tag)
+			return ep
+		case "i":
+			ep, _ := nostr.ExternalPointerFromTag(tag)
+			return ep
 		}
 	}
 	return nil

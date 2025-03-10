@@ -36,11 +36,12 @@ func GetImmediateParent(tags nostr.Tags) *nostr.EventPointer {
 
 		if len(tag) >= 4 {
 			if tag[3] == "reply" {
-				return &tag
+				parent = tag
+				break
 			}
-			if tag[3] == "root" {
+			if tag[3] == "parent" {
 				// will be used as our first fallback
-				root = &tag
+				parent = tag
 				continue
 			}
 			if tag[3] == "mention" {
@@ -49,15 +50,23 @@ func GetImmediateParent(tags nostr.Tags) *nostr.EventPointer {
 			}
 		}
 
-		lastE = &tag // will be used as our second fallback (clients that don't add markers)
+		lastE = tag // will be used as our second fallback (clients that don't add markers)
 	}
 
-	// if we reached this point we don't have a "reply", but if we have a "root"
-	// that means this event is a direct reply to the root
-	if root != nil {
-		return root
+	// if we reached this point we don't have a "reply", but if we have a "parent"
+	// that means this event is a direct reply to the parent
+	if parent != nil {
+		p, _ := nostr.EventPointerFromTag(parent)
+		return &p
 	}
 
-	// if we reached this point and we have at least one "e" we'll use that (the last)
-	return lastE
+	if lastE != nil {
+		// if we reached this point and we have at least one "e" we'll use that (the last)
+		// (we don't bother looking for relay or author hints because these clients don't add these anyway)
+		return &nostr.EventPointer{
+			ID: lastE[1],
+		}
+	}
+
+	return nil
 }

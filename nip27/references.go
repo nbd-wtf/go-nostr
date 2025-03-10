@@ -12,9 +12,7 @@ type Reference struct {
 	Text    string
 	Start   int
 	End     int
-	Profile *nostr.ProfilePointer
-	Event   *nostr.EventPointer
-	Entity  *nostr.EntityPointer
+	Pointer nostr.Pointer
 }
 
 var mentionRegex = regexp.MustCompile(`\bnostr:((note|npub|naddr|nevent|nprofile)1\w+)\b`)
@@ -33,40 +31,45 @@ func ParseReferences(evt nostr.Event) iter.Seq[Reference] {
 			if prefix, data, err := nip19.Decode(nip19code); err == nil {
 				switch prefix {
 				case "npub":
-					reference.Profile = &nostr.ProfilePointer{
+					pointer := &nostr.ProfilePointer{
 						PublicKey: data.(string), Relays: []string{},
 					}
-					tag := evt.Tags.GetFirst([]string{"p", reference.Profile.PublicKey})
-					if tag != nil && len(*tag) >= 3 {
-						reference.Profile.Relays = []string{(*tag)[2]}
+					tag := evt.Tags.FindWithValue("p", pointer.PublicKey)
+					if tag != nil && len(tag) >= 3 {
+						pointer.Relays = []string{tag[2]}
+					}
+					if nostr.IsValidPublicKey(pointer.PublicKey) {
+						reference.Pointer = pointer
 					}
 				case "nprofile":
-					pp := data.(nostr.ProfilePointer)
-					reference.Profile = &pp
-					tag := evt.Tags.GetFirst([]string{"p", reference.Profile.PublicKey})
-					if tag != nil && len(*tag) >= 3 {
-						reference.Profile.Relays = append(reference.Profile.Relays, (*tag)[2])
+					pointer := data.(nostr.ProfilePointer)
+					tag := evt.Tags.FindWithValue("p", pointer.PublicKey)
+					if tag != nil && len(tag) >= 3 {
+						pointer.Relays = append(pointer.Relays, tag[2])
+					}
+					if nostr.IsValidPublicKey(pointer.PublicKey) {
+						reference.Pointer = pointer
 					}
 				case "note":
 					// we don't even bother here because people using note1 codes aren't including relay hints anyway
-					reference.Event = &nostr.EventPointer{ID: data.(string), Relays: []string{}}
+					reference.Pointer = &nostr.EventPointer{ID: data.(string), Relays: nil}
 				case "nevent":
-					evp := data.(nostr.EventPointer)
-					reference.Event = &evp
-					tag := evt.Tags.GetFirst([]string{"e", reference.Event.ID})
-					if tag != nil && len(*tag) >= 3 {
-						reference.Event.Relays = append(reference.Event.Relays, (*tag)[2])
-						if reference.Event.Author == "" && len(*tag) >= 5 {
-							reference.Event.Author = (*tag)[4]
+					pointer := data.(nostr.EventPointer)
+					tag := evt.Tags.FindWithValue("e", pointer.ID)
+					if tag != nil && len(tag) >= 3 {
+						pointer.Relays = append(pointer.Relays, tag[2])
+						if pointer.Author == "" && len(tag) >= 5 && nostr.IsValidPublicKey(tag[4]) {
+							pointer.Author = tag[4]
 						}
 					}
+					reference.Pointer = pointer
 				case "naddr":
-					addr := data.(nostr.EntityPointer)
-					reference.Entity = &addr
-					tag := evt.Tags.GetFirst([]string{"a", reference.Entity.AsTagReference()})
-					if tag != nil && len(*tag) >= 3 {
-						reference.Entity.Relays = append(reference.Entity.Relays, (*tag)[2])
+					pointer := data.(nostr.EntityPointer)
+					tag := evt.Tags.FindWithValue("a", pointer.AsTagReference())
+					if tag != nil && len(tag) >= 3 {
+						pointer.Relays = append(pointer.Relays, tag[2])
 					}
+					reference.Pointer = pointer
 				}
 			}
 
