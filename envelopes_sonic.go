@@ -7,7 +7,6 @@ import (
 	"unsafe"
 
 	"github.com/bytedance/sonic/ast"
-	"github.com/colduction/nocopy"
 )
 
 type sonicVisitorPosition int
@@ -550,7 +549,7 @@ func (smp sonicMessageParser) ParseMessage(message []byte) (Envelope, error) {
 	sv := &sonicVisitor{smp: &smp}
 	sv.whereWeAre = inEnvelope
 
-	err := ast.Preorder(nocopy.ByteSliceToString(message), sv, nil)
+	err := ast.Preorder(unsafe.String(unsafe.SliceData(message), len(message)), sv, nil)
 
 	return sv.mainEnvelope, err
 }

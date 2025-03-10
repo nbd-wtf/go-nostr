@@ -7,7 +7,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/colduction/nocopy"
 	jsoniter "github.com/json-iterator/go"
 	"golang.org/x/exp/constraints"
 )
@@ -135,7 +134,7 @@ func extractSubID(jsonStr []byte) string {
 	end := bytes.Index(jsonStr[start:], []byte{'"'})
 
 	// get the contents
-	return nocopy.ByteSliceToString(jsonStr[start : start+end])
+	return unsafe.String(unsafe.SliceData(jsonStr[start:start+end]), end)
 }
 
 func extractEventID(jsonStr []byte) string {
@@ -150,5 +149,5 @@ func extractEventID(jsonStr []byte) string {
 	start += 4 + offset + 1
 
 	// get 64 characters of the id
-	return nocopy.ByteSliceToString(jsonStr[start : start+64])
+	return unsafe.String(unsafe.SliceData(jsonStr[start:start+64]), 64)
 }

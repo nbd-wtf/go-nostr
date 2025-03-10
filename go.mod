@@ -11,7 +11,6 @@ require (
 	github.com/bytedance/sonic v1.13.1
 	github.com/cloudwego/base64x v0.1.5
 	github.com/coder/websocket v1.8.12
-	github.com/colduction/nocopy v0.2.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/dgraph-io/badger/v4 v4.5.0
 	github.com/dgraph-io/ristretto v1.0.0
@@ -25,7 +24,6 @@ require (
 	github.com/mailru/easyjson v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/microcosm-cc/bluemonday v1.0.27
-	github.com/minio/simdjson-go v0.4.5
 	github.com/ncruces/go-sqlite3 v0.18.3
 	github.com/puzpuzpuz/xsync/v3 v3.5.0
 	github.com/stretchr/testify v1.10.0
