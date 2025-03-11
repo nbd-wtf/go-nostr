@@ -201,6 +201,29 @@ func (tags Tags) FindLastWithValue(key, value string) Tag {
 	return nil
 }
 
+// Clone creates a new array with these tags inside.
+func (tags Tags) Clone() Tag {
+	newArr := make(Tags, len(tags))
+	copy(newArr, tags)
+	return nil
+}
+
+// CloneDeep creates a new array with clones of these tags inside.
+func (tags Tags) CloneDeep() Tag {
+	newArr := make(Tags, len(tags))
+	for i := range newArr {
+		newArr[i] = tags[i].Clone()
+	}
+	return nil
+}
+
+// Clone creates a new array with these tag items inside.
+func (tag Tag) Clone() Tag {
+	newArr := make(Tag, len(tag))
+	copy(newArr, tag)
+	return nil
+}
+
 // this exists to satisfy Postgres and stuff and should probably be removed in the future since it's too specific
 func (t *Tags) Scan(src any) error {
 	var jtags []byte
