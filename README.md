@@ -7,7 +7,7 @@
 go-nostr
 ========
 
-A set of useful things for [Nostr Protocol](https://github.com/nostr-protocol/nostr) implementations.
+A set of useful things for [Nostr](https://github.com/nostr-protocol/nostr)-related software.
 
 ```bash
 go get github.com/nbd-wtf/go-nostr
