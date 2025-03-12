@@ -154,3 +154,49 @@ func extractEventID(jsonStr string) string {
 	// get 64 characters of the id
 	return jsonStr[start : start+64]
 }
+
+func extractDTag(jsonStr string) string {
+	// look for ["d", pattern
+	start := strings.Index(jsonStr, `["d"`)
+	if start == -1 {
+		return ""
+	}
+
+	// move to the next quote
+	offset := strings.IndexRune(jsonStr[start+4:], '"')
+	start += 4 + offset + 1
+
+	// find the ending quote
+	end := strings.IndexRune(jsonStr[start:], '"')
+	if end == -1 {
+		return ""
+	}
+
+	// get the contents
+	return jsonStr[start : start+end]
+}
+
+func extractTimestamp(jsonStr string) Timestamp {
+	// look for "created_at": pattern
+	start := strings.Index(jsonStr, `"created_at"`)
+	if start == -1 {
+		return 0
+	}
+
+	// move to the next number
+	offset := strings.IndexAny(jsonStr[start+12:], "9876543210")
+	if offset == -1 {
+		return 0
+	}
+	start += 12 + offset
+
+	// find the end
+	end := strings.IndexAny(jsonStr[start:], ",} ")
+	if end == -1 {
+		return 0
+	}
+
+	// get the contents
+	ts, _ := strconv.ParseInt(jsonStr[start:start+end], 10, 64)
+	return Timestamp(ts)
+}

@@ -231,9 +231,13 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			// if this is an "EVENT" we will have this preparser logic that should speed things up a little
 			// as we skip handling duplicate events
 			subid := extractSubID(message)
-			subscription, ok := r.Subscriptions.Load(subIdToSerial(subid))
-			if ok && subscription.checkDuplicate != nil {
-				if subscription.checkDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
+			sub, ok := r.Subscriptions.Load(subIdToSerial(subid))
+			if ok && sub.checkDuplicate != nil {
+				if sub.checkDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
+					continue
+				}
+			} else if sub.checkDuplicateReplaceable != nil {
+				if sub.checkDuplicateReplaceable(extractDTag(message), extractTimestamp(message)) {
 					continue
 				}
 			}
@@ -437,6 +441,8 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 			label = string(o)
 		case WithCheckDuplicate:
 			sub.checkDuplicate = o
+		case WithCheckDuplicateReplaceable:
+			sub.checkDuplicateReplaceable = o
 		}
 	}
 

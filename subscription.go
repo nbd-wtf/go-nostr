@@ -33,9 +33,13 @@ type Subscription struct {
 	// Context will be .Done() when the subscription ends
 	Context context.Context
 
-	// if it is not nil, CheckDuplicate will be called for every event received
+	// if it is not nil, checkDuplicate will be called for every event received
 	// if it returns true that event will not be processed further.
 	checkDuplicate func(id string, relay string) bool
+
+	// if it is not nil, checkDuplicateReplaceable will be called for every event received
+	// if it returns true that event will not be processed further.
+	checkDuplicateReplaceable func(d string, ts Timestamp) bool
 
 	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
@@ -63,9 +67,15 @@ type WithCheckDuplicate func(id, relay string) bool
 
 func (_ WithCheckDuplicate) IsSubscriptionOption() {}
 
+// WithCheckDuplicateReplaceable sets checkDuplicateReplaceable on the subscription
+type WithCheckDuplicateReplaceable func(d string, ts Timestamp) bool
+
+func (_ WithCheckDuplicateReplaceable) IsSubscriptionOption() {}
+
 var (
 	_ SubscriptionOption = (WithLabel)("")
 	_ SubscriptionOption = (WithCheckDuplicate)(nil)
+	_ SubscriptionOption = (WithCheckDuplicateReplaceable)(nil)
 )
 
 func (sub *Subscription) start() {
