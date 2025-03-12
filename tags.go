@@ -56,7 +56,7 @@ type Tags []Tag
 // GetD gets the first "d" tag (for parameterized replaceable events) value or ""
 func (tags Tags) GetD() string {
 	for _, v := range tags {
-		if v.StartsWith([]string{"d", ""}) {
+		if len(v) >= 2 && v[0] == "d" {
 			return v[1]
 		}
 	}

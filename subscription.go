@@ -39,7 +39,7 @@ type Subscription struct {
 
 	// if it is not nil, checkDuplicateReplaceable will be called for every event received
 	// if it returns true that event will not be processed further.
-	checkDuplicateReplaceable func(d string, ts Timestamp) bool
+	checkDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
 
 	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
@@ -68,7 +68,7 @@ type WithCheckDuplicate func(id, relay string) bool
 func (_ WithCheckDuplicate) IsSubscriptionOption() {}
 
 // WithCheckDuplicateReplaceable sets checkDuplicateReplaceable on the subscription
-type WithCheckDuplicateReplaceable func(d string, ts Timestamp) bool
+type WithCheckDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
 
 func (_ WithCheckDuplicateReplaceable) IsSubscriptionOption() {}
 

@@ -232,13 +232,18 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 			// as we skip handling duplicate events
 			subid := extractSubID(message)
 			sub, ok := r.Subscriptions.Load(subIdToSerial(subid))
-			if ok && sub.checkDuplicate != nil {
-				if sub.checkDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
-					continue
-				}
-			} else if sub.checkDuplicateReplaceable != nil {
-				if sub.checkDuplicateReplaceable(extractDTag(message), extractTimestamp(message)) {
-					continue
+			if ok {
+				if sub.checkDuplicate != nil {
+					if sub.checkDuplicate(extractEventID(message[10+len(subid):]), r.URL) {
+						continue
+					}
+				} else if sub.checkDuplicateReplaceable != nil {
+					if sub.checkDuplicateReplaceable(
+						ReplaceableKey{extractEventPubKey(message), extractDTag(message)},
+						extractTimestamp(message),
+					) {
+						continue
+					}
 				}
 			}
 

@@ -155,6 +155,21 @@ func extractEventID(jsonStr string) string {
 	return jsonStr[start : start+64]
 }
 
+func extractEventPubKey(jsonStr string) string {
+	// look for "pubkey" pattern
+	start := strings.Index(jsonStr, `"pubkey"`)
+	if start == -1 {
+		return ""
+	}
+
+	// move to the next quote
+	offset := strings.IndexRune(jsonStr[start+8:], '"')
+	start += 8 + offset + 1
+
+	// get 64 characters of the pubkey
+	return jsonStr[start : start+64]
+}
+
 func extractDTag(jsonStr string) string {
 	// look for ["d", pattern
 	start := strings.Index(jsonStr, `["d"`)

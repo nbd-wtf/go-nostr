@@ -278,6 +278,107 @@ func (pool *SimplePool) SubscribeManyNotifyEOSE(
 	return pool.subMany(ctx, urls, Filters{filter}, eoseChan, opts...)
 }
 
+type ReplaceableKey struct {
+	PubKey string
+	D      string
+}
+
+// FetchManyReplaceable is like FetchMany, but deduplicates replaceable and addressable events and returns
+// only the latest for each "d" tag.
+func (pool *SimplePool) FetchManyReplaceable(
+	ctx context.Context,
+	urls []string,
+	filter Filter,
+	opts ...SubscriptionOption,
+) *xsync.MapOf[ReplaceableKey, *Event] {
+	ctx, cancel := context.WithCancelCause(ctx)
+
+	results := xsync.NewMapOf[ReplaceableKey, *Event]()
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(urls))
+
+	seenAlreadyLatest := xsync.NewMapOf[ReplaceableKey, Timestamp]()
+	opts = append(opts, WithCheckDuplicateReplaceable(func(rk ReplaceableKey, ts Timestamp) bool {
+		latest, _ := seenAlreadyLatest.Load(rk)
+		if ts > latest {
+			seenAlreadyLatest.Store(rk, ts)
+			return false // just stored the most recent
+		}
+		return true // already had one that was more recent
+	}))
+
+	for _, url := range urls {
+		go func(nm string) {
+			defer wg.Done()
+
+			if mh := pool.queryMiddleware; mh != nil {
+				if filter.Kinds != nil && filter.Authors != nil {
+					for _, kind := range filter.Kinds {
+						for _, author := range filter.Authors {
+							mh(nm, author, kind)
+						}
+					}
+				}
+			}
+
+			relay, err := pool.EnsureRelay(nm)
+			if err != nil {
+				debugLogf("error connecting to %s with %v: %s", nm, filter, err)
+				return
+			}
+
+			hasAuthed := false
+
+		subscribe:
+			sub, err := relay.Subscribe(ctx, Filters{filter}, opts...)
+			if err != nil {
+				debugLogf("error subscribing to %s with %v: %s", relay, filter, err)
+				return
+			}
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-sub.EndOfStoredEvents:
+					return
+				case reason := <-sub.ClosedReason:
+					if strings.HasPrefix(reason, "auth-required:") && pool.authHandler != nil && !hasAuthed {
+						// relay is requesting auth. if we can we will perform auth and try again
+						err := relay.Auth(ctx, func(event *Event) error {
+							return pool.authHandler(ctx, RelayEvent{Event: event, Relay: relay})
+						})
+						if err == nil {
+							hasAuthed = true // so we don't keep doing AUTH again and again
+							goto subscribe
+						}
+					}
+					debugLogf("CLOSED from %s: '%s'\n", nm, reason)
+					return
+				case evt, more := <-sub.Events:
+					if !more {
+						return
+					}
+
+					ie := RelayEvent{Event: evt, Relay: relay}
+					if mh := pool.eventMiddleware; mh != nil {
+						mh(ie)
+					}
+
+					results.Store(ReplaceableKey{evt.PubKey, evt.Tags.GetD()}, evt)
+				}
+			}
+		}(NormalizeURL(url))
+	}
+
+	// this will happen when all subscriptions get an eose (or when they die)
+	wg.Wait()
+	cancel(errors.New("all subscriptions ended"))
+
+	return results
+}
+
 func (pool *SimplePool) subMany(
 	ctx context.Context,
 	urls []string,
