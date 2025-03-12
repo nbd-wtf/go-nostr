@@ -1,3 +1,5 @@
+//go:build sonic
+
 package nostr
 
 import (
@@ -6,6 +8,7 @@ import (
 	"math/rand/v2"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func BenchmarkParseMessage(b *testing.B) {
@@ -17,7 +20,7 @@ func BenchmarkParseMessage(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					for _, msg := range messages {
 						var v any
-						stdlibjson.Unmarshal(msg, &v)
+						stdlibjson.Unmarshal(unsafe.Slice(unsafe.StringData(msg), len(msg)), &v)
 					}
 				}
 			})
@@ -42,8 +45,8 @@ func BenchmarkParseMessage(b *testing.B) {
 	}
 }
 
-func generateTestMessages(typ string) [][]byte {
-	messages := make([][]byte, 0, 600)
+func generateTestMessages(typ string) []string {
+	messages := make([]string, 0, 600)
 
 	setup := map[string]map[int]func() []byte{
 		"client": {
@@ -62,7 +65,7 @@ func generateTestMessages(typ string) [][]byte {
 
 	for count, generator := range setup {
 		for range count {
-			messages = append(messages, generator())
+			messages = append(messages, string(generator()))
 		}
 	}
 

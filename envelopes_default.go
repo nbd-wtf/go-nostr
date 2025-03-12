@@ -3,8 +3,8 @@
 package nostr
 
 import (
-	"bytes"
 	"errors"
+	"strings"
 )
 
 func NewMessageParser() MessageParser {
@@ -13,41 +13,45 @@ func NewMessageParser() MessageParser {
 
 type messageParser struct{}
 
-func (messageParser) ParseMessage(message []byte) (Envelope, error) {
-	firstComma := bytes.Index(message, []byte{','})
-	if firstComma == -1 {
+func (messageParser) ParseMessage(message string) (Envelope, error) {
+	firstQuote := strings.IndexRune(message, '"')
+	if firstQuote == -1 {
 		return nil, errors.New("malformed json")
 	}
-	label := message[0:firstComma]
+	secondQuote := strings.IndexRune(message[firstQuote+1:], '"')
+	if secondQuote == -1 {
+		return nil, errors.New("malformed json")
+	}
+	label := message[firstQuote+1 : firstQuote+1+secondQuote]
 
 	var v Envelope
-	switch {
-	case bytes.Contains(label, labelEvent):
+	switch label {
+	case "EVENT":
 		v = &EventEnvelope{}
-	case bytes.Contains(label, labelReq):
+	case "REQ":
 		v = &ReqEnvelope{}
-	case bytes.Contains(label, labelCount):
+	case "COUNT":
 		v = &CountEnvelope{}
-	case bytes.Contains(label, labelNotice):
+	case "NOTICE":
 		x := NoticeEnvelope("")
 		v = &x
-	case bytes.Contains(label, labelEose):
+	case "EOSE":
 		x := EOSEEnvelope("")
 		v = &x
-	case bytes.Contains(label, labelOk):
+	case "OK":
 		v = &OKEnvelope{}
-	case bytes.Contains(label, labelAuth):
+	case "AUTH":
 		v = &AuthEnvelope{}
-	case bytes.Contains(label, labelClosed):
+	case "CLOSED":
 		v = &ClosedEnvelope{}
-	case bytes.Contains(label, labelClose):
+	case "CLOSE":
 		x := CloseEnvelope("")
 		v = &x
 	default:
 		return nil, UnknownLabel
 	}
 
-	if err := v.UnmarshalJSON(message); err != nil {
+	if err := v.FromJSON(message); err != nil {
 		return nil, err
 	}
 	return v, nil

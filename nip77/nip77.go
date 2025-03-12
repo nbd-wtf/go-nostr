@@ -49,7 +49,7 @@ func NegentropySync(
 	result := make(chan error)
 
 	var r *nostr.Relay
-	r, err = nostr.RelayConnect(ctx, url, nostr.WithCustomHandler(func(data []byte) {
+	r, err = nostr.RelayConnect(ctx, url, nostr.WithCustomHandler(func(data string) {
 		envelope := ParseNegMessage(data)
 		if envelope == nil {
 			return

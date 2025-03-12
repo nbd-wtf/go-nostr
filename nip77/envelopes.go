@@ -3,6 +3,8 @@ package nip77
 import (
 	"bytes"
 	"fmt"
+	"strings"
+	"unsafe"
 
 	"github.com/mailru/easyjson"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -10,28 +12,28 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func ParseNegMessage(message []byte) nostr.Envelope {
-	firstComma := bytes.Index(message, []byte{','})
+func ParseNegMessage(message string) nostr.Envelope {
+	firstComma := strings.Index(message, ",")
 	if firstComma == -1 {
 		return nil
 	}
 	label := message[0:firstComma]
 
 	var v nostr.Envelope
-	switch {
-	case bytes.Contains(label, []byte("NEG-MSG")):
+	switch label {
+	case "NEG-MSG":
 		v = &MessageEnvelope{}
-	case bytes.Contains(label, []byte("NEG-OPEN")):
+	case "NEG-OPEN":
 		v = &OpenEnvelope{}
-	case bytes.Contains(label, []byte("NEG-ERR")):
+	case "NEG-ERR":
 		v = &ErrorEnvelope{}
-	case bytes.Contains(label, []byte("NEG-CLOSE")):
+	case "NEG-CLOSE":
 		v = &CloseEnvelope{}
 	default:
 		return nil
 	}
 
-	if err := v.UnmarshalJSON(message); err != nil {
+	if err := v.FromJSON(message); err != nil {
 		return nil
 	}
 	return v
@@ -56,8 +58,8 @@ func (v OpenEnvelope) String() string {
 	return string(b)
 }
 
-func (v *OpenEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *OpenEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) != 4 {
 		return fmt.Errorf("failed to decode NEG-OPEN envelope")
@@ -65,7 +67,7 @@ func (v *OpenEnvelope) UnmarshalJSON(data []byte) error {
 
 	v.SubscriptionID = arr[1].Str
 	v.Message = arr[3].Str
-	return easyjson.Unmarshal([]byte(arr[2].Raw), &v.Filter)
+	return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &v.Filter)
 }
 
 func (v OpenEnvelope) MarshalJSON() ([]byte, error) {
@@ -97,8 +99,8 @@ func (v MessageEnvelope) String() string {
 	return string(b)
 }
 
-func (v *MessageEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *MessageEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 3 {
 		return fmt.Errorf("failed to decode NEG-MSG envelope")
@@ -130,8 +132,8 @@ func (v CloseEnvelope) String() string {
 	return string(b)
 }
 
-func (v *CloseEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *CloseEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode NEG-CLOSE envelope")
@@ -159,8 +161,8 @@ func (v ErrorEnvelope) String() string {
 	return string(b)
 }
 
-func (v *ErrorEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *ErrorEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 3 {
 		return fmt.Errorf("failed to decode NEG-ERROR envelope")

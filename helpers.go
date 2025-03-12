@@ -1,7 +1,6 @@
 package nostr
 
 import (
-	"bytes"
 	"strconv"
 	"strings"
 	"sync"
@@ -119,35 +118,39 @@ func isLowerHex(thing string) bool {
 	return true
 }
 
-func extractSubID(jsonStr []byte) string {
+func extractSubID(jsonStr string) string {
 	// look for "EVENT" pattern
-	start := bytes.Index(jsonStr, []byte(`"EVENT"`))
+	start := strings.Index(jsonStr, `"EVENT"`)
 	if start == -1 {
 		return ""
 	}
 
 	// move to the next quote
-	offset := bytes.Index(jsonStr[start+7:], []byte{'"'})
+	offset := strings.Index(jsonStr[start+7:], `"`)
+	if offset == -1 {
+		return ""
+	}
+
 	start += 7 + offset + 1
 
 	// find the ending quote
-	end := bytes.Index(jsonStr[start:], []byte{'"'})
+	end := strings.Index(jsonStr[start:], `"`)
 
 	// get the contents
-	return unsafe.String(unsafe.SliceData(jsonStr[start:start+end]), end)
+	return jsonStr[start : start+end]
 }
 
-func extractEventID(jsonStr []byte) string {
-	// look for "id": pattern
-	start := bytes.Index(jsonStr, []byte(`"id":`))
+func extractEventID(jsonStr string) string {
+	// look for "id" pattern
+	start := strings.Index(jsonStr, `"id"`)
 	if start == -1 {
 		return ""
 	}
 
 	// move to the next quote
-	offset := bytes.Index(jsonStr[start+4:], []byte{'"'})
+	offset := strings.IndexRune(jsonStr[start+4:], '"')
 	start += 4 + offset + 1
 
 	// get 64 characters of the id
-	return unsafe.String(unsafe.SliceData(jsonStr[start:start+64]), 64)
+	return jsonStr[start : start+64]
 }

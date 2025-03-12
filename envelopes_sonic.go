@@ -551,11 +551,11 @@ func (smp *sonicMessageParser) doneWithIntSlice(slice []int) {
 // When an unexpected message (like ["NEG-OPEN", ...]) is found, the error UnknownLabel will be
 // returned. Other errors will be returned if the JSON is malformed or the objects are not exactly
 // as they should.
-func (smp sonicMessageParser) ParseMessage(message []byte) (Envelope, error) {
+func (smp sonicMessageParser) ParseMessage(message string) (Envelope, error) {
 	sv := &sonicVisitor{smp: &smp}
 	sv.whereWeAre = inEnvelope
 
-	err := ast.Preorder(unsafe.String(unsafe.SliceData(message), len(message)), sv, nil)
+	err := ast.Preorder(message, sv, nil)
 
 	return sv.mainEnvelope, err
 }

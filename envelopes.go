@@ -1,81 +1,75 @@
 package nostr
 
 import (
-	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+	"unsafe"
 
 	"github.com/mailru/easyjson"
 	jwriter "github.com/mailru/easyjson/jwriter"
 	"github.com/tidwall/gjson"
 )
 
-var (
-	labelEvent  = []byte("EVENT")
-	labelReq    = []byte("REQ")
-	labelCount  = []byte("COUNT")
-	labelNotice = []byte("NOTICE")
-	labelEose   = []byte("EOSE")
-	labelOk     = []byte("OK")
-	labelAuth   = []byte("AUTH")
-	labelClosed = []byte("CLOSED")
-	labelClose  = []byte("CLOSE")
-
-	UnknownLabel = errors.New("unknown envelope label")
-)
+var UnknownLabel = errors.New("unknown envelope label")
 
 type MessageParser interface {
 	// ParseMessage parses a message into an Envelope.
-	ParseMessage([]byte) (Envelope, error)
+	ParseMessage(string) (Envelope, error)
 }
 
 // Deprecated: use NewMessageParser instead
-func ParseMessage(message []byte) Envelope {
-	firstComma := bytes.Index(message, []byte{','})
-	if firstComma == -1 {
+func ParseMessage(message string) Envelope {
+	firstQuote := strings.IndexRune(message, '"')
+	if firstQuote == -1 {
 		return nil
 	}
-	label := message[0:firstComma]
+	secondQuote := strings.IndexRune(message[firstQuote+1:], '"')
+	if secondQuote == -1 {
+		return nil
+	}
+	label := message[firstQuote+1 : firstQuote+1+secondQuote]
 
 	var v Envelope
-	switch {
-	case bytes.Contains(label, labelEvent):
+	switch label {
+	case "EVENT":
 		v = &EventEnvelope{}
-	case bytes.Contains(label, labelReq):
+	case "REQ":
 		v = &ReqEnvelope{}
-	case bytes.Contains(label, labelCount):
+	case "COUNT":
 		v = &CountEnvelope{}
-	case bytes.Contains(label, labelNotice):
+	case "NOTICE":
 		x := NoticeEnvelope("")
 		v = &x
-	case bytes.Contains(label, labelEose):
+	case "EOSE":
 		x := EOSEEnvelope("")
 		v = &x
-	case bytes.Contains(label, labelOk):
+	case "OK":
 		v = &OKEnvelope{}
-	case bytes.Contains(label, labelAuth):
+	case "AUTH":
 		v = &AuthEnvelope{}
-	case bytes.Contains(label, labelClosed):
+	case "CLOSED":
 		v = &ClosedEnvelope{}
-	case bytes.Contains(label, labelClose):
+	case "CLOSE":
 		x := CloseEnvelope("")
 		v = &x
 	default:
 		return nil
 	}
 
-	if err := v.UnmarshalJSON(message); err != nil {
+	if err := v.FromJSON(message); err != nil {
 		return nil
 	}
+
 	return v
 }
 
 // Envelope is the interface for all nostr message envelopes.
 type Envelope interface {
 	Label() string
-	UnmarshalJSON([]byte) error
+	FromJSON(string) error
 	MarshalJSON() ([]byte, error)
 	String() string
 }
@@ -99,15 +93,15 @@ type EventEnvelope struct {
 
 func (_ EventEnvelope) Label() string { return "EVENT" }
 
-func (v *EventEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *EventEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	switch len(arr) {
 	case 2:
-		return easyjson.Unmarshal([]byte(arr[1].Raw), &v.Event)
+		return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[1].Raw), len(arr[1].Raw)), &v.Event)
 	case 3:
 		v.SubscriptionID = &arr[1].Str
-		return easyjson.Unmarshal([]byte(arr[2].Raw), &v.Event)
+		return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &v.Event)
 	default:
 		return fmt.Errorf("failed to decode EVENT envelope")
 	}
@@ -134,8 +128,8 @@ type ReqEnvelope struct {
 
 func (_ ReqEnvelope) Label() string { return "REQ" }
 
-func (v *ReqEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *ReqEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 3 {
 		return fmt.Errorf("failed to decode REQ envelope: missing filters")
@@ -144,7 +138,7 @@ func (v *ReqEnvelope) UnmarshalJSON(data []byte) error {
 	v.Filters = make(Filters, len(arr)-2)
 	f := 0
 	for i := 2; i < len(arr); i++ {
-		if err := easyjson.Unmarshal([]byte(arr[i].Raw), &v.Filters[f]); err != nil {
+		if err := easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[i].Raw), len(arr[i].Raw)), &v.Filters[f]); err != nil {
 			return fmt.Errorf("%w -- on filter %d", err, f)
 		}
 		f++
@@ -180,8 +174,8 @@ func (c CountEnvelope) String() string {
 	return string(v)
 }
 
-func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *CountEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 3 {
 		return fmt.Errorf("failed to decode COUNT envelope: missing filters")
@@ -192,7 +186,7 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 		Count *int64 `json:"count"`
 		HLL   string `json:"hll"`
 	}
-	if err := json.Unmarshal([]byte(arr[2].Raw), &countResult); err == nil && countResult.Count != nil {
+	if err := json.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &countResult); err == nil && countResult.Count != nil {
 		v.Count = countResult.Count
 		if len(countResult.HLL) == 512 {
 			v.HyperLogLog, err = hex.DecodeString(countResult.HLL)
@@ -205,7 +199,7 @@ func (v *CountEnvelope) UnmarshalJSON(data []byte) error {
 
 	f := 0
 	for i := 2; i < len(arr); i++ {
-		item := []byte(arr[i].Raw)
+		item := unsafe.Slice(unsafe.StringData(arr[i].Raw), len(arr[i].Raw))
 
 		if err := easyjson.Unmarshal(item, &v.Filter); err != nil {
 			return fmt.Errorf("%w -- on filter %d", err, f)
@@ -249,8 +243,8 @@ func (n NoticeEnvelope) String() string {
 	return string(v)
 }
 
-func (v *NoticeEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *NoticeEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode NOTICE envelope")
@@ -276,8 +270,8 @@ func (e EOSEEnvelope) String() string {
 	return string(v)
 }
 
-func (v *EOSEEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *EOSEEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode EOSE envelope")
@@ -303,8 +297,8 @@ func (c CloseEnvelope) String() string {
 	return string(v)
 }
 
-func (v *CloseEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *CloseEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	switch len(arr) {
 	case 2:
@@ -335,8 +329,8 @@ func (c ClosedEnvelope) String() string {
 	return string(v)
 }
 
-func (v *ClosedEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *ClosedEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	switch len(arr) {
 	case 3:
@@ -370,8 +364,8 @@ func (o OKEnvelope) String() string {
 	return string(v)
 }
 
-func (v *OKEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *OKEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 4 {
 		return fmt.Errorf("failed to decode OK envelope: missing fields")
@@ -411,14 +405,14 @@ func (a AuthEnvelope) String() string {
 	return string(v)
 }
 
-func (v *AuthEnvelope) UnmarshalJSON(data []byte) error {
-	r := gjson.ParseBytes(data)
+func (v *AuthEnvelope) FromJSON(data string) error {
+	r := gjson.Parse(data)
 	arr := r.Array()
 	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode Auth envelope: missing fields")
 	}
 	if arr[1].IsObject() {
-		return easyjson.Unmarshal([]byte(arr[1].Raw), &v.Event)
+		return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[1].Raw), len(arr[1].Raw)), &v.Event)
 	} else {
 		v.Challenge = &arr[1].Str
 	}

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/puzpuzpuz/xsync/v3"
 )
@@ -35,7 +36,7 @@ type Relay struct {
 
 	challenge                     string       // NIP-42 challenge, we only keep the last
 	noticeHandler                 func(string) // NIP-01 NOTICEs
-	customHandler                 func([]byte) // nonstandard unparseable messages
+	customHandler                 func(string) // nonstandard unparseable messages
 	okCallbacks                   *xsync.MapOf[string, func(bool, string)]
 	writeQueue                    chan writeRequest
 	subscriptionChannelCloseQueue chan *Subscription
@@ -104,7 +105,7 @@ func (nh WithNoticeHandler) ApplyRelayOption(r *Relay) {
 
 // WithCustomHandler must be a function that handles any relay message that couldn't be
 // parsed as a standard envelope.
-type WithCustomHandler func(data []byte)
+type WithCustomHandler func(data string)
 
 func (ch WithCustomHandler) ApplyRelayOption(r *Relay) {
 	r.customHandler = ch
@@ -212,6 +213,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 	// general message reader loop
 	go func() {
 		buf := new(bytes.Buffer)
+		mp := NewMessageParser()
 
 		for {
 			buf.Reset()
@@ -222,7 +224,8 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				break
 			}
 
-			message := buf.Bytes()
+			msgb := buf.Bytes()
+			message := unsafe.String(unsafe.SliceData(msgb), len(msgb))
 			debugLogf("{%s} received %v\n", r.URL, message)
 
 			// if this is an "EVENT" we will have this preparser logic that should speed things up a little
@@ -235,9 +238,9 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				}
 			}
 
-			envelope := ParseMessage(message)
+			envelope, err := mp.ParseMessage(message)
 			if envelope == nil {
-				if r.customHandler != nil {
+				if r.customHandler != nil && err == UnknownLabel {
 					r.customHandler(message)
 				}
 				continue
@@ -258,13 +261,13 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				r.challenge = *env.Challenge
 			case *EventEnvelope:
 				// we already have the subscription from the pre-check above, so we can just reuse it
-				if subscription == nil {
+				if sub == nil {
 					// InfoLogger.Printf("{%s} no subscription with id '%s'\n", r.URL, *env.SubscriptionID)
 					continue
 				} else {
 					// check if the event matches the desired filter, ignore otherwise
-					if !subscription.match(&env.Event) {
-						InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, subscription.Filters, env.Event)
+					if !sub.match(&env.Event) {
+						InfoLogger.Printf("{%s} filter does not match: %v ~ %v\n", r.URL, sub.Filters, env.Event)
 						continue
 					}
 
@@ -277,7 +280,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 					}
 
 					// dispatch this to the internal .events channel of the subscription
-					subscription.dispatchEvent(&env.Event)
+					sub.dispatchEvent(&env.Event)
 				}
 			case *EOSEEnvelope:
 				if subscription, ok := r.Subscriptions.Load(subIdToSerial(string(*env))); ok {
