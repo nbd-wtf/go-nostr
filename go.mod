@@ -4,19 +4,19 @@ go 1.23.1
 
 require (
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3
-	github.com/PowerDNS/lmdb-go v1.9.2
+	github.com/PowerDNS/lmdb-go v1.9.3
 	github.com/bluekeyes/go-gitdiff v0.7.1
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/bytedance/sonic v1.13.1
 	github.com/cloudwego/base64x v0.1.5
 	github.com/coder/websocket v1.8.12
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/dgraph-io/badger/v4 v4.5.0
 	github.com/dgraph-io/ristretto v1.0.0
 	github.com/elnosh/gonuts v0.3.1-0.20250123162555-7c0381a585e3
-	github.com/fiatjaf/eventstore v0.15.0
-	github.com/fiatjaf/khatru v0.16.0
+	github.com/fiatjaf/eventstore v0.16.2
+	github.com/fiatjaf/khatru v0.17.3-0.20250312035319-596bca93c3ff
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
 	github.com/graph-gophers/dataloader/v7 v7.1.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -25,17 +25,17 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/ncruces/go-sqlite3 v0.18.3
-	github.com/puzpuzpuz/xsync/v3 v3.5.0
+	github.com/puzpuzpuz/xsync/v3 v3.5.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tursodatabase/go-libsql v0.0.0-20240916111504-922dfa87e1e6
 	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/tyler-smith/go-bip39 v1.1.0
-	github.com/valyala/fasthttp v1.58.0
-	golang.org/x/crypto v0.32.0
-	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
-	golang.org/x/net v0.34.0
-	golang.org/x/text v0.21.0
+	github.com/valyala/fasthttp v1.59.0
+	golang.org/x/crypto v0.36.0
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
+	golang.org/x/net v0.37.0
+	golang.org/x/text v0.23.0
 	modernc.org/sqlite v1.33.1
 )
 
