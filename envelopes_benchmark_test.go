@@ -17,7 +17,7 @@ func BenchmarkParseMessage(b *testing.B) {
 			messages := generateTestMessages(name)
 
 			b.Run("jsonstdlib", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					for _, msg := range messages {
 						var v any
 						stdlibjson.Unmarshal(unsafe.Slice(unsafe.StringData(msg), len(msg)), &v)
@@ -26,7 +26,7 @@ func BenchmarkParseMessage(b *testing.B) {
 			})
 
 			b.Run("easyjson", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					for _, msg := range messages {
 						_ = ParseMessage(msg)
 					}
@@ -35,7 +35,7 @@ func BenchmarkParseMessage(b *testing.B) {
 
 			b.Run("sonic", func(b *testing.B) {
 				smp := NewSonicMessageParser()
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					for _, msg := range messages {
 						_, _ = smp.ParseMessage(msg)
 					}

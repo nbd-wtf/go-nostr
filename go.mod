@@ -1,6 +1,6 @@
 module github.com/nbd-wtf/go-nostr
 
-go 1.23.1
+go 1.24.1
 
 require (
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3
