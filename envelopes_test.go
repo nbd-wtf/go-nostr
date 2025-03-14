@@ -106,6 +106,16 @@ func TestParseMessage(t *testing.T) {
 			Message:          `["CLOSE","subscription123"]`,
 			ExpectedEnvelope: ptr(CloseEnvelope("subscription123")),
 		},
+		{
+			Name:             "AUTH envelope from nak 23gmt bug",
+			Message:          `["AUTH","c45b2b06ad92e28a"]`,
+			ExpectedEnvelope: &AuthEnvelope{Challenge: ptr("c45b2b06ad92e28a")},
+		},
+		{
+			Name:             "REQ from jumble",
+			Message:          `["REQ","sub:1",{"kinds":[1,6],"limit":100}]`,
+			ExpectedEnvelope: &ReqEnvelope{SubscriptionID: "sub:1", Filters: Filters{{Kinds: []int{1, 6}, Limit: 100}}},
+		},
 	}
 
 	t.Run("standard", func(t *testing.T) {

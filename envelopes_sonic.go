@@ -447,10 +447,13 @@ func (sv *sonicVisitor) OnInt64(v int64, _ stdlibjson.Number) error {
 	case inLimit:
 		sv.currentFilter.Limit = int(v)
 		sv.currentFilter.LimitZero = v == 0
+		sv.whereWeAre = inFilterObject
 	case inSince:
 		sv.currentFilter.Since = (*Timestamp)(&v)
+		sv.whereWeAre = inFilterObject
 	case inUntil:
 		sv.currentFilter.Until = (*Timestamp)(&v)
+		sv.whereWeAre = inFilterObject
 	case inKinds:
 		sv.currentFilter.Kinds = append(sv.currentFilter.Kinds, int(v))
 
