@@ -100,7 +100,8 @@ func (v *EventEnvelope) FromJSON(data string) error {
 	case 2:
 		return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[1].Raw), len(arr[1].Raw)), &v.Event)
 	case 3:
-		v.SubscriptionID = &arr[1].Str
+		subid := string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
+		v.SubscriptionID = &subid
 		return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[2].Raw), len(arr[2].Raw)), &v.Event)
 	default:
 		return fmt.Errorf("failed to decode EVENT envelope")
@@ -134,7 +135,7 @@ func (v *ReqEnvelope) FromJSON(data string) error {
 	if len(arr) < 3 {
 		return fmt.Errorf("failed to decode REQ envelope: missing filters")
 	}
-	v.SubscriptionID = arr[1].Str
+	v.SubscriptionID = string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
 	v.Filters = make(Filters, len(arr)-2)
 	f := 0
 	for i := 2; i < len(arr); i++ {
@@ -180,7 +181,7 @@ func (v *CountEnvelope) FromJSON(data string) error {
 	if len(arr) < 3 {
 		return fmt.Errorf("failed to decode COUNT envelope: missing filters")
 	}
-	v.SubscriptionID = arr[1].Str
+	v.SubscriptionID = string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
 
 	var countResult struct {
 		Count *int64 `json:"count"`
@@ -249,7 +250,7 @@ func (v *NoticeEnvelope) FromJSON(data string) error {
 	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode NOTICE envelope")
 	}
-	*v = NoticeEnvelope(arr[1].Str)
+	*v = NoticeEnvelope(string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str))))
 	return nil
 }
 
@@ -276,7 +277,7 @@ func (v *EOSEEnvelope) FromJSON(data string) error {
 	if len(arr) < 2 {
 		return fmt.Errorf("failed to decode EOSE envelope")
 	}
-	*v = EOSEEnvelope(arr[1].Str)
+	*v = EOSEEnvelope(string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str))))
 	return nil
 }
 
@@ -302,7 +303,7 @@ func (v *CloseEnvelope) FromJSON(data string) error {
 	arr := r.Array()
 	switch len(arr) {
 	case 2:
-		*v = CloseEnvelope(arr[1].Str)
+		*v = CloseEnvelope(string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str))))
 		return nil
 	default:
 		return fmt.Errorf("failed to decode CLOSE envelope")
@@ -334,7 +335,10 @@ func (v *ClosedEnvelope) FromJSON(data string) error {
 	arr := r.Array()
 	switch len(arr) {
 	case 3:
-		*v = ClosedEnvelope{arr[1].Str, arr[2].Str}
+		*v = ClosedEnvelope{
+			string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str))),
+			string(unsafe.Slice(unsafe.StringData(arr[2].Str), len(arr[2].Str))),
+		}
 		return nil
 	default:
 		return fmt.Errorf("failed to decode CLOSED envelope")
@@ -370,9 +374,9 @@ func (v *OKEnvelope) FromJSON(data string) error {
 	if len(arr) < 4 {
 		return fmt.Errorf("failed to decode OK envelope: missing fields")
 	}
-	v.EventID = arr[1].Str
+	v.EventID = string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
 	v.OK = arr[2].Raw == "true"
-	v.Reason = arr[3].Str
+	v.Reason = string(unsafe.Slice(unsafe.StringData(arr[3].Str), len(arr[3].Str)))
 
 	return nil
 }
@@ -414,7 +418,8 @@ func (v *AuthEnvelope) FromJSON(data string) error {
 	if arr[1].IsObject() {
 		return easyjson.Unmarshal(unsafe.Slice(unsafe.StringData(arr[1].Raw), len(arr[1].Raw)), &v.Event)
 	} else {
-		v.Challenge = &arr[1].Str
+		challenge := string(unsafe.Slice(unsafe.StringData(arr[1].Str), len(arr[1].Str)))
+		v.Challenge = &challenge
 	}
 	return nil
 }
