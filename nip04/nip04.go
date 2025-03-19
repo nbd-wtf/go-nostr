@@ -5,12 +5,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/cloudwego/base64x"
 )
 
 // ComputeSharedSecret returns a shared secret key used to encrypt messages.
@@ -70,7 +70,7 @@ func Encrypt(message string, key []byte) (string, error) {
 	ciphertext := make([]byte, len(paddedMsgBytes))
 	mode.CryptBlocks(ciphertext, paddedMsgBytes)
 
-	return base64x.StdEncoding.EncodeToString(ciphertext) + "?iv=" + base64x.StdEncoding.EncodeToString(iv), nil
+	return base64.StdEncoding.EncodeToString(ciphertext) + "?iv=" + base64.StdEncoding.EncodeToString(iv), nil
 }
 
 // Decrypt decrypts a content string using the shared secret key.
@@ -81,12 +81,12 @@ func Decrypt(content string, key []byte) (string, error) {
 		return "", fmt.Errorf("error parsing encrypted message: no initialization vector")
 	}
 
-	ciphertext, err := base64x.StdEncoding.DecodeString(parts[0])
+	ciphertext, err := base64.StdEncoding.DecodeString(parts[0])
 	if err != nil {
 		return "", fmt.Errorf("error decoding ciphertext from base64: %w", err)
 	}
 
-	iv, err := base64x.StdEncoding.DecodeString(parts[1])
+	iv, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
 		return "", fmt.Errorf("error decoding iv from base64: %w", err)
 	}

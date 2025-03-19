@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"math"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/cloudwego/base64x"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/hkdf"
@@ -90,7 +90,7 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 	copy(concat[1+32:], ciphertext)
 	copy(concat[1+32+len(ciphertext):], mac)
 
-	return base64x.StdEncoding.EncodeToString(concat), nil
+	return base64.StdEncoding.EncodeToString(concat), nil
 }
 
 func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, error) {
@@ -102,7 +102,7 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 		return "", fmt.Errorf("unknown version")
 	}
 
-	decoded, err := base64x.StdEncoding.DecodeString(b64ciphertextWrapped)
+	decoded, err := base64.StdEncoding.DecodeString(b64ciphertextWrapped)
 	if err != nil {
 		return "", fmt.Errorf("invalid base64")
 	}
