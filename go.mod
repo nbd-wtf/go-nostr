@@ -15,9 +15,8 @@ require (
 	github.com/dgraph-io/ristretto v1.0.0
 	github.com/elnosh/gonuts v0.3.1-0.20250123162555-7c0381a585e3
 	github.com/fiatjaf/eventstore v0.16.2
-	github.com/fiatjaf/khatru v0.17.3-0.20250312035319-596bca93c3ff
+	github.com/fiatjaf/khatru v0.17.4
 	github.com/gomarkdown/markdown v0.0.0-20241205020045-f7e15b2f3e62
-	github.com/graph-gophers/dataloader/v7 v7.1.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mailru/easyjson v0.9.0

@@ -3,19 +3,14 @@ package sdk
 import (
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/graph-gophers/dataloader/v7"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/sdk/dataloader"
 )
-
-// this is used as a hack to signal that these replaceable loader queries shouldn't use the full
-// context timespan when they're being made from inside determineRelaysToQuery
-var contextForSub10002Query = context.WithValue(context.Background(), "", "")
 
 type replaceableIndex int
 
@@ -54,37 +49,21 @@ func (sys *System) initializeReplaceableDataloaders() {
 
 func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[string, *nostr.Event] {
 	return dataloader.NewBatchedLoader(
-		func(ctx context.Context, pubkeys []string) []*dataloader.Result[*nostr.Event] {
-			var cancel context.CancelFunc
-
-			if ctx == contextForSub10002Query {
-				ctx, cancel = context.WithTimeoutCause(context.Background(), time.Millisecond*2300,
-					errors.New("fetching relays in subloader took too long"),
-				)
-			} else {
-				ctx, cancel = context.WithTimeoutCause(context.Background(), time.Second*6,
-					errors.New("batch replaceable load took too long"),
-				)
-				defer cancel()
-			}
-
-			return sys.batchLoadReplaceableEvents(ctx, kind, pubkeys)
+		func(ctxs []context.Context, pubkeys []string) map[string]dataloader.Result[*nostr.Event] {
+			return sys.batchLoadReplaceableEvents(ctxs, kind, pubkeys)
 		},
 		dataloader.WithBatchCapacity[string, *nostr.Event](30),
-		dataloader.WithClearCacheOnBatch[string, *nostr.Event](),
-		dataloader.WithCache(&dataloader.NoCache[string, *nostr.Event]{}),
 		dataloader.WithWait[string, *nostr.Event](time.Millisecond*350),
 	)
 }
 
 func (sys *System) batchLoadReplaceableEvents(
-	ctx context.Context,
+	ctxs []context.Context,
 	kind int,
 	pubkeys []string,
-) []*dataloader.Result[*nostr.Event] {
+) map[string]dataloader.Result[*nostr.Event] {
 	batchSize := len(pubkeys)
-	results := make([]*dataloader.Result[*nostr.Event], batchSize)
-	keyPositions := make(map[string]int) // { [pubkey]: slice_index }
+	results := make(map[string]dataloader.Result[*nostr.Event], batchSize)
 	relayFilter := make([]nostr.DirectedFilter, 0, max(3, batchSize*2))
 	relayFilterIndex := make(map[string]int, max(3, batchSize*2))
 
@@ -92,36 +71,16 @@ func (sys *System) batchLoadReplaceableEvents(
 	wg.Add(len(pubkeys))
 	cm := sync.Mutex{}
 
+	aggregatedContext, aggregatedCancel := context.WithCancel(context.Background())
+	waiting := len(pubkeys)
+
 	for i, pubkey := range pubkeys {
+		ctx := ctxs[i]
+
 		// build batched queries for the external relays
-		keyPositions[pubkey] = i // this is to help us know where to save the result later
-
 		go func(i int, pubkey string) {
-			defer wg.Done()
-
-			// if we're attempting this query with a short key (last 8 characters), stop here
-			if len(pubkey) != 64 {
-				results[i] = &dataloader.Result[*nostr.Event]{
-					Error: fmt.Errorf("won't proceed to query relays with a shortened key (%d)", kind),
-				}
-				return
-			}
-
-			// save attempts here so we don't try the same failed query over and over
-			if doItNow := doThisNotMoreThanOnceAnHour("repl:" + strconv.Itoa(kind) + pubkey); !doItNow {
-				results[i] = &dataloader.Result[*nostr.Event]{
-					Error: fmt.Errorf("last attempt failed, waiting more to try again"),
-				}
-				return
-			}
-
 			// gather relays we'll use for this pubkey
-			relays := sys.determineRelaysToQuery(pubkey, kind)
-
-			// by default we will return an error (this will be overwritten when we find an event)
-			results[i] = &dataloader.Result[*nostr.Event]{
-				Error: fmt.Errorf("couldn't find a kind %d event anywhere %v", kind, relays),
-			}
+			relays := sys.determineRelaysToQuery(ctx, pubkey, kind)
 
 			cm.Lock()
 			for _, relay := range relays {
@@ -146,12 +105,21 @@ func (sys *System) batchLoadReplaceableEvents(
 				relayFilter[idx] = dfilter
 			}
 			cm.Unlock()
+			wg.Done()
+
+			<-ctx.Done()
+			waiting--
+			if waiting == 0 {
+				aggregatedCancel()
+			}
 		}(i, pubkey)
 	}
 
 	// query all relays with the prepared filters
 	wg.Wait()
-	multiSubs := sys.Pool.BatchedSubManyEose(ctx, relayFilter, nostr.WithLabel("repl~"+strconv.Itoa(kind)))
+	multiSubs := sys.Pool.BatchedSubManyEose(aggregatedContext, relayFilter,
+		nostr.WithLabel("repl~"+strconv.Itoa(kind)),
+	)
 	for {
 		select {
 		case ie, more := <-multiSubs:
@@ -160,33 +128,35 @@ func (sys *System) batchLoadReplaceableEvents(
 			}
 
 			// insert this event at the desired position
-			pos := keyPositions[ie.PubKey] // @unchecked: it must succeed because it must be a key we passed
-			if results[pos].Data == nil || results[pos].Data.CreatedAt < ie.CreatedAt {
-				results[pos] = &dataloader.Result[*nostr.Event]{Data: ie.Event}
+			if results[ie.PubKey].Data == nil || results[ie.PubKey].Data.CreatedAt < ie.CreatedAt {
+				results[ie.PubKey] = dataloader.Result[*nostr.Event]{Data: ie.Event}
 			}
-		case <-ctx.Done():
+		case <-aggregatedContext.Done():
 			return results
 		}
 	}
 }
 
-func (sys *System) determineRelaysToQuery(pubkey string, kind int) []string {
+func (sys *System) determineRelaysToQuery(ctx context.Context, pubkey string, kind int) []string {
 	var relays []string
 
 	// search in specific relays for user
 	if kind == 10002 {
 		// prevent infinite loops by jumping directly to this
 		relays = sys.Hints.TopN(pubkey, 3)
-		if len(relays) == 0 {
-			relays = []string{"wss://relay.damus.io", "wss://nos.lol"}
-		}
 	} else {
+		ctx, cancel := context.WithTimeoutCause(ctx, time.Millisecond*2300,
+			errors.New("fetching relays in subloader took too long"),
+		)
+
 		if kind == 0 || kind == 3 {
 			// leave room for two hardcoded relays because people are stupid
-			relays = sys.FetchOutboxRelays(contextForSub10002Query, pubkey, 1)
+			relays = sys.FetchOutboxRelays(ctx, pubkey, 1)
 		} else {
-			relays = sys.FetchOutboxRelays(contextForSub10002Query, pubkey, 3)
+			relays = sys.FetchOutboxRelays(ctx, pubkey, 3)
 		}
+
+		cancel()
 	}
 
 	// use a different set of extra relays depending on the kind

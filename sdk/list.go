@@ -74,7 +74,7 @@ func fetchGenericList[I TagItemWithValue](
 				v = *newV
 			}
 
-			// even if we didn't find anything register this because we tried
+			// register this even if we didn't find anything because we tried
 			// (and we still have the previous event in our local store)
 			sys.KVStore.Set(lastFetchKey, encodeTimestamp(nostr.Now()))
 		}
@@ -108,8 +108,7 @@ func tryFetchListFromNetwork[I TagItemWithValue](
 	replaceableIndex replaceableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 ) *GenericList[I] {
-	thunk := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
-	evt, err := thunk()
+	evt, err := sys.replaceableLoaders[replaceableIndex].Load(ctx, pubkey)
 	if err != nil {
 		return nil
 	}

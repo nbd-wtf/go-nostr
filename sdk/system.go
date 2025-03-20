@@ -6,10 +6,10 @@ import (
 
 	"github.com/fiatjaf/eventstore"
 	"github.com/fiatjaf/eventstore/nullstore"
-	"github.com/graph-gophers/dataloader/v7"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/sdk/cache"
 	cache_memory "github.com/nbd-wtf/go-nostr/sdk/cache/memory"
+	"github.com/nbd-wtf/go-nostr/sdk/dataloader"
 	"github.com/nbd-wtf/go-nostr/sdk/hints"
 	"github.com/nbd-wtf/go-nostr/sdk/hints/memoryh"
 	"github.com/nbd-wtf/go-nostr/sdk/kvstore"

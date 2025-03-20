@@ -3,14 +3,7 @@ package sdk
 import (
 	"math"
 	"strings"
-	"sync"
 	"testing"
-	"time"
-)
-
-var (
-	_dtnmtoah     map[string]time.Time = make(map[string]time.Time)
-	_dtnmtoahLock sync.Mutex
 )
 
 // IsVirtualRelay returns true if the given normalized relay URL shouldn't be considered for outbox-model calculations.

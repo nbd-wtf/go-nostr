@@ -98,8 +98,8 @@ github.com/fasthttp/websocket v1.5.12 h1:e4RGPpWW2HTbL3zV0Y/t7g0ub294LkiuXXUuTOU
 github.com/fasthttp/websocket v1.5.12/go.mod h1:I+liyL7/4moHojiOgUOIKEWm9EIxHqxZChS+aMFltyg=
 github.com/fiatjaf/eventstore v0.16.2 h1:h4rHwSwPcqAKqWUsAbYWUhDeSgm2Kp+PBkJc3FgBYu4=
 github.com/fiatjaf/eventstore v0.16.2/go.mod h1:0gU8fzYO/bG+NQAVlHtJWOlt3JKKFefh5Xjj2d1dLIs=
-github.com/fiatjaf/khatru v0.17.3-0.20250312035319-596bca93c3ff h1:b6LYwWlc8zAW6aoZpXYC3Gx/zkP4XW5amDx0VwyeREs=
-github.com/fiatjaf/khatru v0.17.3-0.20250312035319-596bca93c3ff/go.mod h1:dAaXV6QZwuMVYlXQigp/0Uyl/m1nKOhtRssjQYsgMu0=
+github.com/fiatjaf/khatru v0.17.4 h1:VzcLUyBKMlP/CAG4iHJbDJmnZgzhbGLKLxJAUuLRogg=
+github.com/fiatjaf/khatru v0.17.4/go.mod h1:VYQ7ZNhs3C1+E4gBnx+DtEgU0BrPdrl3XYF3H+mq6fg=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/fxamacker/cbor/v2 v2.7.0 h1:iM5WgngdRBanHcxugY4JySA0nk1wZorNOpTgCMedv5E=
@@ -143,8 +143,6 @@ github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/gorilla/css v1.0.1 h1:ntNaBIghp6JmvWnxbZKANoLyuXTPZ4cAMlo6RyhlbO8=
 github.com/gorilla/css v1.0.1/go.mod h1:BvnYkspnSzMmwRK+b8/xgNPLiIuNZr6vbZBTPQ2A3b0=
 github.com/gorilla/websocket v1.5.0/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/graph-gophers/dataloader/v7 v7.1.0 h1:Wn8HGF/q7MNXcvfaBnLEPEFJttVHR8zuEqP1obys/oc=
-github.com/graph-gophers/dataloader/v7 v7.1.0/go.mod h1:1bKE0Dm6OUcTB/OAuYVOZctgIz7Q3d0XrYtlIzTgg6Q=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=

@@ -97,8 +97,7 @@ func tryFetchSetsFromNetwork[I TagItemWithValue](
 	addressableIndex addressableIndex,
 	parseTag func(nostr.Tag) (I, bool),
 ) *GenericSets[I] {
-	thunk := sys.addressableLoaders[addressableIndex].Load(ctx, pubkey)
-	events, err := thunk()
+	events, err := sys.addressableLoaders[addressableIndex].Load(ctx, pubkey)
 	if err != nil {
 		return nil
 	}

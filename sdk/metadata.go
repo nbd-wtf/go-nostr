@@ -154,8 +154,7 @@ func (sys *System) FetchProfileMetadata(ctx context.Context, pubkey string) (pm 
 }
 
 func (sys *System) tryFetchMetadataFromNetwork(ctx context.Context, pubkey string) *ProfileMetadata {
-	thunk0 := sys.replaceableLoaders[kind_0].Load(ctx, pubkey)
-	evt, err := thunk0()
+	evt, err := sys.replaceableLoaders[kind_0].Load(ctx, pubkey)
 	if err != nil {
 		return nil
 	}
