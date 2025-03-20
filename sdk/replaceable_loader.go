@@ -52,8 +52,10 @@ func (sys *System) createReplaceableDataloader(kind int) *dataloader.Loader[stri
 		func(ctxs []context.Context, pubkeys []string) map[string]dataloader.Result[*nostr.Event] {
 			return sys.batchLoadReplaceableEvents(ctxs, kind, pubkeys)
 		},
-		dataloader.WithBatchCapacity[string, *nostr.Event](30),
-		dataloader.WithWait[string, *nostr.Event](time.Millisecond*350),
+		dataloader.Options{
+			Wait:         time.Millisecond * 110,
+			MaxThreshold: 30,
+		},
 	)
 }
 
@@ -75,7 +77,8 @@ func (sys *System) batchLoadReplaceableEvents(
 	waiting := len(pubkeys)
 
 	for i, pubkey := range pubkeys {
-		ctx := ctxs[i]
+		ctx, cancel := context.WithCancel(ctxs[i])
+		defer cancel()
 
 		// build batched queries for the external relays
 		go func(i int, pubkey string) {
