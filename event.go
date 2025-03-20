@@ -8,6 +8,8 @@ import (
 	"github.com/mailru/easyjson"
 )
 
+const hextable = "0123456789abcdef"
+
 // Event represents a Nostr event.
 type Event struct {
 	ID        string
@@ -24,7 +26,7 @@ func (evt Event) String() string {
 	return string(j)
 }
 
-// GetID computes the event ID abd returns it as a hex string.
+// GetID computes the event ID and returns it as a hex string.
 func (evt *Event) GetID() string {
 	h := sha256.Sum256(evt.Serialize())
 	return hex.EncodeToString(h[:])
@@ -32,10 +34,12 @@ func (evt *Event) GetID() string {
 
 // CheckID checks if the implied ID matches the given ID more efficiently.
 func (evt *Event) CheckID() bool {
+	if len(evt.ID) != 64 {
+		return false
+	}
+
 	ser := evt.Serialize()
 	h := sha256.Sum256(ser)
-
-	const hextable = "0123456789abcdef"
 
 	for i := 0; i < 32; i++ {
 		b := hextable[h[i]>>4]
