@@ -87,6 +87,9 @@ func TestIDCheck(t *testing.T) {
 			Content:   fmt.Sprintf("hello %d", i),
 			Tags:      Tags{},
 		}
+
+		require.False(t, evt.CheckID())
+
 		evt.Sign(GeneratePrivateKey())
 		require.True(t, evt.CheckID())
 
