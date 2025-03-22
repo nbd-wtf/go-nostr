@@ -17,6 +17,7 @@ type Reference struct {
 
 var mentionRegex = regexp.MustCompile(`\bnostr:((note|npub|naddr|nevent|nprofile)1\w+)\b`)
 
+// Deprecated: this is useless, use Parse() isntead (but the semantics is different)
 func ParseReferences(evt nostr.Event) iter.Seq[Reference] {
 	return func(yield func(Reference) bool) {
 		for _, ref := range mentionRegex.FindAllStringSubmatchIndex(evt.Content, -1) {

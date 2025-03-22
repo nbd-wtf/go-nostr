@@ -1,6 +1,9 @@
 package nip22
 
-import "github.com/nbd-wtf/go-nostr"
+import (
+	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip73"
+)
 
 func GetThreadRoot(tags nostr.Tags) nostr.Pointer {
 	for _, tag := range tags {
@@ -15,7 +18,7 @@ func GetThreadRoot(tags nostr.Tags) nostr.Pointer {
 			ep, _ := nostr.EntityPointerFromTag(tag)
 			return ep
 		case "I":
-			ep, _ := nostr.ExternalPointerFromTag(tag)
+			ep, _ := nip73.ExternalPointerFromTag(tag)
 			return ep
 		}
 	}
@@ -35,7 +38,7 @@ func GetImmediateParent(tags nostr.Tags) nostr.Pointer {
 			ep, _ := nostr.EntityPointerFromTag(tag)
 			return ep
 		case "i":
-			ep, _ := nostr.ExternalPointerFromTag(tag)
+			ep, _ := nip73.ExternalPointerFromTag(tag)
 			return ep
 		}
 	}

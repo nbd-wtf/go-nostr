@@ -26,7 +26,6 @@ var (
 	_ Pointer = (*ProfilePointer)(nil)
 	_ Pointer = (*EventPointer)(nil)
 	_ Pointer = (*EntityPointer)(nil)
-	_ Pointer = (*ExternalPointer)(nil)
 )
 
 // ProfilePointer represents a pointer to a Nostr profile.
@@ -173,22 +172,4 @@ func (ep EntityPointer) AsTag() Tag {
 		return Tag{"a", ep.AsTagReference(), ep.Relays[0]}
 	}
 	return Tag{"a", ep.AsTagReference()}
-}
-
-// ExternalPointer represents a pointer to a Nostr profile.
-type ExternalPointer struct {
-	Thing string
-}
-
-// ExternalPointerFromTag creates a ExternalPointer from an "i" tag
-func ExternalPointerFromTag(refTag Tag) (ExternalPointer, error) {
-	return ExternalPointer{refTag[1]}, nil
-}
-
-func (ep ExternalPointer) MatchesEvent(_ Event) bool { return false }
-func (ep ExternalPointer) AsTagReference() string    { return ep.Thing }
-func (ep ExternalPointer) AsFilter() Filter          { return Filter{} }
-
-func (ep ExternalPointer) AsTag() Tag {
-	return Tag{"i", ep.Thing}
 }
