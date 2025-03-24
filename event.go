@@ -8,8 +8,6 @@ import (
 	"github.com/mailru/easyjson"
 )
 
-const hextable = "0123456789abcdef"
-
 // Event represents a Nostr event.
 type Event struct {
 	ID        string
@@ -38,8 +36,11 @@ func (evt *Event) CheckID() bool {
 		return false
 	}
 
-	ser := evt.Serialize()
+	ser := make([]byte, 0, 100+len(evt.Content)+len(evt.Tags)*80)
+	ser = serializeEventInto(evt, ser)
 	h := sha256.Sum256(ser)
+
+	const hextable = "0123456789abcdef"
 
 	for i := 0; i < 32; i++ {
 		b := hextable[h[i]>>4]
@@ -61,7 +62,10 @@ func (evt *Event) Serialize() []byte {
 	// the serialization process is just putting everything into a JSON array
 	// so the order is kept. See NIP-01
 	dst := make([]byte, 0, 100+len(evt.Content)+len(evt.Tags)*80)
+	return serializeEventInto(evt, dst)
+}
 
+func serializeEventInto(evt *Event, dst []byte) []byte {
 	// the header portion is easy to serialize
 	// [0,"pubkey",created_at,kind,[
 	dst = append(dst, "[0,\""...)
