@@ -87,6 +87,9 @@ func (l *Loader[K, V]) Load(ctx context.Context, key K) (value V, err error) {
 		// start a sleeper for the current batcher
 		l.thresholdReached = make(chan bool)
 
+		// unlock either here or on the else condition
+		l.batchLock.Unlock()
+
 		// we will run the batch function either after some time or after a threshold has been reached
 		b := l.curBatcher
 		go func() {
@@ -122,6 +125,8 @@ func (l *Loader[K, V]) Load(ctx context.Context, key K) (value V, err error) {
 				close(req.channel)
 			}
 		}()
+	} else {
+		l.batchLock.Unlock()
 	}
 
 	l.curBatcher.requests = append(l.curBatcher.requests, req)
@@ -135,8 +140,6 @@ func (l *Loader[K, V]) Load(ctx context.Context, key K) (value V, err error) {
 		l.reset()
 	}
 
-	l.batchLock.Unlock()
-
 	if v, ok := <-c; ok {
 		return v.Data, v.Error
 	}
@@ -145,6 +148,8 @@ func (l *Loader[K, V]) Load(ctx context.Context, key K) (value V, err error) {
 }
 
 func (l *Loader[K, V]) reset() {
+	l.batchLock.Lock()
+	defer l.batchLock.Unlock()
 	l.count = 0
 	l.curBatcher = nil
 }
