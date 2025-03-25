@@ -67,7 +67,7 @@ func (c *Client) DownloadToFile(ctx context.Context, hash string, filePath strin
 		return fmt.Errorf("%s is not present in %s: %d", hash, c.mediaserver, resp.StatusCode)
 	}
 
-	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s for %s: %w", filePath, hash, err)
 	}
