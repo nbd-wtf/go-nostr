@@ -93,11 +93,13 @@ func NewSystem(mods ...SystemModifier) *System {
 		FollowListRelays: NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
 		MetadataRelays:   NewRelayStream("wss://purplepag.es", "wss://user.kindpag.es", "wss://relay.nos.social"),
 		FallbackRelays: NewRelayStream(
+			"wss://offchain.pub",
+			"wss://no.str.cr",
 			"wss://relay.damus.io",
 			"wss://nostr.mom",
 			"wss://nos.lol",
-			"wss://mostr.pub",
-			"wss://relay.nostr.band",
+			"wss://relay.mostr.pub",
+			"wss://nostr.land",
 		),
 		JustIDRelays: NewRelayStream(
 			"wss://cache2.primal.net/v1",
