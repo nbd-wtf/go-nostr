@@ -743,8 +743,12 @@ func (pool *SimplePool) BatchedSubManyEose(
 						pool.duplicateMiddleware(relay, id)
 					}
 					return exists
-				}), seenAlready, opts...) {
-				res <- ie
+				}), seenAlready, opts...,
+			) {
+				select {
+				case res <- ie:
+				case <-ctx.Done():
+				}
 			}
 
 			wg.Done()

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -74,7 +75,8 @@ func (sys *System) batchLoadReplaceableEvents(
 	cm := sync.Mutex{}
 
 	aggregatedContext, aggregatedCancel := context.WithCancel(context.Background())
-	waiting := len(pubkeys)
+	waiting := atomic.Int32{}
+	waiting.Add(int32(len(pubkeys)))
 
 	for i, pubkey := range pubkeys {
 		ctx, cancel := context.WithCancel(ctxs[i])
@@ -111,8 +113,7 @@ func (sys *System) batchLoadReplaceableEvents(
 			wg.Done()
 
 			<-ctx.Done()
-			waiting--
-			if waiting == 0 {
+			if waiting.Add(-1) == 0 {
 				aggregatedCancel()
 			}
 		}(i, pubkey)
