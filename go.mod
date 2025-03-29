@@ -3,6 +3,7 @@ module github.com/nbd-wtf/go-nostr
 go 1.24.1
 
 require (
+	github.com/FastFilter/xorfilter v0.2.1
 	github.com/ImVexed/fasturl v0.0.0-20230304231329-4e41488060f3
 	github.com/PowerDNS/lmdb-go v1.9.3
 	github.com/bluekeyes/go-gitdiff v0.7.1
@@ -33,6 +34,7 @@ require (
 	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	golang.org/x/net v0.37.0
+	golang.org/x/sync v0.12.0
 	golang.org/x/text v0.23.0
 	modernc.org/sqlite v1.33.1
 )
