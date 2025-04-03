@@ -104,7 +104,7 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 
 	decoded, err := base64.StdEncoding.DecodeString(b64ciphertextWrapped)
 	if err != nil {
-		return "", fmt.Errorf("invalid base64")
+		return "", fmt.Errorf("invalid base64: %w", err)
 	}
 
 	if decoded[0] != version {

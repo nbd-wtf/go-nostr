@@ -142,11 +142,11 @@ func loadWallet(
 		for ie := range deletions {
 			w.Lock()
 			if !eosed {
-				for _, tag := range ie.Event.Tags.All([]string{"e", ""}) {
+				for tag := range ie.Event.Tags.FindAll("e") {
 					w.pendingDeletions = append(w.pendingDeletions, tag[1])
 				}
 			} else {
-				for _, tag := range ie.Event.Tags.All([]string{"e", ""}) {
+				for tag := range ie.Event.Tags.FindAll("e") {
 					w.removeDeletedToken(tag[1])
 				}
 			}

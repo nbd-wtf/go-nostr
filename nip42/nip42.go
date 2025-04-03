@@ -39,7 +39,7 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 		return "", false
 	}
 
-	if event.Tags.GetFirst([]string{"challenge", challenge}) == nil {
+	if event.Tags.FindWithValue("challenge", challenge) == nil {
 		return "", false
 	}
 
