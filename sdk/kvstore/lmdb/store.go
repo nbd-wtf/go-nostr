@@ -16,7 +16,7 @@ type Store struct {
 
 func NewStore(path string) (*Store, error) {
 	// create directory if it doesn't exist
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0o755); err != nil {
 		return nil, err
 	}
 
@@ -31,7 +31,7 @@ func NewStore(path string) (*Store, error) {
 	env.SetMapSize(1 << 30) // 1GB
 
 	// open the environment
-	if err := env.Open(path, lmdb.NoTLS|lmdb.WriteMap, 0644); err != nil {
+	if err := env.Open(path, lmdb.NoTLS|lmdb.WriteMap, 0o644); err != nil {
 		return nil, err
 	}
 

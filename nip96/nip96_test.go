@@ -21,8 +21,8 @@ func TestUpload(t *testing.T) {
 	ctx := context.Background()
 	resp, err := Upload(ctx, UploadRequest{
 		Host: "https://nostr.build/api/v2/nip96/upload",
-		//Host:        "https://nostrcheck.me/api/v2/media",
-		//Host:        "https://nostrage.com/api/v2/media",
+		// Host:        "https://nostrcheck.me/api/v2/media",
+		// Host:        "https://nostrage.com/api/v2/media",
 		SK:          nostr.GeneratePrivateKey(),
 		SignPayload: true,
 		File:        img,
