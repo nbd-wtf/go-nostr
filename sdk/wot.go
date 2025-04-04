@@ -149,13 +149,17 @@ func makeWoTFilter(m chan string) WotXorFilter {
 	}
 
 	xf, _ := xorfilter.Populate(shids)
-	return WotXorFilter{*xf}
+	return WotXorFilter{len(shids), *xf}
 }
 
 type WotXorFilter struct {
+	Items int
 	xorfilter.Xor8
 }
 
 func (wxf WotXorFilter) Contains(pubkey string) bool {
+	if wxf.Items == 0 {
+		return false
+	}
 	return wxf.Xor8.Contains(PubKeyToShid(pubkey))
 }
