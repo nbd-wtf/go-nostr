@@ -217,17 +217,46 @@ type PublishResult struct {
 func (pool *SimplePool) PublishMany(ctx context.Context, urls []string, evt Event) chan PublishResult {
 	ch := make(chan PublishResult, len(urls))
 
+	wg := sync.WaitGroup{}
+	wg.Add(len(urls))
 	go func() {
 		for _, url := range urls {
-			relay, err := pool.EnsureRelay(url)
-			if err != nil {
-				ch <- PublishResult{err, url, nil}
-			} else {
-				err = relay.Publish(ctx, evt)
-				ch <- PublishResult{err, url, relay}
-			}
+			go func() {
+				defer wg.Done()
+
+				relay, err := pool.EnsureRelay(url)
+				if err != nil {
+					ch <- PublishResult{err, url, nil}
+					return
+				}
+
+				if err := relay.Publish(ctx, evt); err == nil {
+					// success with no auth required
+					ch <- PublishResult{nil, url, relay}
+				} else if strings.HasPrefix(err.Error(), "msg: auth-required:") && pool.authHandler != nil {
+					// try to authenticate if we can
+					if authErr := relay.Auth(ctx, func(event *Event) error {
+						return pool.authHandler(ctx, RelayEvent{Event: event, Relay: relay})
+					}); authErr == nil {
+						if err := relay.Publish(ctx, evt); err == nil {
+							// success after auth
+							ch <- PublishResult{nil, url, relay}
+						} else {
+							// failure after auth
+							ch <- PublishResult{err, url, relay}
+						}
+					} else {
+						// failure to auth
+						ch <- PublishResult{fmt.Errorf("failed to auth: %w", authErr), url, relay}
+					}
+				} else {
+					// direct failure
+					ch <- PublishResult{err, url, relay}
+				}
+			}()
 		}
 
+		wg.Wait()
 		close(ch)
 	}()
 
