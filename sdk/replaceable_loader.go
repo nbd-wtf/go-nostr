@@ -132,7 +132,7 @@ func (sys *System) batchLoadReplaceableEvents(
 			}
 
 			// insert this event at the desired position
-			if results[ie.PubKey].Data == nil || results[ie.PubKey].Data.CreatedAt < ie.CreatedAt {
+			if val, ok := results[ie.PubKey]; !ok || val.Data == nil || val.Data.CreatedAt < ie.CreatedAt {
 				results[ie.PubKey] = dataloader.Result[*nostr.Event]{Data: ie.Event}
 			}
 		case <-aggregatedContext.Done():
