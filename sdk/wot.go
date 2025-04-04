@@ -114,6 +114,8 @@ func (sys *System) loadWoT(ctx context.Context, pubkey string) (chan string, err
 			wg.Add(1)
 
 			g.Go(func() error {
+				res <- f.Pubkey
+
 				ctx, cancel := context.WithTimeout(ctx, time.Second*7)
 				defer cancel()
 
