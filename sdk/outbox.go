@@ -69,10 +69,10 @@ func (sys *System) FetchInboxRelays(ctx context.Context, pubkey string, n int) [
 //
 // Use FetchWriteRelays when deciding where to publish on behalf of a user, but FetchOutboxRelays when deciding
 // from where to read notes authored by other users.
-func (sys *System) FetchWriteRelays(ctx context.Context, pubkey string, n int) []string {
+func (sys *System) FetchWriteRelays(ctx context.Context, pubkey string) []string {
 	rl := sys.FetchRelayList(ctx, pubkey)
 
-	relays := make([]string, 0, n)
+	relays := make([]string, 0, 7)
 	for _, r := range rl.Items {
 		if r.Outbox {
 			relays = append(relays, r.URL)
