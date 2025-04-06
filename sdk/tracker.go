@@ -18,6 +18,7 @@ func (sys *System) TrackQueryAttempts(relay string, author string, kind int) {
 	if kind == 0 || kind == 10002 || kind == 3 {
 		return
 	}
+
 	sys.Hints.Save(author, relay, hints.LastFetchAttempt, nostr.Now())
 }
 
@@ -105,7 +106,7 @@ func (sys *System) trackEventHints(ie nostr.RelayEvent) {
 			}
 		}
 
-		for ref := range nip27.ParseReferences(*ie.Event) {
+		for ref := range nip27.Parse(ie.Event.Content) {
 			switch pointer := ref.Pointer.(type) {
 			case nostr.ProfilePointer:
 				for _, relay := range pointer.Relays {
