@@ -108,6 +108,31 @@ func (db *HintDB) PrintScores() {
 	}
 }
 
+func (db *HintDB) GetDetailedScores(pubkey string, n int) []hints.RelayScores {
+	db.Lock()
+	defer db.Unlock()
+
+	result := make([]hints.RelayScores, 0, n)
+	if rfpk, ok := db.OrderedRelaysByPubKey[pubkey]; ok {
+		// sort everything from scratch
+		slices.SortFunc(rfpk.Entries, func(a, b RelayEntry) int {
+			return int(b.Sum() - a.Sum())
+		})
+
+		for i, re := range rfpk.Entries {
+			if i >= n {
+				break
+			}
+			result = append(result, hints.RelayScores{
+				Relay:  db.RelayBySerial[re.Relay],
+				Scores: re.Timestamps,
+				Sum:    re.Sum(),
+			})
+		}
+	}
+	return result
+}
+
 type RelaysForPubKey struct {
 	Entries []RelayEntry
 }

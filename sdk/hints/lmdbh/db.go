@@ -182,6 +182,62 @@ func (lh *LMDBHints) PrintScores() {
 	}
 }
 
+func (lh *LMDBHints) GetDetailedScores(pubkey string, n int) []hints.RelayScores {
+	type relayScore struct {
+		relay string
+		tss   timestamps
+		score int64
+	}
+
+	scores := make([]relayScore, 0, n)
+	err := lh.env.View(func(txn *lmdb.Txn) error {
+		txn.RawRead = true
+
+		cursor, err := txn.OpenCursor(lh.dbi)
+		if err != nil {
+			return err
+		}
+		defer cursor.Close()
+
+		prefix, _ := hex.DecodeString(pubkey)
+		k, v, err := cursor.Get(prefix, nil, lmdb.SetRange)
+		for ; err == nil; k, v, err = cursor.Get(nil, nil, lmdb.Next) {
+			// check if we're still in the prefix range
+			if len(k) < 32 || !bytes.Equal(k[:32], prefix) {
+				break
+			}
+
+			relay := string(k[32:])
+			tss := parseValue(v)
+			scores = append(scores, relayScore{relay, tss, tss.sum()})
+		}
+		if err != nil && !lmdb.IsNotFound(err) {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+
+	slices.SortFunc(scores, func(a, b relayScore) int {
+		return int(b.score - a.score)
+	})
+
+	result := make([]hints.RelayScores, 0, n)
+	for i, rs := range scores {
+		if i >= n {
+			break
+		}
+		result = append(result, hints.RelayScores{
+			Relay:  rs.relay,
+			Scores: rs.tss,
+			Sum:    rs.score,
+		})
+	}
+	return result
+}
+
 type timestamps [4]nostr.Timestamp
 
 func (tss timestamps) sum() int64 {

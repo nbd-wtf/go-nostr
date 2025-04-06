@@ -112,6 +112,59 @@ func (bh *BadgerHints) TopN(pubkey string, n int) []string {
 	return result
 }
 
+func (bh *BadgerHints) GetDetailedScores(pubkey string, n int) []hints.RelayScores {
+	type relayScore struct {
+		relay string
+		tss   timestamps
+		score int64
+	}
+
+	scores := make([]relayScore, 0, n)
+	err := bh.db.View(func(txn *badger.Txn) error {
+		prefix, _ := hex.DecodeString(pubkey)
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			k := item.Key()
+			relay := string(k[32:])
+
+			var tss timestamps
+			err := item.Value(func(v []byte) error {
+				tss = parseValue(v)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			scores = append(scores, relayScore{relay, tss, tss.sum()})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+
+	slices.SortFunc(scores, func(a, b relayScore) int {
+		return int(b.score - a.score)
+	})
+
+	result := make([]hints.RelayScores, 0, n)
+	for i, rs := range scores {
+		if i >= n {
+			break
+		}
+		result = append(result, hints.RelayScores{
+			Relay:  rs.relay,
+			Scores: rs.tss,
+			Sum:    rs.score,
+		})
+	}
+	return result
+}
+
 func (bh *BadgerHints) PrintScores() {
 	fmt.Println("= print scores")
 

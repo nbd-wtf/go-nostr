@@ -209,6 +209,40 @@ func (sh SQLHints) PrintScores() {
 	}
 }
 
+func (sh SQLHints) GetDetailedScores(pubkey string, n int) []hints.RelayScores {
+	result := make([]hints.RelayScores, 0, n)
+
+	rows, err := sh.Queryx(
+		`SELECT relay, last_fetch_attempt, most_recent_event_fetched, last_in_relay_list, last_in_hint,
+		       coalesce(`+sh.scorePartialQuery()+`, 0) AS score
+		FROM nostr_sdk_pubkey_relays
+		WHERE pubkey = `+sh.interop.generateBindingSpots(0, 1)+`
+		ORDER BY score DESC
+		LIMIT `+sh.interop.generateBindingSpots(1, 1),
+		pubkey, n)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var rs hints.RelayScores
+		var scores [4]sql.NullInt64
+		err := rows.Scan(&rs.Relay, &scores[0], &scores[1], &scores[2], &scores[3], &rs.Sum)
+		if err != nil {
+			continue
+		}
+		for i, s := range scores {
+			if s.Valid {
+				rs.Scores[i] = nostr.Timestamp(s.Int64)
+			}
+		}
+		result = append(result, rs)
+	}
+
+	return result
+}
+
 func (sh SQLHints) scorePartialQuery() string {
 	calc := strings.Builder{}
 	calc.Grow(len(hints.KeyBasePoints) * (11 + 25 + 32 + 4 + 4 + 9 + 12 + 25 + 12 + 25 + 19 + 3))
