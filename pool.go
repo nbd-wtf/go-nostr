@@ -777,9 +777,10 @@ func (pool *SimplePool) BatchedSubManyEose(
 				select {
 				case res <- ie:
 				case <-ctx.Done():
+					wg.Done()
+					return
 				}
 			}
-
 			wg.Done()
 		}(df)
 	}
