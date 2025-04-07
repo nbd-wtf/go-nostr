@@ -78,7 +78,7 @@ func Parse(content string) iter.Seq[Block] {
 				index = end
 				prevIndex = index
 				continue
-			case (u >= 5 && content[u-5:u] == "https") || (u >= 4 && content[u-4:u] == "http"):
+			case ((u >= 5 && content[u-5:u] == "https") || (u >= 4 && content[u-4:u] == "http")) && u+4 < max:
 				m := noURLCharacter.FindStringIndex(content[u+4:])
 				end := max
 				if m != nil {
@@ -108,7 +108,7 @@ func Parse(content string) iter.Seq[Block] {
 				index = end
 				prevIndex = index
 				continue
-			case (u >= 3 && content[u-3:u] == "wss") || (u >= 2 && content[u-2:u] == "ws"):
+			case ((u >= 3 && content[u-3:u] == "wss") || (u >= 2 && content[u-2:u] == "ws")) && u+4 < max:
 				m := noURLCharacter.FindStringIndex(content[u+4:])
 				end := max
 				if m != nil {
