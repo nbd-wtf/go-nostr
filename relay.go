@@ -13,7 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/puzpuzpuz/xsync/v3"
 )
@@ -224,8 +223,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				break
 			}
 
-			msgb := buf.Bytes()
-			message := unsafe.String(unsafe.SliceData(msgb), len(msgb))
+			message := string(buf.Bytes())
 			debugLogf("{%s} received %v\n", r.URL, message)
 
 			// if this is an "EVENT" we will have this preparser logic that should speed things up a little
