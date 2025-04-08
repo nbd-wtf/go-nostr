@@ -17,7 +17,7 @@ func ParseNegMessage(message string) nostr.Envelope {
 	if firstComma == -1 {
 		return nil
 	}
-	label := message[0:firstComma]
+	label := message[2 : firstComma-1]
 
 	var v nostr.Envelope
 	switch label {
