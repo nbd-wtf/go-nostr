@@ -37,6 +37,20 @@ func HyperLogLogEventPubkeyOffsetsAndReferencesForEvent(evt *nostr.Event) iter.S
 					}
 				}
 			}
+		case 1111:
+			//
+			// comment counts:
+			e := evt.Tags.Find("E")
+			if e != nil {
+				v := e[1]
+				if nostr.IsValid32ByteHex(v) {
+					// 32th nibble of "e" tag
+					p, _ := strconv.ParseInt(v[32:33], 16, 64)
+					if !yield(v, int(p+8)) {
+						return
+					}
+				}
+			}
 		}
 	}
 }

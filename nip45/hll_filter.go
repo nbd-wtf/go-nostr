@@ -19,22 +19,37 @@ func HyperLogLogEventPubkeyOffsetForFilter(filter nostr.Filter) int {
 
 	// only serve the cases explicitly defined by the NIP:
 	if pTags, ok := filter.Tags["p"]; ok {
-		//
-		// follower counts:
-		if filter.Kinds[0] == 3 && len(pTags) == 1 {
-			// 32th nibble of "p" tag
-			p, err := strconv.ParseInt(pTags[0][32:33], 16, 64)
-			if err != nil {
-				return -1
+		if len(pTags) == 1 && nostr.IsValid32ByteHex(pTags[0]) {
+			//
+			// follower counts:
+			if filter.Kinds[0] == 3 {
+				// 32th nibble of "p" tag
+				p, err := strconv.ParseInt(pTags[0][32:33], 16, 64)
+				if err != nil {
+					return -1
+				}
+				return int(p + 8)
 			}
-			return int(p + 8)
 		}
 	} else if eTags, ok := filter.Tags["e"]; ok {
-		if len(eTags) == 1 {
+		if len(eTags) == 1 && nostr.IsValid32ByteHex(eTags[0]) {
 			//
 			// reaction counts:
 			if filter.Kinds[0] == 7 {
 				// 32th nibble of "e" tag
+				p, err := strconv.ParseInt(eTags[0][32:33], 16, 64)
+				if err != nil {
+					return -1
+				}
+				return int(p + 8)
+			}
+		}
+	} else if eTags, ok := filter.Tags["E"]; ok {
+		if len(eTags) == 1 && nostr.IsValid32ByteHex(eTags[0]) {
+			//
+			// reaction counts:
+			if filter.Kinds[0] == 1111 {
+				// 32th nibble of "E" tag
 				p, err := strconv.ParseInt(eTags[0][32:33], 16, 64)
 				if err != nil {
 					return -1
