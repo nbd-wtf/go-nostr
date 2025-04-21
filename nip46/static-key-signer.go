@@ -142,12 +142,12 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 		harmless = true
 	case "nip44_encrypt":
 		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
+			resultErr = fmt.Errorf("wrong number of arguments to 'nip44_encrypt'")
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
 		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip44_encrypt' is not a pubkey string")
 			break
 		}
 		plaintext := req.Params[1]
@@ -165,12 +165,12 @@ func (p *StaticKeySigner) HandleRequest(_ context.Context, event *nostr.Event) (
 		result = ciphertext
 	case "nip44_decrypt":
 		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
+			resultErr = fmt.Errorf("wrong number of arguments to 'nip44_decrypt'")
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
 		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip44_decrypt' is not a pubkey string")
 			break
 		}
 		ciphertext := req.Params[1]

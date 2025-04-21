@@ -183,12 +183,12 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 		}
 	case "nip44_encrypt":
 		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_encrypt'")
+			resultErr = fmt.Errorf("wrong number of arguments to 'nip44_encrypt'")
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
 		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_encrypt' is not a pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip44_encrypt' is not a pubkey string")
 			break
 		}
 		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {
@@ -205,12 +205,12 @@ func (p *DynamicSigner) HandleRequest(ctx context.Context, event *nostr.Event) (
 		result = ciphertext
 	case "nip44_decrypt":
 		if len(req.Params) != 2 {
-			resultErr = fmt.Errorf("wrong number of arguments to 'nip04_decrypt'")
+			resultErr = fmt.Errorf("wrong number of arguments to 'nip44_decrypt'")
 			break
 		}
 		thirdPartyPubkey := req.Params[0]
 		if !nostr.IsValidPublicKey(thirdPartyPubkey) {
-			resultErr = fmt.Errorf("first argument to 'nip04_decrypt' is not a pubkey string")
+			resultErr = fmt.Errorf("first argument to 'nip44_decrypt' is not a pubkey string")
 			break
 		}
 		if p.authorizeEncryption != nil && !p.authorizeEncryption(event.PubKey, secret) {
