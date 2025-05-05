@@ -48,7 +48,12 @@ func ValidateAuthEvent(event *nostr.Event, challenge string, relayURL string) (p
 		return "", false
 	}
 
-	found, err := parseURL(event.Tags.GetFirst([]string{"relay", ""}).Value())
+	tag := event.Tags.Find("relay")
+	if tag == nil {
+		return "", false
+	}
+
+	found, err := parseURL(tag[1])
 	if err != nil {
 		return "", false
 	}
