@@ -166,35 +166,27 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 	// ping every 29 seconds
 	ticker := time.NewTicker(29 * time.Second)
 
-	// to be used when the connection is closed
-	go func() {
-		<-r.connectionContext.Done()
-
-		// stop the ticker
-		ticker.Stop()
-
-		// nil the connection
-		r.Connection = nil
-
-		// close all subscriptions
-		for _, sub := range r.Subscriptions.Range {
-			sub.unsub(fmt.Errorf("relay connection closed: %w / %w", context.Cause(r.connectionContext), r.ConnectionError))
-		}
-	}()
-
 	// queue all write operations here so we don't do mutex spaghetti
 	go func() {
 		for {
 			select {
-			case <-ticker.C:
-				if r.Connection != nil {
-					err := r.Connection.Ping(r.connectionContext)
-					if err != nil && !strings.Contains(err.Error(), "failed to wait for pong") {
-						InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
-						r.Close() // this should trigger a context cancelation
-						return
-					}
+			case <-r.connectionContext.Done():
+				ticker.Stop()
+				r.Connection = nil
+
+				for _, sub := range r.Subscriptions.Range {
+					sub.unsub(fmt.Errorf("relay connection closed: %w / %w", context.Cause(r.connectionContext), r.ConnectionError))
 				}
+				return
+
+			case <-ticker.C:
+				err := r.Connection.Ping(r.connectionContext)
+				if err != nil && !strings.Contains(err.Error(), "failed to wait for pong") {
+					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
+					r.Close() // this should trigger a context cancelation
+					return
+				}
+
 			case writeRequest := <-r.writeQueue:
 				// all write requests will go through this to prevent races
 				debugLogf("{%s} sending %v\n", r.URL, string(writeRequest.msg))
@@ -202,9 +194,6 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 					writeRequest.answer <- err
 				}
 				close(writeRequest.answer)
-			case <-r.connectionContext.Done():
-				// stop here
-				return
 			}
 		}
 	}()
