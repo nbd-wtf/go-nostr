@@ -16,24 +16,10 @@ func EncodePointer(pointer nostr.Pointer) string {
 			res, _ := EncodeProfile(v.PublicKey, v.Relays)
 			return res
 		}
-	case *nostr.ProfilePointer:
-		if v.Relays == nil {
-			res, _ := EncodePublicKey(v.PublicKey)
-			return res
-		} else {
-			res, _ := EncodeProfile(v.PublicKey, v.Relays)
-			return res
-		}
 	case nostr.EventPointer:
 		res, _ := EncodeEvent(v.ID, v.Relays, v.Author)
 		return res
-	case *nostr.EventPointer:
-		res, _ := EncodeEvent(v.ID, v.Relays, v.Author)
-		return res
 	case nostr.EntityPointer:
-		res, _ := EncodeEntity(v.PublicKey, v.Kind, v.Identifier, v.Relays)
-		return res
-	case *nostr.EntityPointer:
 		res, _ := EncodeEntity(v.PublicKey, v.Kind, v.Identifier, v.Relays)
 		return res
 	}
