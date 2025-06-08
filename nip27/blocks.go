@@ -115,7 +115,7 @@ func Parse(content string) iter.Seq[Block] {
 					end = u + 4 + m[0]
 				}
 				prefixLen := 2
-				if content[u-1] == 's' {
+				if content[u-2] == 's' {
 					prefixLen = 3
 				}
 				parsed, err := url.Parse(content[u-prefixLen : end])
