@@ -96,7 +96,7 @@ func Encrypt(plaintext string, conversationKey [32]byte, applyOptions ...func(op
 func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, error) {
 	cLen := len(b64ciphertextWrapped)
 	if cLen < 132 || cLen > 87472 {
-		return "", fmt.Errorf(fmt.Sprintf("invalid payload length: %d", cLen))
+		return "", fmt.Errorf("invalid payload length: %d", cLen)
 	}
 	if b64ciphertextWrapped[0:1] == "#" {
 		return "", fmt.Errorf("unknown version")
@@ -108,12 +108,12 @@ func Decrypt(b64ciphertextWrapped string, conversationKey [32]byte) (string, err
 	}
 
 	if decoded[0] != version {
-		return "", fmt.Errorf(fmt.Sprintf("unknown version %d", decoded[0]))
+		return "", fmt.Errorf("unknown version %d", decoded[0])
 	}
 
 	dLen := len(decoded)
 	if dLen < 99 || dLen > 65603 {
-		return "", fmt.Errorf(fmt.Sprintf("invalid data length: %d", dLen))
+		return "", fmt.Errorf("invalid data length: %d", dLen)
 	}
 
 	var nonce [32]byte
