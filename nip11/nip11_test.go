@@ -45,9 +45,9 @@ func TestFetch(t *testing.T) {
 		{"wss://nostr.wine", false, "", "wss://nostr.wine"},
 		{"https://nostr.wine", false, "", "wss://nostr.wine"},
 		{"nostr.wine", false, "", "wss://nostr.wine"},
-		{"no.str.cr", false, "", "wss://no.str.cr"},
-		{"https://no.str.cr", false, "", "wss://no.str.cr"},
-		{"wss://no.str.cr", false, "", "wss://no.str.cr"},
+		{"nos.lol", false, "", "wss://nos.lol"},
+		{"https://nos.lol", false, "", "wss://nos.lol"},
+		{"wss://nos.lol", false, "", "wss://nos.lol"},
 		{"wlenwqkeqwe.asjdaskd", true, "", "wss://wlenwqkeqwe.asjdaskd"},
 	}
 
