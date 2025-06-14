@@ -36,8 +36,9 @@ func Fetch(ctx context.Context, u string) (info RelayInformationDocument, err er
 	// make request
 	req, _ := http.NewRequestWithContext(ctx, "GET", "http"+u[2:], nil)
 
-	// add the NIP-11 header
+	// add the NIP-11 headers
 	req.Header.Add("Accept", "application/nostr+json")
+	req.Header.Add("User-Agent", "https://github.com/nbd-wtf/go-nostr")
 
 	// send the request
 	resp, err := http.DefaultClient.Do(req)
