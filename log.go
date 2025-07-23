@@ -2,13 +2,13 @@ package nostr
 
 import (
 	"log"
-	"os"
+	"io"
 )
 
 var (
 	// call SetOutput on InfoLogger to enable info logging
-	InfoLogger = log.New(os.Stderr, "[go-nostr][info] ", log.LstdFlags)
+	InfoLogger = log.New(io.Discard, "[go-nostr][info] ", log.LstdFlags)
 
 	// call SetOutput on DebugLogger to enable debug logging
-	DebugLogger = log.New(os.Stderr, "[go-nostr][debug] ", log.LstdFlags)
+	DebugLogger = log.New(io.Discard, "[go-nostr][debug] ", log.LstdFlags)
 )
