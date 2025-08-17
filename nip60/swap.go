@@ -10,6 +10,7 @@ import (
 	"github.com/elnosh/gonuts/cashu/nuts/nut02"
 	"github.com/elnosh/gonuts/cashu/nuts/nut03"
 	"github.com/elnosh/gonuts/cashu/nuts/nut10"
+	"github.com/elnosh/gonuts/cashu/nuts/nut13"
 	"github.com/nbd-wtf/go-nostr/nip60/client"
 )
 
@@ -25,10 +26,33 @@ func (w *Wallet) swapProofs(
 	targetAmount uint64,
 	ss swapSettings,
 ) (principal cashu.Proofs, change cashu.Proofs, err error) {
+	keysetIdList := []string{}
+	for i := range w.Mints {
+		if w.Mints[i] != mint {
+			keysets, err := client.GetAllKeysets(ctx, w.Mints[i])
+			if err != nil {
+				return nil, nil, fmt.Errorf("could not get keysets for all previous keysets %s: %w", w.Mints[i], err)
+			}
+
+			for j := range keysets {
+				keysetIdList = append(keysetIdList, keysets[j].Id)
+			}
+		}
+	}
+
 	keysets, err := client.GetAllKeysets(ctx, mint)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get all keysets for %s: %w", mint, err)
 	}
+
+	for j := range keysets {
+		err := nut13.CheckCollidingKeysets(keysetIdList, []string{keysets[j].Id})
+		if err != nil {
+			return nil, nil, fmt.Errorf("encountered keyset collition for mint %s: %w", mint, err)
+		}
+		keysetIdList = append(keysetIdList, keysets[j].Id)
+	}
+
 	activeKeyset, err := client.GetActiveKeyset(ctx, mint)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get active keyset for %s: %w", mint, err)
