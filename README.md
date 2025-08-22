@@ -7,6 +7,9 @@
 go-nostr
 ========
 
+> [!IMPORTANT]
+> go-nostr has a successor! Please visit the v2 [here](https://gitworkshop.dev/fiatjaf.com/nostrlib).
+
 A set of useful things for [Nostr](https://github.com/nostr-protocol/nostr)-related software.
 
 ```bash
