@@ -1,3 +1,11 @@
+<div>
+<p><b>This repository is in maintenance mode and adventurous programmers are encouraged to try <a href="https://pkg.go.dev/fiatjaf.com/nostr"><code>fiatjaf.com/nostr@master</code></a> instead.</b></p>
+
+<p>The core codebase and functionality are the same, but the API breaks a little bit (for good reason) and there are some new features.</p>
+</div>
+
+---
+
 [![Run Tests](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml/badge.svg)](https://github.com/nbd-wtf/go-nostr/actions/workflows/test.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/nbd-wtf/go-nostr.svg)](https://pkg.go.dev/github.com/nbd-wtf/go-nostr)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nbd-wtf/go-nostr)](https://goreportcard.com/report/github.com/nbd-wtf/go-nostr)
