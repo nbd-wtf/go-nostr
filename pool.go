@@ -445,7 +445,6 @@ func (pool *SimplePool) subMany(
 		}
 
 		eosed := atomic.Bool{}
-		firstConnection := true
 
 		go func(nm string) {
 			defer func() {
@@ -484,16 +483,10 @@ func (pool *SimplePool) subMany(
 
 				relay, err := pool.EnsureRelay(nm)
 				if err != nil {
-					// if we never connected to this just fail
-					if firstConnection {
-						return
-					}
-
 					// otherwise (if we were connected and got disconnected) keep trying to reconnect
 					debugLogf("%s reconnecting because connection failed\n", nm)
 					goto reconnect
 				}
-				firstConnection = false
 				hasAuthed = false
 
 			subscribe:
