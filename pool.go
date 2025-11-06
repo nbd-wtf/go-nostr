@@ -491,7 +491,7 @@ func (pool *SimplePool) subMany(
 
 			subscribe:
 				sub, err = relay.Subscribe(ctx, filters, append(opts, WithCheckDuplicate(func(id, relay string) bool {
-					_, exists := seenAlready.Load(id)
+					_, exists := seenAlready.LoadAndStore(id, Timestamp(time.Now().Unix()))
 					if exists && pool.duplicateMiddleware != nil {
 						pool.duplicateMiddleware(relay, id)
 					}
