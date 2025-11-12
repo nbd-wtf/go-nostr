@@ -572,7 +572,7 @@ func (pool *SimplePool) subMany(
 				// we will go back to the beginning of the loop and try to connect again and again
 				// until the context is canceled
 				time.Sleep(interval)
-				interval = interval * 17 / 10 // the next time we try we will wait longer
+				interval = min(time.Minute*5, interval*17/10) // the next time we try we will wait longer
 			}
 		}(url)
 	}
