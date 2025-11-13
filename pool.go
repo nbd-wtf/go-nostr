@@ -565,6 +565,14 @@ func (pool *SimplePool) subMany(
 						return
 					case <-ctx.Done():
 						return
+					case <-relay.Context().Done():
+						// the sub events channel should close but it doesn't seem to always happen.
+						now := Now()
+						for i := range filters {
+							filters[i].Since = &now
+						}
+						debugLogf("%s reconnecting because relay.Context is done\n", nm)
+						goto reconnect
 					}
 				}
 
