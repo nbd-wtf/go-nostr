@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -168,6 +167,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 	// queue all write operations here so we don't do mutex spaghetti
 	go func() {
+		pingAttempt := 0
 		for {
 			select {
 			case <-r.connectionContext.Done():
@@ -180,12 +180,24 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				return
 
 			case <-ticker.C:
+				debugLogf("{%s} pinging relay", r.URL)
 				err := r.Connection.Ping(r.connectionContext)
-				if err != nil && !strings.Contains(err.Error(), "failed to wait for pong") {
-					InfoLogger.Printf("{%s} error writing ping: %v; closing websocket", r.URL, err)
-					r.Close() // this should trigger a context cancelation
-					return
+				if err != nil {
+					pingAttempt++
+					debugLogf("{%s} error writing ping (attempt %d): %v", r.URL, pingAttempt, err)
+
+					if pingAttempt >= 3 {
+						debugLogf("{%s} error writing ping after multiple attempts; closing websocket", r.URL)
+						err = r.Close() // this should trigger a context cancelation
+						if err != nil {
+							debugLogf("{%s} failed to close relay: %v", r.URL, err)
+						}
+					}
+					continue
 				}
+				// ping was OK
+				debugLogf("{%s} ping OK", r.URL)
+				pingAttempt = 0
 
 			case writeRequest := <-r.writeQueue:
 				// all write requests will go through this to prevent races
