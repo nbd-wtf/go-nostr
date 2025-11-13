@@ -186,7 +186,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 					pingAttempt++
 					DebugLogger.Printf("{%s} error writing ping (attempt %d): %v", r.URL, pingAttempt, err)
 
-					if pingAttempt > 3 {
+					if pingAttempt >= 3 {
 						InfoLogger.Printf("{%s} error writing ping after multiple attempts; closing websocket", r.URL)
 						r.Close() // this should trigger a context cancelation
 						return
