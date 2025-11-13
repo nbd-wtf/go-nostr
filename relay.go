@@ -180,7 +180,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				return
 
 			case <-ticker.C:
-				DebugLogger.Printf("Pinging relay")
+				DebugLogger.Printf("{%s} Pinging relay", r.URL)
 				err := r.Connection.Ping(r.connectionContext)
 				if err != nil {
 					pingAttempt++
