@@ -59,7 +59,7 @@ func (c *Connection) Close() error {
 
 // Ping sends a ping message to the websocket connection.
 func (c *Connection) Ping(ctx context.Context) error {
-	ctx, cancel := context.WithTimeoutCause(ctx, time.Millisecond*800, errors.New("ping took too long"))
+	ctx, cancel := context.WithTimeoutCause(ctx, time.Millisecond*10000, errors.New("ping took too long"))
 	defer cancel()
 	return c.conn.Ping(ctx)
 }
