@@ -565,6 +565,7 @@ func (pool *SimplePool) subMany(
 						return
 					case <-ctx.Done():
 						return
+					}
 				}
 
 			reconnect:
