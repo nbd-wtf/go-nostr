@@ -41,6 +41,11 @@ type Subscription struct {
 	// if it returns true that event will not be processed further.
 	checkDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
 
+	// ordered controls whether events are dispatched sequentially (in order)
+	// or asynchronously (default behavior).
+	// When true, events are sent to sub.Events in the same order they arrive from the relay.
+	ordered bool
+
 	match  func(*Event) bool // this will be either Filters.Match or Filters.MatchIgnoringTimestampConstraints
 	live   atomic.Bool
 	eosed  atomic.Bool
@@ -72,10 +77,17 @@ type WithCheckDuplicateReplaceable func(rk ReplaceableKey, ts Timestamp) bool
 
 func (_ WithCheckDuplicateReplaceable) IsSubscriptionOption() {}
 
+// WithOrderedEvents is a SubscriptionOption that controls whether
+// events should be dispatched sequentially (true) or asynchronously (false, default).
+type WithOrderedEvents bool
+
+func (_ WithOrderedEvents) IsSubscriptionOption() {}
+
 var (
 	_ SubscriptionOption = (WithLabel)("")
 	_ SubscriptionOption = (WithCheckDuplicate)(nil)
 	_ SubscriptionOption = (WithCheckDuplicateReplaceable)(nil)
+	_ SubscriptionOption = (WithOrderedEvents)(false)
 )
 
 func (sub *Subscription) start() {
@@ -100,7 +112,7 @@ func (sub *Subscription) dispatchEvent(evt *Event) {
 		added = true
 	}
 
-	go func() {
+	if sub.ordered {
 		sub.mu.Lock()
 		defer sub.mu.Unlock()
 
@@ -114,7 +126,23 @@ func (sub *Subscription) dispatchEvent(evt *Event) {
 		if added {
 			sub.storedwg.Done()
 		}
-	}()
+	} else {
+		go func() {
+			sub.mu.Lock()
+			defer sub.mu.Unlock()
+
+			if sub.live.Load() {
+				select {
+				case sub.Events <- evt:
+				case <-sub.Context.Done():
+				}
+			}
+
+			if added {
+				sub.storedwg.Done()
+			}
+		}()
+	}
 }
 
 func (sub *Subscription) dispatchEose() {
