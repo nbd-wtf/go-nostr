@@ -180,21 +180,23 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 				return
 
 			case <-ticker.C:
-				DebugLogger.Printf("{%s} Pinging relay", r.URL)
+				debugLogf("{%s} pinging relay", r.URL)
 				err := r.Connection.Ping(r.connectionContext)
 				if err != nil {
 					pingAttempt++
-					DebugLogger.Printf("{%s} error writing ping (attempt %d): %v", r.URL, pingAttempt, err)
+					debugLogf("{%s} error writing ping (attempt %d): %v", r.URL, pingAttempt, err)
 
 					if pingAttempt >= 3 {
-						InfoLogger.Printf("{%s} error writing ping after multiple attempts; closing websocket", r.URL)
-						r.Close() // this should trigger a context cancelation
-						return
+						debugLogf("{%s} error writing ping after multiple attempts; closing websocket", r.URL)
+						err = r.Close() // this should trigger a context cancelation
+						if err != nil {
+							debugLogf("{%s} failed to close relay: %v", r.URL, err)
+						}
 					}
 					continue
 				}
 				// ping was OK
-				DebugLogger.Printf("{%s} ping OK", r.URL)
+				debugLogf("{%s} ping OK", r.URL)
 				pingAttempt = 0
 
 			case writeRequest := <-r.writeQueue:
