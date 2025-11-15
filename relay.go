@@ -167,16 +167,19 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 
 	// queue all write operations here so we don't do mutex spaghetti
 	go func() {
+		defer func() {
+			ticker.Stop()
+			r.Connection = nil
+
+			for _, sub := range r.Subscriptions.Range {
+				sub.unsub(fmt.Errorf("relay connection closed: %w / %w", context.Cause(r.connectionContext), r.ConnectionError))
+			}
+		}()
+
 		pingAttempt := 0
 		for {
 			select {
 			case <-r.connectionContext.Done():
-				ticker.Stop()
-				r.Connection = nil
-
-				for _, sub := range r.Subscriptions.Range {
-					sub.unsub(fmt.Errorf("relay connection closed: %w / %w", context.Cause(r.connectionContext), r.ConnectionError))
-				}
 				return
 
 			case <-ticker.C:
@@ -192,6 +195,7 @@ func (r *Relay) ConnectWithTLS(ctx context.Context, tlsConfig *tls.Config) error
 						if err != nil {
 							debugLogf("{%s} failed to close relay: %v", r.URL, err)
 						}
+						return
 					}
 					continue
 				}
