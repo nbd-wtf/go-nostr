@@ -451,6 +451,8 @@ func (r *Relay) PrepareSubscription(ctx context.Context, filters Filters, opts .
 			sub.checkDuplicate = o
 		case WithCheckDuplicateReplaceable:
 			sub.checkDuplicateReplaceable = o
+		case WithOrderedEvents:
+			sub.ordered = bool(o) 
 		}
 	}
 
