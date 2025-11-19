@@ -201,27 +201,27 @@ func (tags Tags) FindLastWithValue(key, value string) Tag {
 	return nil
 }
 
-// Clone creates a new array with these tags inside.
-func (tags Tags) Clone() Tag {
+// Clone creates a new slice containing the existing tag slices.
+func (tags Tags) Clone() Tags {
 	newArr := make(Tags, len(tags))
 	copy(newArr, tags)
-	return nil
+	return newArr
 }
 
-// CloneDeep creates a new array with clones of these tags inside.
-func (tags Tags) CloneDeep() Tag {
+// CloneDeep creates a new slice with deep copies of each tag slice.
+func (tags Tags) CloneDeep() Tags {
 	newArr := make(Tags, len(tags))
 	for i := range newArr {
 		newArr[i] = tags[i].Clone()
 	}
-	return nil
+	return newArr
 }
 
-// Clone creates a new array with these tag items inside.
+// Clone creates a new slice with the same string contents.
 func (tag Tag) Clone() Tag {
 	newArr := make(Tag, len(tag))
 	copy(newArr, tag)
-	return nil
+	return newArr
 }
 
 // this exists to satisfy Postgres and stuff and should probably be removed in the future since it's too specific

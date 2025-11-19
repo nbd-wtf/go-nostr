@@ -312,6 +312,22 @@ type ReplaceableKey struct {
 	D      string
 }
 
+func shouldDropReplaceable(
+	seen *xsync.MapOf[ReplaceableKey, Timestamp],
+	key ReplaceableKey,
+	ts Timestamp,
+) bool {
+	drop := false
+	seen.Compute(key, func(latest Timestamp, loaded bool) (Timestamp, bool) {
+		if !loaded || ts > latest {
+			return ts, false
+		}
+		drop = true
+		return latest, false
+	})
+	return drop
+}
+
 // FetchManyReplaceable is like FetchMany, but deduplicates replaceable and addressable events and returns
 // only the latest for each "d" tag.
 func (pool *SimplePool) FetchManyReplaceable(
@@ -329,15 +345,7 @@ func (pool *SimplePool) FetchManyReplaceable(
 
 	seenAlreadyLatest := xsync.NewMapOf[ReplaceableKey, Timestamp]()
 	opts = append(opts, WithCheckDuplicateReplaceable(func(rk ReplaceableKey, ts Timestamp) bool {
-		updated := false
-		seenAlreadyLatest.Compute(rk, func(latest Timestamp, _ bool) (newValue Timestamp, delete bool) {
-			if ts > latest {
-				updated = true // we are updating the most recent
-				return ts, false
-			}
-			return latest, false // the one we had was already more recent
-		})
-		return updated
+		return shouldDropReplaceable(seenAlreadyLatest, rk, ts)
 	}))
 
 	for _, url := range urls {
