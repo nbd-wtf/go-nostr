@@ -10,7 +10,10 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-const MAX_LOCKS = 50
+const (
+	MAX_LOCKS = 50
+	hexDigits = "0123456789abcdef"
+)
 
 var (
 	namedMutexPool = make([]sync.Mutex, MAX_LOCKS)
@@ -63,12 +66,10 @@ func escapeString(dst []byte, s string) []byte {
 			// reverse solidus
 			dst = append(dst, []byte{'\\', '\\'}...)
 		case c >= 0x20:
-			// default, rest below are control chars
+			// printable ASCII
 			dst = append(dst, c)
 		case c == 0x08:
 			dst = append(dst, []byte{'\\', 'b'}...)
-		case c < 0x09:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '0', '0' + c}...)
 		case c == 0x09:
 			dst = append(dst, []byte{'\\', 't'}...)
 		case c == 0x0a:
@@ -77,15 +78,18 @@ func escapeString(dst []byte, s string) []byte {
 			dst = append(dst, []byte{'\\', 'f'}...)
 		case c == 0x0d:
 			dst = append(dst, []byte{'\\', 'r'}...)
-		case c < 0x10:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '0', 0x57 + c}...)
-		case c < 0x1a:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '1', 0x20 + c}...)
-		case c < 0x20:
-			dst = append(dst, []byte{'\\', 'u', '0', '0', '1', 0x47 + c}...)
+		default:
+			dst = appendUnicodeEscape(dst, c)
 		}
 	}
 	dst = append(dst, '"')
+	return dst
+}
+
+// appendUnicodeEscape encodes bytes < 0x20 into \u00XX sequences per RFC 8259.
+func appendUnicodeEscape(dst []byte, c byte) []byte {
+	dst = append(dst, '\\', 'u', '0', '0')
+	dst = append(dst, hexDigits[c>>4], hexDigits[c&0x0f])
 	return dst
 }
 
@@ -141,33 +145,41 @@ func extractSubID(jsonStr string) string {
 }
 
 func extractEventID(jsonStr string) string {
-	// look for "id" pattern
 	start := strings.Index(jsonStr, `"id"`)
 	if start == -1 {
 		return ""
 	}
 
-	// move to the next quote
-	offset := strings.IndexRune(jsonStr[start+4:], '"')
-	start += 4 + offset + 1
+	sub := jsonStr[start+4:]
+	offset := strings.IndexRune(sub, '"')
+	if offset == -1 || offset+1 >= len(sub) {
+		return ""
+	}
 
-	// get 64 characters of the id
-	return jsonStr[start : start+64]
+	candidate := sub[offset+1:]
+	if len(candidate) < 64 {
+		return ""
+	}
+	return candidate[:64]
 }
 
 func extractEventPubKey(jsonStr string) string {
-	// look for "pubkey" pattern
 	start := strings.Index(jsonStr, `"pubkey"`)
 	if start == -1 {
 		return ""
 	}
 
-	// move to the next quote
-	offset := strings.IndexRune(jsonStr[start+8:], '"')
-	start += 8 + offset + 1
+	sub := jsonStr[start+8:]
+	offset := strings.IndexRune(sub, '"')
+	if offset == -1 || offset+1 >= len(sub) {
+		return ""
+	}
 
-	// get 64 characters of the pubkey
-	return jsonStr[start : start+64]
+	candidate := sub[offset+1:]
+	if len(candidate) < 64 {
+		return ""
+	}
+	return candidate[:64]
 }
 
 func extractDTag(jsonStr string) string {
