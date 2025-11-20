@@ -23,6 +23,7 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 		return
 	}
 	out.Tags = make(TagMap)
+	out.TagsAnd = make(TagMap)
 	in.Delim('{')
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
@@ -152,6 +153,28 @@ func easyjson4d398eaaDecodeGithubComNbdWtfGoNostr(in *jlexer.Lexer, out *Filter)
 					in.Delim(']')
 				}
 				out.Tags[key[1:]] = tagValues
+			} else if len(key) > 1 && key[0] == '&' {
+				tagValues := make([]string, 0, 40)
+				if !in.IsNull() {
+					in.Delim('[')
+					if out.Authors == nil {
+						if !in.IsDelim(']') {
+							tagValues = make([]string, 0, 4)
+						} else {
+							tagValues = []string{}
+						}
+					} else {
+						tagValues = (tagValues)[:0]
+					}
+					for !in.IsDelim(']') {
+						var v3 string
+						v3 = string(in.String())
+						tagValues = append(tagValues, v3)
+						in.WantComma()
+					}
+					in.Delim(']')
+				}
+				out.TagsAnd[key[1:]] = tagValues
 			} else {
 				in.SkipRecursive()
 			}
@@ -268,6 +291,25 @@ func easyjson4d398eaaEncodeGithubComNbdWtfGoNostr(out *jwriter.Writer, in Filter
 			out.RawString("\"#" + tag + "\":")
 		} else {
 			out.RawString(",\"#" + tag + "\":")
+		}
+		{
+			out.RawByte('[')
+			for i, v := range values {
+				if i > 0 {
+					out.RawByte(',')
+				}
+				out.String(string(v))
+			}
+			out.RawByte(']')
+		}
+	}
+	for tag, values := range in.TagsAnd {
+		const prefix string = ",\"authors\":"
+		if first {
+			first = false
+			out.RawString("\"&" + tag + "\":")
+		} else {
+			out.RawString(",\"&" + tag + "\":")
 		}
 		{
 			out.RawByte('[')

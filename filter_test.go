@@ -151,3 +151,244 @@ func TestTheoreticalLimit(t *testing.T) {
 	require.Equal(t, 24, GetTheoreticalLimit(Filter{Authors: []string{"a", "b", "c", "d", "e", "f"}, Kinds: []int{30023, 30024}, Tags: TagMap{"d": []string{"aaa", "bbb"}}}))
 	require.Equal(t, -1, GetTheoreticalLimit(Filter{Authors: []string{"a", "b", "c", "d", "e", "f"}, Kinds: []int{30023, 30024}}))
 }
+
+func TestFilterUnmarshalWithAndTags(t *testing.T) {
+	raw := `{"kinds":[1],"&t":["meme","cat"],"#t":["black","white"]}`
+	var f Filter
+	err := json.Unmarshal([]byte(raw), &f)
+	assert.NoError(t, err)
+
+	assert.Condition(t, func() (success bool) {
+		if f.Kinds == nil || len(f.Kinds) != 1 || f.Kinds[0] != 1 {
+			return false
+		}
+		if f.TagsAnd == nil || len(f.TagsAnd) != 1 {
+			return false
+		}
+		if !slices.Contains(f.TagsAnd["t"], "meme") || !slices.Contains(f.TagsAnd["t"], "cat") {
+			return false
+		}
+		if f.Tags == nil || len(f.Tags) != 1 {
+			return false
+		}
+		if !slices.Contains(f.Tags["t"], "black") || !slices.Contains(f.Tags["t"], "white") {
+			return false
+		}
+		return true
+	}, "failed to parse AND filter correctly")
+}
+
+func TestFilterMarshalWithAndTags(t *testing.T) {
+	filterj, err := json.Marshal(Filter{
+		Kinds:   []int{1},
+		TagsAnd: TagMap{"t": {"meme", "cat"}},
+		Tags:    TagMap{"t": {"black", "white"}},
+	})
+	assert.NoError(t, err)
+
+	// The order might vary, so we check that both &t and #t are present
+	jsonStr := string(filterj)
+	assert.Contains(t, jsonStr, `"&t"`)
+	assert.Contains(t, jsonStr, `"#t"`)
+	assert.Contains(t, jsonStr, `"meme"`)
+	assert.Contains(t, jsonStr, `"cat"`)
+	assert.Contains(t, jsonStr, `"black"`)
+	assert.Contains(t, jsonStr, `"white"`)
+}
+
+func TestFilterMatchingWithAndTags(t *testing.T) {
+	// Test: Event must have both "meme" AND "cat" tags
+	filter := Filter{
+		Kinds:   []int{1},
+		TagsAnd: TagMap{"t": {"meme", "cat"}},
+	}
+
+	// Event with both tags - should match
+	event1 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "cat"},
+		},
+	}
+	assert.True(t, filter.Matches(event1), "event with both AND tags should match")
+
+	// Event with only one tag - should not match
+	event2 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+		},
+	}
+	assert.False(t, filter.Matches(event2), "event with only one AND tag should not match")
+
+	// Event with neither tag - should not match
+	event3 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "other"},
+		},
+	}
+	assert.False(t, filter.Matches(event3), "event without AND tags should not match")
+}
+
+func TestFilterMatchingWithAndAndOrTags(t *testing.T) {
+	// Test the example from the spec:
+	// {"kinds": [1], "&t": ["meme", "cat"], "#t": ["black", "white"]}
+	// Should match events with BOTH "meme" AND "cat" AND at least one of "black" OR "white"
+	filter := Filter{
+		Kinds:   []int{1},
+		TagsAnd: TagMap{"t": {"meme", "cat"}},
+		Tags:    TagMap{"t": {"black", "white"}},
+	}
+
+	// Event with meme, cat, and black - should match
+	event1 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "cat"},
+			Tag{"t", "black"},
+		},
+	}
+	assert.True(t, filter.Matches(event1), "event with all required tags should match")
+
+	// Event with meme, cat, and white - should match
+	event2 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "cat"},
+			Tag{"t", "white"},
+		},
+	}
+	assert.True(t, filter.Matches(event2), "event with meme, cat, and white should match")
+
+	// Event with meme and cat but no black/white - should not match
+	event3 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "cat"},
+		},
+	}
+	assert.False(t, filter.Matches(event3), "event missing OR tag should not match")
+
+	// Event with meme, cat, black, but "meme" and "cat" should be ignored in OR evaluation
+	// This tests that AND values are excluded from OR
+	event4 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "cat"},
+			Tag{"t", "black"},
+		},
+	}
+	assert.True(t, filter.Matches(event4), "event with AND tags and OR tag should match (AND values excluded from OR)")
+
+	// Event with only meme (missing cat) - should not match even if it has black
+	event5 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "black"},
+		},
+	}
+	assert.False(t, filter.Matches(event5), "event missing one AND tag should not match")
+}
+
+func TestFilterMatchingAndTagsExcludedFromOr(t *testing.T) {
+	// Test that values in AND are excluded from OR evaluation
+	// If &t: ["meme"] and #t: ["meme", "other"], then "meme" should be ignored in OR
+	filter := Filter{
+		Kinds:   []int{1},
+		TagsAnd: TagMap{"t": {"meme"}},
+		Tags:    TagMap{"t": {"meme", "other"}},
+	}
+
+	// Event with only "meme" - should NOT match because "other" is still required by OR
+	event1 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+		},
+	}
+	assert.False(t, filter.Matches(event1), "event with only AND value should not match (OR still requires 'other')")
+
+	// Event with "meme" and "other" - should match
+	event2 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "other"},
+		},
+	}
+	assert.True(t, filter.Matches(event2), "event with AND and OR values should match")
+
+	// Event with only "other" (missing "meme") - should not match
+	event3 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "other"},
+		},
+	}
+	assert.False(t, filter.Matches(event3), "event missing AND value should not match")
+
+	// Test case where all OR values are in AND - should match if AND is satisfied
+	filter2 := Filter{
+		Kinds:   []int{1},
+		TagsAnd: TagMap{"t": {"meme", "cat"}},
+		Tags:    TagMap{"t": {"meme", "cat"}},
+	}
+	event4 := &Event{
+		Kind: 1,
+		Tags: Tags{
+			Tag{"t", "meme"},
+			Tag{"t", "cat"},
+		},
+	}
+	assert.True(t, filter2.Matches(event4), "event with all AND values should match when all OR values are in AND")
+}
+
+func TestFilterEqualityWithAndTags(t *testing.T) {
+	assert.True(t, FilterEqual(
+		Filter{Kinds: []int{1}, TagsAnd: TagMap{"t": {"meme", "cat"}}},
+		Filter{Kinds: []int{1}, TagsAnd: TagMap{"t": {"cat", "meme"}}},
+	), "filters with same AND tags in different order should be equal")
+
+	assert.False(t, FilterEqual(
+		Filter{Kinds: []int{1}, TagsAnd: TagMap{"t": {"meme", "cat"}}},
+		Filter{Kinds: []int{1}, TagsAnd: TagMap{"t": {"meme"}}},
+	), "filters with different AND tags should not be equal")
+
+	assert.True(t, FilterEqual(
+		Filter{
+			Kinds:   []int{1},
+			TagsAnd: TagMap{"t": {"meme", "cat"}},
+			Tags:    TagMap{"t": {"black", "white"}},
+		},
+		Filter{
+			Kinds:   []int{1},
+			TagsAnd: TagMap{"t": {"cat", "meme"}},
+			Tags:    TagMap{"t": {"white", "black"}},
+		},
+	), "filters with same AND and OR tags should be equal")
+}
+
+func TestFilterCloneWithAndTags(t *testing.T) {
+	flt := Filter{
+		Kinds:   []int{1},
+		TagsAnd: TagMap{"t": {"meme", "cat"}},
+		Tags:    TagMap{"t": {"black", "white"}},
+	}
+	clone := flt.Clone()
+	assert.True(t, FilterEqual(flt, clone), "clone with AND tags should be equal")
+
+	clone1 := flt.Clone()
+	clone1.TagsAnd["t"] = append(clone1.TagsAnd["t"], "dog")
+	assert.False(t, FilterEqual(flt, clone1), "modifying clone AND tags should cause inequality")
+
+	clone2 := flt.Clone()
+	clone2.TagsAnd["new"] = []string{"value"}
+	assert.False(t, FilterEqual(flt, clone2), "adding new AND tag to clone should cause inequality")
+}

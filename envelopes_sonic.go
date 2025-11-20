@@ -134,6 +134,7 @@ type sonicVisitor struct {
 	currentFilter        *Filter
 	currentFilterTagList []string
 	currentFilterTagName string
+	currentFilterTagIsAnd bool
 
 	smp          *sonicMessageParser
 	mainEnvelope Envelope
@@ -192,7 +193,11 @@ func (sv *sonicVisitor) OnArrayEnd() error {
 		sv.whereWeAre = inFilterObject
 		sv.smp.doneWithIntSlice(sv.currentFilter.Kinds)
 	case inAFilterTag:
-		sv.currentFilter.Tags[sv.currentFilterTagName] = sv.currentFilterTagList
+		if sv.currentFilterTagIsAnd {
+			sv.currentFilter.TagsAnd[sv.currentFilterTagName] = sv.currentFilterTagList
+		} else {
+			sv.currentFilter.Tags[sv.currentFilterTagName] = sv.currentFilterTagList
+		}
 		sv.whereWeAre = inFilterObject
 		sv.smp.doneWithStringSlice(sv.currentFilterTagList)
 
@@ -287,6 +292,15 @@ func (sv *sonicVisitor) OnObjectKey(key string) error {
 				}
 				sv.currentFilterTagList = sv.smp.reusableStringArray
 				sv.currentFilterTagName = key[1:]
+				sv.currentFilterTagIsAnd = false
+				sv.whereWeAre = inAFilterTag
+			} else if len(key) > 1 && key[0] == '&' {
+				if sv.currentFilter.TagsAnd == nil {
+					sv.currentFilter.TagsAnd = make(TagMap, 1)
+				}
+				sv.currentFilterTagList = sv.smp.reusableStringArray
+				sv.currentFilterTagName = key[1:]
+				sv.currentFilterTagIsAnd = true
 				sv.whereWeAre = inAFilterTag
 			} else {
 				return fmt.Errorf("unexpected filter attr %s", key)

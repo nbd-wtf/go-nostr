@@ -258,3 +258,30 @@ func (tags Tags) ContainsAny(tagName string, values []string) bool {
 
 	return false
 }
+
+func (tags Tags) ContainsAll(tagName string, values []string) bool {
+	if len(values) == 0 {
+		return true
+	}
+
+	// Collect all tag values for the given tag name
+	tagValues := make(map[string]bool)
+	for _, tag := range tags {
+		if len(tag) < 2 {
+			continue
+		}
+
+		if tag[0] == tagName {
+			tagValues[tag[1]] = true
+		}
+	}
+
+	// Check if all required values are present
+	for _, value := range values {
+		if !tagValues[value] {
+			return false
+		}
+	}
+
+	return true
+}

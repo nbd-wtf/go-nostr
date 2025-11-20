@@ -13,6 +13,7 @@ type Filter struct {
 	Kinds   []int
 	Authors []string
 	Tags    TagMap
+	TagsAnd TagMap
 	Since   *Timestamp
 	Until   *Timestamp
 	Limit   int
@@ -85,9 +86,30 @@ func (ef Filter) MatchesIgnoringTimestampConstraints(event *Event) bool {
 		return false
 	}
 
-	for f, v := range ef.Tags {
-		if v != nil && !event.Tags.ContainsAny(f, v) {
+	// First check AND tags: all values must be present
+	for f, v := range ef.TagsAnd {
+		if v != nil && !event.Tags.ContainsAll(f, v) {
 			return false
+		}
+	}
+
+	// Then check OR tags: any value must be present, but exclude values that are in TagsAnd
+	for f, v := range ef.Tags {
+		if v != nil {
+			// Exclude values that are in TagsAnd for the same tag name
+			andValues := ef.TagsAnd[f]
+			filteredValues := make([]string, 0, len(v))
+			for _, val := range v {
+				if !slices.Contains(andValues, val) {
+					filteredValues = append(filteredValues, val)
+				}
+			}
+
+			// If there are no values left after filtering, skip this tag
+			// (all values were in TagsAnd, which was already checked)
+			if len(filteredValues) > 0 && !event.Tags.ContainsAny(f, filteredValues) {
+				return false
+			}
 		}
 	}
 
@@ -113,6 +135,20 @@ func FilterEqual(a Filter, b Filter) bool {
 
 	for f, av := range a.Tags {
 		if bv, ok := b.Tags[f]; !ok {
+			return false
+		} else {
+			if !similar(av, bv) {
+				return false
+			}
+		}
+	}
+
+	if len(a.TagsAnd) != len(b.TagsAnd) {
+		return false
+	}
+
+	for f, av := range a.TagsAnd {
+		if bv, ok := b.TagsAnd[f]; !ok {
 			return false
 		} else {
 			if !similar(av, bv) {
@@ -154,6 +190,13 @@ func (ef Filter) Clone() Filter {
 		clone.Tags = make(TagMap, len(ef.Tags))
 		for k, v := range ef.Tags {
 			clone.Tags[k] = slices.Clone(v)
+		}
+	}
+
+	if ef.TagsAnd != nil {
+		clone.TagsAnd = make(TagMap, len(ef.TagsAnd))
+		for k, v := range ef.TagsAnd {
+			clone.TagsAnd[k] = slices.Clone(v)
 		}
 	}
 
